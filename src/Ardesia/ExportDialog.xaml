@@ -1,0 +1,28 @@
+<Window x:Class="Ardesia.ExportDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Esporta in PDF" SizeToContent="WidthAndHeight" ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
+        FontFamily="Segoe UI" FontSize="14" Foreground="{StaticResource TextBrush}">
+    <StackPanel Margin="28,22" Width="460">
+        <TextBlock Text="Cosa vuoi esportare?" FontSize="20" FontWeight="SemiBold" Margin="0,0,0,14" />
+
+        <RadioButton x:Name="ScopePage" GroupName="Scope" Margin="0,5" VerticalContentAlignment="Center" />
+        <CheckBox x:Name="IncludeSubpages" Content="Includi le sottopagine" Margin="26,2,0,6"
+                  IsEnabled="{Binding IsChecked, ElementName=ScopePage}" />
+        <RadioButton x:Name="ScopeSection" GroupName="Scope" Margin="0,5" />
+        <RadioButton x:Name="ScopeNotebook" GroupName="Scope" Margin="0,5" />
+
+        <Border Height="1" Background="{StaticResource LineBrush}" Margin="0,14" />
+        <CheckBox x:Name="OpenAfter" Content="Apri il PDF al termine dell'esportazione" IsChecked="True" />
+
+        <Border Background="#FFEEF6F8" CornerRadius="6" Padding="12,10" Margin="0,16,0,0">
+            <TextBlock x:Name="DriveHint" TextWrapping="Wrap" FontSize="12.5" Foreground="{StaticResource SubtleTextBrush}" />
+        </Border>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,22,0,0">
+            <Button Content="Esporta…" IsDefault="True" Style="{StaticResource AccentButton}" Click="Ok_Click" Margin="0,0,8,0" />
+            <Button Content="Annulla" IsCancel="True" Style="{StaticResource PlainButton}" />
+        </StackPanel>
+    </StackPanel>
+</Window>

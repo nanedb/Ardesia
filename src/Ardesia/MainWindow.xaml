@@ -1,0 +1,437 @@
+<Window x:Class="Ardesia.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:c="clr-namespace:Ardesia.Controls"
+        xmlns:ed="clr-namespace:Ardesia.Editor"
+        Title="Ardesia" Width="1440" Height="900" MinWidth="900" MinHeight="600"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource NavBrush}"
+        FontFamily="Segoe UI" FontSize="13" Foreground="{StaticResource TextBrush}"
+        UseLayoutRounding="True">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- ═════════════ Barra viola ═════════════ -->
+        <Border Grid.Row="0" Background="{StaticResource AccentBrush}">
+            <DockPanel Height="46" LastChildFill="True">
+                <Button x:Name="FileButton" DockPanel.Dock="Left" Style="{StaticResource HeaderButton}" Padding="18,0"
+                        Click="FileButton_Click" ToolTip="Nuovo, apri, salva, esporta in PDF">
+                    <TextBlock Text="File" FontSize="14" FontWeight="SemiBold" Foreground="White" />
+                </Button>
+
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                    <TextBlock x:Name="StatusText" Foreground="#E0FFFFFF" FontSize="12" VerticalAlignment="Center" Margin="0,0,12,0" />
+                    <Button Style="{StaticResource HeaderButton}" Click="Save_Click" ToolTip="Salva (Ctrl+S)">
+                        <TextBlock Style="{StaticResource HeaderGlyph}" Text="&#xE74E;" />
+                    </Button>
+                    <Button Style="{StaticResource HeaderButton}" Click="Undo_Click" ToolTip="Annulla (Ctrl+Z)">
+                        <TextBlock Style="{StaticResource HeaderGlyph}" Text="&#xE7A7;" />
+                    </Button>
+                    <Button Style="{StaticResource HeaderButton}" Click="Redo_Click" ToolTip="Ripeti (Ctrl+Y)">
+                        <TextBlock Style="{StaticResource HeaderGlyph}" Text="&#xE7A6;" />
+                    </Button>
+                    <Button Style="{StaticResource HeaderButton}" Click="ToggleNav_Click" ToolTip="Mostra/nascondi sezioni e pagine">
+                        <TextBlock Style="{StaticResource HeaderGlyph}" Text="&#xE700;" />
+                    </Button>
+                    <Button Style="{StaticResource HeaderButton}" Click="FullScreen_Click" ToolTip="Schermo intero (F11)">
+                        <TextBlock x:Name="FullScreenGlyph" Style="{StaticResource HeaderGlyph}" Text="&#xE740;" />
+                    </Button>
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <Border Width="26" Height="26" CornerRadius="5" Background="#FF2F3B3A" Margin="0,0,10,0">
+                        <TextBlock Text="A" Foreground="White" FontFamily="Georgia" FontSize="17" FontWeight="Bold"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,0,1" />
+                    </Border>
+                    <TextBox x:Name="NotebookTitleBox" Text="{Binding Title, UpdateSourceTrigger=PropertyChanged}"
+                             Foreground="White" CaretBrush="White" Background="Transparent" BorderThickness="0,0,0,1"
+                             BorderBrush="#60FFFFFF" FontSize="15" MinWidth="160" MaxWidth="520" Padding="2,1"
+                             ToolTip="Nome del blocco appunti" TextChanged="NotebookTitleBox_TextChanged" />
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- ═════════════ Barra multifunzione ═════════════ -->
+        <Grid Grid.Row="1">
+        <!-- Barra semplificata: una sola riga con gli strumenti essenziali -->
+        <Border x:Name="SimpleBar" Background="White" BorderBrush="{StaticResource LineBrush}" BorderThickness="0,0,0,1" Visibility="Collapsed">
+            <DockPanel Height="52" Margin="8,0">
+                <Button DockPanel.Dock="Right" Style="{StaticResource RibbonSmallButton}" VerticalAlignment="Center"
+                        c:Rb.Label="Barra completa" Click="RibbonMode_Click" ToolTip="Mostra la barra completa con tutte le schede">
+                    <TextBlock Style="{StaticResource SmallGlyph}" Text="&#xE70D;" FontSize="12" />
+                </Button>
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Focusable="False">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button Style="{StaticResource IconButton}" Click="Undo_Click" ToolTip="Annulla (Ctrl+Z)"><TextBlock Style="{StaticResource SmallGlyph}" Text="&#xE7A7;" /></Button>
+                        <Button Style="{StaticResource IconButton}" Click="Redo_Click" ToolTip="Ripeti (Ctrl+Y)"><TextBlock Style="{StaticResource SmallGlyph}" Text="&#xE7A6;" /></Button>
+                        <Border Style="{StaticResource BarSeparator}" />
+                        <ToggleButton Style="{StaticResource IconToggle}" Tag="Tool:Select" ToolTip="Seleziona con il lazo"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconLasso}" /></ToggleButton>
+                        <ToggleButton Style="{StaticResource IconToggle}" Tag="Tool:Text" ToolTip="Testo"><TextBlock Style="{StaticResource SmallGlyph}" Text="&#xE8D2;" FontSize="17" /></ToggleButton>
+                        <ToggleButton Style="{StaticResource IconToggle}" Tag="Tool:Hand" ToolTip="Sposta pagina (due dita per lo zoom)"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconHand}" /></ToggleButton>
+                        <Border Style="{StaticResource BarSeparator}" />
+                        <StackPanel x:Name="PensSimple" Orientation="Horizontal" VerticalAlignment="Center" />
+                        <Border Style="{StaticResource BarSeparator}" />
+                        <ToggleButton Style="{StaticResource IconToggle}" Tag="Tool:EraserStroke" ToolTip="Gomma (tratti interi)"><TextBlock Style="{StaticResource SmallGlyph}" Text="&#xE75C;" FontSize="17" /></ToggleButton>
+                        <ToggleButton Style="{StaticResource IconToggle}" Tag="Tool:EraserPoint" ToolTip="Gomma precisa (la freccetta sceglie la misura)"><Grid Width="32" Height="32"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconPointEraser}" HorizontalAlignment="Center" VerticalAlignment="Center" /><Button Style="{StaticResource PenChevron}" Width="13" Height="13" Click="EraserSize_Click" ToolTip="Misura della gomma" /></Grid></ToggleButton>
+                        <Border Style="{StaticResource BarSeparator}" />
+                        <Button x:Name="ShapesButton" Style="{StaticResource IconButton}" Click="ShapesButton_Click" ToolTip="Forme"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconTriangle}" /></Button>
+                        <Popup x:Name="ShapesPopup" PlacementTarget="{Binding ElementName=ShapesButton}" Placement="Bottom" StaysOpen="False" AllowsTransparency="True">
+                            <Border Background="White" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="6" Padding="6" Margin="0,2,8,8">
+                                <Border.Effect><DropShadowEffect BlurRadius="10" ShadowDepth="2" Opacity="0.25" /></Border.Effect>
+                                <StackPanel Orientation="Horizontal">
+                                    <ToggleButton Style="{StaticResource IconToggle}" Tag="Shape:Line" ToolTip="Linea"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconLine}" /></ToggleButton>
+                                    <ToggleButton Style="{StaticResource IconToggle}" Tag="Shape:Arrow" ToolTip="Freccia"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconArrow}" /></ToggleButton>
+                                    <ToggleButton Style="{StaticResource IconToggle}" Tag="Shape:Rectangle" ToolTip="Rettangolo"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconRect}" /></ToggleButton>
+                                    <ToggleButton Style="{StaticResource IconToggle}" Tag="Shape:Ellipse" ToolTip="Ellisse"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconEllipse}" /></ToggleButton>
+                                    <ToggleButton Style="{StaticResource IconToggle}" Tag="Shape:Triangle" ToolTip="Triangolo"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconTriangle}" /></ToggleButton>
+                                </StackPanel>
+                            </Border>
+                        </Popup>
+                        <ToggleButton Style="{StaticResource IconToggle}" Tag="Ruler" ToolTip="Righello"><TextBlock Style="{StaticResource SmallGlyph}" Text="&#xED5E;" FontSize="17" /></ToggleButton>
+                        <ToggleButton Style="{StaticResource IconToggle}" Tag="Protractor" ToolTip="Goniometro"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconProtractor}" /></ToggleButton>
+                        <ToggleButton Style="{StaticResource IconToggle}" Tag="Tool:Compass" ToolTip="Compasso (ricliccalo o premi Esc per chiuderlo)"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconCompass}" /></ToggleButton>
+                        <Border Style="{StaticResource BarSeparator}" />
+                        <Button Style="{StaticResource IconButton}" Click="InsertImage_Click" ToolTip="Inserisci immagine"><TextBlock Style="{StaticResource SmallGlyph}" Text="&#xE8B9;" FontSize="17" /></Button>
+                        <Button Style="{StaticResource IconButton}" Click="NewPage_Click" ToolTip="Nuova pagina (Ctrl+N)"><TextBlock Style="{StaticResource SmallGlyph}" Text="&#xE7C3;" FontSize="17" /></Button>
+                        <Button Style="{StaticResource IconButton}" Click="ExportPdf_Click" ToolTip="Esporta in PDF (Ctrl+P)"><TextBlock Style="{StaticResource SmallGlyph}" Text="&#xE749;" FontSize="17" /></Button>
+                    </StackPanel>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+
+        <TabControl x:Name="Ribbon" Style="{StaticResource RibbonTabControl}" SelectedIndex="2">
+            <TabControl.Resources>
+                <Style TargetType="TabItem" BasedOn="{StaticResource RibbonTab}" />
+            </TabControl.Resources>
+
+            <!-- Home -->
+            <TabItem Header="Home">
+                <StackPanel Orientation="Horizontal">
+                    <HeaderedContentControl Header="Appunti" Style="{StaticResource RibbonGroup}">
+                        <StackPanel Orientation="Horizontal">
+                            <Button Style="{StaticResource RibbonLargeButton}" c:Rb.Label="Incolla" Click="Paste_Click" ToolTip="Incolla (Ctrl+V)">
+                                <TextBlock Style="{StaticResource Glyph}" Text="&#xE77F;" />
+                            </Button>
+                            <StackPanel VerticalAlignment="Center">
+                                <Button Style="{StaticResource RibbonSmallButton}" c:Rb.Label="Taglia" Click="Cut_Click" ToolTip="Taglia (Ctrl+X)">
+                                    <TextBlock Style="{StaticResource SmallGlyph}" Text="&#xE8C6;" />
+                                </Button>
+                                <Button Style="{StaticResource RibbonSmallButton}" c:Rb.Label="Copia" Click="Copy_Click" ToolTip="Copia (Ctrl+C)">
+                                    <TextBlock Style="{StaticResource SmallGlyph}" Text="&#xE8C8;" />
+                                </Button>
+                                <Button Style="{StaticResource RibbonSmallButton}" c:Rb.Label="Seleziona tutto" Click="SelectAll_Click" ToolTip="Seleziona tutto (Ctrl+A)">
+                                    <TextBlock Style="{StaticResource SmallGlyph}" Text="&#xE8B3;" />
+                                </Button>
+                            </StackPanel>
+                        </StackPanel>
+                    </HeaderedContentControl>
+
+                    <HeaderedContentControl Header="Testo" Style="{StaticResource RibbonGroup}">
+                        <StackPanel VerticalAlignment="Center" Margin="2,0">
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                <ComboBox x:Name="FontCombo" Width="160" SelectionChanged="FontCombo_SelectionChanged" ToolTip="Tipo di carattere" />
+                                <ComboBox x:Name="SizeCombo" Width="66" Margin="4,0,0,0" SelectionChanged="SizeCombo_SelectionChanged" ToolTip="Dimensione del carattere" />
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <Button Style="{StaticResource IconButton}" Click="Bold_Click" ToolTip="Grassetto (Ctrl+B)">
+                                    <TextBlock Style="{StaticResource SmallGlyph}" Text="&#xE8DD;" />
+                                </Button>
+                                <Button Style="{StaticResource IconButton}" Click="Italic_Click" ToolTip="Corsivo (Ctrl+I)">
+                                    <TextBlock Style="{StaticResource SmallGlyph}" Text="&#xE8DB;" />
+                                </Button>
+                                <Button Style="{StaticResource IconButton}" Click="Underline_Click" ToolTip="Sottolineato (Ctrl+U)">
+                                    <TextBlock Style="{StaticResource SmallGlyph}" Text="&#xE8DC;" />
+                                </Button>
+                                <Button x:Name="TextColorButton" Style="{StaticResource IconButton}" Click="TextColor_Click" ToolTip="Colore del testo">
+                                    <Grid>
+                                        <TextBlock Style="{StaticResource SmallGlyph}" Text="&#xE8D3;" />
+                                    </Grid>
+                                </Button>
+                            </StackPanel>
+                        </StackPanel>
+                    </HeaderedContentControl>
+
+                    <HeaderedContentControl Header="Modifica" Style="{StaticResource RibbonGroup}">
+                        <StackPanel Orientation="Horizontal">
+                            <Button Style="{StaticResource RibbonLargeButton}" c:Rb.Label="Annulla" Click="Undo_Click" ToolTip="Annulla (Ctrl+Z)">
+                                <TextBlock Style="{StaticResource Glyph}" Text="&#xE7A7;" />
+                            </Button>
+                            <Button Style="{StaticResource RibbonLargeButton}" c:Rb.Label="Ripeti" Click="Redo_Click" ToolTip="Ripeti (Ctrl+Y)">
+                                <TextBlock Style="{StaticResource Glyph}" Text="&#xE7A6;" />
+                            </Button>
+                            <Button Style="{StaticResource RibbonLargeButton}" c:Rb.Label="Elimina" Click="Delete_Click" ToolTip="Elimina la selezione (Canc)">
+                                <TextBlock Style="{StaticResource Glyph}" Text="&#xE74D;" />
+                            </Button>
+                        </StackPanel>
+                    </HeaderedContentControl>
+                </StackPanel>
+            </TabItem>
+
+            <!-- Inserisci -->
+            <TabItem Header="Inserisci">
+                <StackPanel Orientation="Horizontal">
+                    <HeaderedContentControl Header="Contenuti" Style="{StaticResource RibbonGroup}">
+                        <StackPanel Orientation="Horizontal">
+                            <Button Style="{StaticResource RibbonLargeButton}" c:Rb.Label="Casella di testo" Click="InsertText_Click">
+                                <TextBlock Style="{StaticResource Glyph}" Text="&#xE8D2;" />
+                            </Button>
+                            <Button Style="{StaticResource RibbonLargeButton}" c:Rb.Label="Immagine" Click="InsertImage_Click" ToolTip="Inserisci un'immagine da file (puoi anche trascinarla sulla pagina)">
+                                <TextBlock Style="{StaticResource Glyph}" Text="&#xE8B9;" />
+                            </Button>
+                        </StackPanel>
+                    </HeaderedContentControl>
+                    <HeaderedContentControl Header="Pagine" Style="{StaticResource RibbonGroup}">
+                        <StackPanel Orientation="Horizontal">
+                            <Button Style="{StaticResource RibbonLargeButton}" c:Rb.Label="Nuova pagina" Click="NewPage_Click" ToolTip="Nuova pagina (Ctrl+N)">
+                                <TextBlock Style="{StaticResource Glyph}" Text="&#xE7C3;" />
+                            </Button>
+                            <Button Style="{StaticResource RibbonLargeButton}" c:Rb.Label="Nuova sottopagina" Click="NewSubpage_Click">
+                                <Path Style="{StaticResource IconPath}" Data="{StaticResource IconSubpage}" />
+                            </Button>
+                            <Button Style="{StaticResource RibbonLargeButton}" c:Rb.Label="Duplica pagina" Click="DuplicatePage_Click">
+                                <TextBlock Style="{StaticResource Glyph}" Text="&#xE8C8;" />
+                            </Button>
+                        </StackPanel>
+                    </HeaderedContentControl>
+                    <HeaderedContentControl Header="Sezioni" Style="{StaticResource RibbonGroup}">
+                        <StackPanel Orientation="Horizontal">
+                            <Button Style="{StaticResource RibbonLargeButton}" c:Rb.Label="Nuova sezione" Click="NewSection_Click">
+                                <TextBlock Style="{StaticResource Glyph}" Text="&#xE8F4;" />
+                            </Button>
+                            <Button Style="{StaticResource RibbonLargeButton}" c:Rb.Label="Nuova sottosezione" Click="NewSubsection_Click">
+                                <Path Style="{StaticResource IconPath}" Data="{StaticResource IconSubpage}" />
+                            </Button>
+                        </StackPanel>
+                    </HeaderedContentControl>
+                    <HeaderedContentControl Header="Condividi" Style="{StaticResource RibbonGroup}">
+                        <Button Style="{StaticResource RibbonLargeButton}" c:Rb.Label="Esporta PDF" Click="ExportPdf_Click" ToolTip="Esporta in PDF (Ctrl+P)">
+                            <TextBlock Style="{StaticResource Glyph}" Text="&#xE749;" />
+                        </Button>
+                    </HeaderedContentControl>
+                </StackPanel>
+            </TabItem>
+
+            <!-- Disegna -->
+            <TabItem Header="Disegna">
+                <StackPanel Orientation="Horizontal">
+                    <HeaderedContentControl Header="Strumenti" Style="{StaticResource RibbonGroup}">
+                        <StackPanel Orientation="Horizontal">
+                            <ToggleButton Style="{StaticResource RibbonLargeToggle}" Tag="Tool:Select" c:Rb.Label="Seleziona" ToolTip="Seleziona con il lazo: sposta, ridimensiona, cambia colore">
+                                <Path Style="{StaticResource IconPath}" Data="{StaticResource IconLasso}" />
+                            </ToggleButton>
+                            <ToggleButton Style="{StaticResource RibbonLargeToggle}" Tag="Tool:Text" c:Rb.Label="Testo" ToolTip="Tocca la pagina per scrivere con la tastiera">
+                                <TextBlock Style="{StaticResource Glyph}" Text="&#xE8D2;" />
+                            </ToggleButton>
+                            <ToggleButton Style="{StaticResource RibbonLargeToggle}" Tag="Tool:Hand" c:Rb.Label="Sposta pagina" ToolTip="Trascina per scorrere, due dita per lo zoom">
+                                <Path Style="{StaticResource IconPath}" Data="{StaticResource IconHand}" />
+                            </ToggleButton>
+                            <ToggleButton Style="{StaticResource RibbonLargeToggle}" Tag="Tool:EraserStroke" c:Rb.Label="Gomma" ToolTip="Cancella tratti interi">
+                                <TextBlock Style="{StaticResource Glyph}" Text="&#xE75C;" />
+                            </ToggleButton>
+                            <ToggleButton Style="{StaticResource RibbonLargeToggle}" Tag="Tool:EraserPoint" c:Rb.Label="Gomma precisa" ToolTip="Cancella solo dove passi">
+                                <Grid Width="44" Height="30"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconPointEraser}" HorizontalAlignment="Center" /><Button Style="{StaticResource PenChevron}" Width="15" Height="15" Click="EraserSize_Click" ToolTip="Misura della gomma" /></Grid>
+                            </ToggleButton>
+                        </StackPanel>
+                    </HeaderedContentControl>
+
+                    <HeaderedContentControl Header="Penne" Style="{StaticResource RibbonGroup}">
+                        <StackPanel x:Name="PensFull" Orientation="Horizontal" VerticalAlignment="Center" />
+                    </HeaderedContentControl>
+
+                    <HeaderedContentControl Header="Forme" Style="{StaticResource RibbonGroup}">
+                        <UniformGrid Rows="2" Columns="3" VerticalAlignment="Center">
+                            <ToggleButton Style="{StaticResource IconToggle}" Tag="Shape:Line" ToolTip="Linea (Maiusc: angoli di 15°)"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconLine}" /></ToggleButton>
+                            <ToggleButton Style="{StaticResource IconToggle}" Tag="Shape:Arrow" ToolTip="Freccia"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconArrow}" /></ToggleButton>
+                            <ToggleButton Style="{StaticResource IconToggle}" Tag="Shape:Rectangle" ToolTip="Rettangolo (Maiusc: quadrato)"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconRect}" /></ToggleButton>
+                            <ToggleButton Style="{StaticResource IconToggle}" Tag="Shape:Ellipse" ToolTip="Ellisse (Maiusc: cerchio)"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconEllipse}" /></ToggleButton>
+                            <ToggleButton Style="{StaticResource IconToggle}" Tag="Shape:Triangle" ToolTip="Triangolo isoscele"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconTriangle}" /></ToggleButton>
+                        </UniformGrid>
+                    </HeaderedContentControl>
+
+                    <HeaderedContentControl Header="Geometria" Style="{StaticResource RibbonGroup}">
+                        <StackPanel Orientation="Horizontal">
+                            <ToggleButton Style="{StaticResource RibbonLargeToggle}" Tag="Ruler" c:Rb.Label="Righello" ToolTip="Righello: disegna lungo il bordo per tracciare linee dritte">
+                                <TextBlock Style="{StaticResource Glyph}" Text="&#xED5E;" />
+                            </ToggleButton>
+                            <ToggleButton Style="{StaticResource RibbonLargeToggle}" Tag="Protractor" c:Rb.Label="Goniometro">
+                                <Path Style="{StaticResource IconPath}" Data="{StaticResource IconProtractor}" />
+                            </ToggleButton>
+                            <ToggleButton Style="{StaticResource RibbonLargeToggle}" Tag="Tool:Compass" c:Rb.Label="Compasso"
+                                          ToolTip="Trascina la punta per spostarlo, la matita per il raggio; trascina sulla pagina per tracciare l'arco. Ricliccalo o premi Esc per chiuderlo.">
+                                <Path Style="{StaticResource IconPath}" Data="{StaticResource IconCompass}" />
+                            </ToggleButton>
+                        </StackPanel>
+                    </HeaderedContentControl>
+                </StackPanel>
+            </TabItem>
+
+            <!-- Visualizza -->
+            <TabItem Header="Visualizza">
+                <StackPanel Orientation="Horizontal">
+                    <HeaderedContentControl Header="Sfondo della pagina" Style="{StaticResource RibbonGroup}">
+                        <StackPanel Orientation="Horizontal">
+                            <ToggleButton Style="{StaticResource RibbonLargeToggle}" Tag="Bg:Blank" c:Rb.Label="Bianco"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconBgBlank}" /></ToggleButton>
+                            <ToggleButton Style="{StaticResource RibbonLargeToggle}" Tag="Bg:LinesNarrow" c:Rb.Label="Righe strette"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconBgLinesNarrow}" /></ToggleButton>
+                            <ToggleButton Style="{StaticResource RibbonLargeToggle}" Tag="Bg:LinesWide" c:Rb.Label="Righe larghe"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconBgLinesWide}" /></ToggleButton>
+                            <ToggleButton Style="{StaticResource RibbonLargeToggle}" Tag="Bg:GridSmall" c:Rb.Label="Quadretti 5 mm"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconBgGridSmall}" /></ToggleButton>
+                            <ToggleButton Style="{StaticResource RibbonLargeToggle}" Tag="Bg:GridLarge" c:Rb.Label="Quadretti 1 cm"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconBgGridLarge}" /></ToggleButton>
+                            <ToggleButton Style="{StaticResource RibbonLargeToggle}" Tag="Bg:Dots" c:Rb.Label="Puntini"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconBgDots}" StrokeThickness="2" /></ToggleButton>
+                        </StackPanel>
+                    </HeaderedContentControl>
+
+                    <HeaderedContentControl Header="Colore della pagina" Style="{StaticResource RibbonGroup}">
+                        <UniformGrid Rows="2" Columns="3" VerticalAlignment="Center">
+                            <ToggleButton Style="{StaticResource Swatch}" Tag="BgColor:#FFFFFF" ToolTip="Bianco"><Ellipse Style="{StaticResource SwatchDot}" Fill="#FFFFFF" /></ToggleButton>
+                            <ToggleButton Style="{StaticResource Swatch}" Tag="BgColor:#FFF8E7" ToolTip="Avorio"><Ellipse Style="{StaticResource SwatchDot}" Fill="#FFF8E7" /></ToggleButton>
+                            <ToggleButton Style="{StaticResource Swatch}" Tag="BgColor:#EAF3FF" ToolTip="Azzurro chiaro"><Ellipse Style="{StaticResource SwatchDot}" Fill="#EAF3FF" /></ToggleButton>
+                            <ToggleButton Style="{StaticResource Swatch}" Tag="BgColor:#EDF7EA" ToolTip="Verde chiaro"><Ellipse Style="{StaticResource SwatchDot}" Fill="#EDF7EA" /></ToggleButton>
+                            <ToggleButton Style="{StaticResource Swatch}" Tag="BgColor:#2F3B3A" ToolTip="Ardesia"><Ellipse Style="{StaticResource SwatchDot}" Fill="#2F3B3A" /></ToggleButton>
+                            <ToggleButton Style="{StaticResource Swatch}" Tag="BgColor:#1F3A2B" ToolTip="Lavagna verde"><Ellipse Style="{StaticResource SwatchDot}" Fill="#1F3A2B" /></ToggleButton>
+                        </UniformGrid>
+                    </HeaderedContentControl>
+
+                    <HeaderedContentControl Header="Applica" Style="{StaticResource RibbonGroup}">
+                        <Button Style="{StaticResource RibbonLargeButton}" c:Rb.Label="A tutta la sezione" Click="ApplyBackgroundToSection_Click"
+                                ToolTip="Usa questo sfondo per tutte le pagine della sezione">
+                            <TextBlock Style="{StaticResource Glyph}" Text="&#xE8B3;" />
+                        </Button>
+                    </HeaderedContentControl>
+
+                    <HeaderedContentControl Header="Zoom" Style="{StaticResource RibbonGroup}">
+                        <StackPanel Orientation="Horizontal">
+                            <Button Style="{StaticResource RibbonLargeButton}" c:Rb.Label="Ingrandisci" Click="ZoomIn_Click" ToolTip="Ingrandisci (Ctrl + rotellina)">
+                                <TextBlock Style="{StaticResource Glyph}" Text="&#xE8A3;" />
+                            </Button>
+                            <Button Style="{StaticResource RibbonLargeButton}" c:Rb.Label="Riduci" Click="ZoomOut_Click">
+                                <TextBlock Style="{StaticResource Glyph}" Text="&#xE71F;" />
+                            </Button>
+                            <Button Style="{StaticResource RibbonLargeButton}" c:Rb.Label="100%" Click="ZoomReset_Click">
+                                <TextBlock Style="{StaticResource Glyph}" Text="&#xE71E;" />
+                            </Button>
+                        </StackPanel>
+                    </HeaderedContentControl>
+
+                    <HeaderedContentControl Header="Finestra" Style="{StaticResource RibbonGroup}">
+                        <StackPanel Orientation="Horizontal">
+                            <ToggleButton Style="{StaticResource RibbonLargeToggle}" Tag="Nav" c:Rb.Label="Navigazione" ToolTip="Mostra/nascondi sezioni e pagine">
+                                <TextBlock Style="{StaticResource Glyph}" Text="&#xE700;" />
+                            </ToggleButton>
+                            <Button Style="{StaticResource RibbonLargeButton}" c:Rb.Label="Schermo intero" Click="FullScreen_Click" ToolTip="F11">
+                                <TextBlock Style="{StaticResource Glyph}" Text="&#xE740;" />
+                            </Button>
+                        </StackPanel>
+                    </HeaderedContentControl>
+
+                    <HeaderedContentControl Header="Lavagna" Style="{StaticResource RibbonGroup}">
+                        <Button Style="{StaticResource RibbonLargeButton}" c:Rb.Label="Prova tocco LIM" Click="TouchTest_Click"
+                                ToolTip="Verifica se la LIM distingue la penna dal dito e dal palmo">
+                            <Path Style="{StaticResource IconPath}" Data="{StaticResource IconHand}" />
+                        </Button>
+                    </HeaderedContentControl>
+                </StackPanel>
+            </TabItem>
+        </TabControl>
+        <Button x:Name="RibbonModeButton" Style="{StaticResource RibbonSmallButton}" HorizontalAlignment="Right" VerticalAlignment="Top"
+                Margin="0,4,10,0" c:Rb.Label="Barra semplificata" Click="RibbonMode_Click" ToolTip="Mostra una barra più compatta, su una sola riga">
+            <TextBlock Style="{StaticResource SmallGlyph}" Text="&#xE70E;" FontSize="12" />
+        </Button>
+        </Grid>
+
+        <!-- ═════════════ Sezioni | Pagine | Foglio ═════════════ -->
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition x:Name="SectionsColumn" Width="180" MinWidth="120" />
+                <ColumnDefinition x:Name="PagesColumn" Width="200" MinWidth="120" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <DockPanel Grid.Column="0" Background="{StaticResource NavBrush}">
+                <TextBlock DockPanel.Dock="Top" Text="Sezioni" Style="{StaticResource PaneHeader}" />
+                <Button DockPanel.Dock="Bottom" Style="{StaticResource NavAddButton}" Click="NewSection_Click">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="&#xE710;" FontFamily="{StaticResource IconFont}" FontSize="14" VerticalAlignment="Center" Margin="0,0,10,0" />
+                        <TextBlock Text="Aggiungi sezione" />
+                    </StackPanel>
+                </Button>
+                <TreeView x:Name="SectionTree" Style="{StaticResource NavTree}" ItemsSource="{Binding Sections}"
+                          SelectedItemChanged="SectionTree_SelectedItemChanged"
+                          PreviewMouseRightButtonDown="Tree_PreviewMouseRightButtonDown"
+                          PreviewMouseLeftButtonDown="Tree_PreviewMouseLeftButtonDown"
+                          PreviewMouseMove="Tree_PreviewMouseMove"
+                          DragOver="Tree_DragOver" Drop="Tree_Drop" KeyDown="Tree_KeyDown">
+                    <TreeView.Resources>
+                        <Style TargetType="TreeViewItem" BasedOn="{StaticResource NavTreeItem}" />
+                    </TreeView.Resources>
+                    <TreeView.ItemTemplate>
+                        <HierarchicalDataTemplate ItemsSource="{Binding Sections}">
+                            <StackPanel Orientation="Horizontal">
+                                <Border Width="5" Height="20" CornerRadius="2" Background="{Binding Color}" Margin="0,0,10,0" VerticalAlignment="Center" />
+                                <Grid>
+                                    <TextBlock Text="{Binding DisplayTitle}" VerticalAlignment="Center"
+                                               Visibility="{Binding IsEditing, Converter={StaticResource InvBoolToVis}}" />
+                                    <TextBox Text="{Binding Title, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InlineEditBox}"
+                                             Visibility="{Binding IsEditing, Converter={StaticResource BoolToVis}}"
+                                             IsVisibleChanged="EditBox_IsVisibleChanged" KeyDown="EditBox_KeyDown"
+                                             LostKeyboardFocus="EditBox_LostKeyboardFocus" />
+                                </Grid>
+                            </StackPanel>
+                        </HierarchicalDataTemplate>
+                    </TreeView.ItemTemplate>
+                </TreeView>
+            </DockPanel>
+            <GridSplitter Grid.Column="0" Width="5" HorizontalAlignment="Right" Background="Transparent" />
+
+            <DockPanel Grid.Column="1" Background="{StaticResource PagesPaneBrush}">
+                <Border DockPanel.Dock="Top" BorderBrush="{StaticResource LineBrush}" BorderThickness="0,0,0,0">
+                    <DockPanel>
+                        <Border DockPanel.Dock="Left" x:Name="SectionColorBar" Width="4" Margin="10,12,0,8" CornerRadius="2" Background="{StaticResource AccentBrush}" />
+                        <TextBlock x:Name="PagesHeader" Text="Pagine" Style="{StaticResource PaneHeader}" Margin="8,12,8,8" />
+                    </DockPanel>
+                </Border>
+                <Button DockPanel.Dock="Top" Style="{StaticResource NavAddButton}" Click="NewPage_Click">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="&#xE710;" FontFamily="{StaticResource IconFont}" FontSize="14" VerticalAlignment="Center" Margin="0,0,10,0" />
+                        <TextBlock Text="Aggiungi pagina" />
+                    </StackPanel>
+                </Button>
+                <TreeView x:Name="PageTree" Style="{StaticResource NavTree}"
+                          SelectedItemChanged="PageTree_SelectedItemChanged"
+                          PreviewMouseRightButtonDown="Tree_PreviewMouseRightButtonDown"
+                          PreviewMouseLeftButtonDown="Tree_PreviewMouseLeftButtonDown"
+                          PreviewMouseMove="Tree_PreviewMouseMove"
+                          DragOver="Tree_DragOver" Drop="Tree_Drop" KeyDown="Tree_KeyDown">
+                    <TreeView.Resources>
+                        <Style TargetType="TreeViewItem" BasedOn="{StaticResource NavTreeItem}" />
+                    </TreeView.Resources>
+                    <TreeView.ItemTemplate>
+                        <HierarchicalDataTemplate ItemsSource="{Binding Pages}">
+                            <Grid>
+                                <TextBlock Text="{Binding DisplayTitle}" VerticalAlignment="Center"
+                                           Visibility="{Binding IsEditing, Converter={StaticResource InvBoolToVis}}" />
+                                <TextBox Text="{Binding Title, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InlineEditBox}"
+                                         Visibility="{Binding IsEditing, Converter={StaticResource BoolToVis}}"
+                                         IsVisibleChanged="EditBox_IsVisibleChanged" KeyDown="EditBox_KeyDown"
+                                         LostKeyboardFocus="EditBox_LostKeyboardFocus" />
+                            </Grid>
+                        </HierarchicalDataTemplate>
+                    </TreeView.ItemTemplate>
+                </TreeView>
+            </DockPanel>
+            <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Right" Background="Transparent" />
+
+            <Grid Grid.Column="2">
+                <ed:PageEditor x:Name="Editor" />
+                <Border x:Name="EmptyState" Background="#FFF3F2F1" Visibility="Collapsed">
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <TextBlock Text="Questa sezione non contiene pagine" FontSize="18" Foreground="{StaticResource SubtleTextBrush}" HorizontalAlignment="Center" />
+                        <Button Content="Aggiungi una pagina" Style="{StaticResource AccentButton}" Margin="0,16,0,0" HorizontalAlignment="Center" Click="NewPage_Click" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Grid>
+    </Grid>
+</Window>
