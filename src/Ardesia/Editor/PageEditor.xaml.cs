@@ -104,8 +104,19 @@ public partial class PageEditor : UserControl
 
         SetupContextMenuInput();
         // Spostamento della selezione con dito o penna (col mouse è gestito in ContentHost_PreviewMouseDown).
+        // Palmo / gomma della penna: gomma grande quanto il contatto (o 60 px se la LIM non ne dà la misura).
         ContentHost.PreviewStylusDown += (_, e) =>
         {
+            if (e.StylusDevice.Inverted)
+                Ink.EraserShape = new EllipseStylusShape(PalmEraserSize(e), PalmEraserSize(e));
+        };
+        ContentHost.PreviewStylusUp += (_, e) =>
+        {
+            if (e.StylusDevice.Inverted) Ink.EraserShape = new EllipseStylusShape(EraserSize, EraserSize);
+        };
+        ContentHost.PreviewStylusDown += (_, e) =>
+        {
+            if (e.StylusDevice.Inverted) return;
             if (_tool != EditorTool.Select || IsWithin(e.OriginalSource as DependencyObject, TitleArea)) return;
             if (!TryBeginMove(e.GetPosition(Ink))) return;
             ContentHost.CaptureStylus();
@@ -340,7 +351,9 @@ public partial class PageEditor : UserControl
                 Ink.EditingMode = InkCanvasEditingMode.None;
                 break;
         }
-        Ink.EditingModeInverted = InkCanvasEditingMode.EraseByStroke;
+        // Gomma "rovesciata": il palmo (sulle LIM che lo segnalano, es. Promethean) o il retro della penna
+        // cancellano solo dove passano, con una gomma grande come un palmo.
+        Ink.EditingModeInverted = InkCanvasEditingMode.EraseByPoint;
         ApplyDrawingAttributes();
 
         Ink.UseCustomCursor = Ink.EditingMode == InkCanvasEditingMode.None;
@@ -413,6 +426,36 @@ public partial class PageEditor : UserControl
             _eraserSize = value;
             if (_tool == EditorTool.EraserPoint) ApplyTool();
         }
+    }
+
+    /// <summary>Diametro della gomma per il palmo: la larghezza del contatto (se la LIM la comunica), tra 40 e 120 px.</summary>
+    double PalmEraserSize(StylusEventArgs e)
+    {
+        try
+        {
+            var pts = e.GetStylusPoints(Ink);
+            var desc = pts.Description;
+            if (pts.Count > 0 && desc.HasProperty(StylusPointProperties.Width))
+            {
+                var info = desc.GetPropertyInfo(StylusPointProperties.Width);
+                double perUnitMm = info.Unit switch
+                {
+                    StylusPointPropertyUnit.Centimeters => 10,
+                    StylusPointPropertyUnit.Inches => 25.4,
+                    _ => 0,
+                };
+                if (info.Resolution > 0 && perUnitMm > 0)
+                {
+                    double mm = pts.Max(p => p.GetPropertyValue(StylusPointProperties.Width)) / info.Resolution * perUnitMm;
+                    return Math.Clamp(mm * 96 / 25.4 * 1.3, 40, 120);
+                }
+            }
+        }
+        catch
+        {
+            // misura non disponibile
+        }
+        return 60;
     }
 
     /// <summary>L'evidenziatore di WPF è già semitrasparente; con l'alfa lo rendiamo ancora più leggero.</summary>
@@ -1041,6 +1084,7 @@ public partial class PageEditor : UserControl
                 return;
             }
             var src = e.OriginalSource as DependencyObject;
+            if (e.StylusDevice.Inverted) return; // il palmo appoggiato cancella, non apre il menu
             if (_node == null || _drag != DragMode.None || IsWithin(src, TitleArea) ||
                 FindAncestor<DraggableTool>(src) != null || (_tool == EditorTool.Text && FindAncestor<TextBoxBase>(src) != null))
                 return;
@@ -1153,6 +1197,7 @@ public partial class PageEditor : UserControl
     void ContentHost_PreviewMouseDown(object sender, MouseButtonEventArgs e)
     {
         if (_node == null || _drag != DragMode.None) return;
+        if (e.StylusDevice?.Inverted == true) return; // palmo / gomma: lo gestisce il foglio cancellando
         var src = e.OriginalSource as DependencyObject;
         if (FindAncestor<DraggableTool>(src) != null) return;
 

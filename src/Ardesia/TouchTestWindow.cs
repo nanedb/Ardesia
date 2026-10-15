@@ -17,7 +17,8 @@ public sealed class TouchTestWindow : Window
     readonly ListBox _log = new() { FontFamily = new FontFamily("Consolas"), FontSize = 13, BorderThickness = new Thickness(0) };
     readonly TextBlock _summary = new() { TextWrapping = TextWrapping.Wrap, FontSize = 14, Margin = new Thickness(0, 0, 0, 8) };
     readonly Dictionary<int, (string Kind, double MaxMm)> _contacts = new();
-    int _penCount, _touchCount, _mouseCount, _withSize;
+    int _penCount, _eraserCount, _touchCount, _mouseCount, _withSize, _touchWithSize;
+    double _touchMin = double.MaxValue, _touchMax;
     double _minMm = double.MaxValue, _maxMm;
 
     public TouchTestWindow()
@@ -36,7 +37,7 @@ public sealed class TouchTestWindow : Window
             Margin = new Thickness(0, 0, 0, 10),
             Text = "Tocca e traccia linee nel riquadro bianco: prima con la PENNA, poi con un DITO, poi con il PALMO della mano " +
                    "(e, se la penna ha due punte, con la punta grossa). A destra compare ciò che Windows riceve. " +
-                   "Le linee blu arrivano come «penna», quelle arancioni come «tocco».",
+                   "Le linee blu arrivano come «penna», quelle arancioni come «tocco», quelle rosa come «gomma» (palmo o retro della penna).",
         };
 
         var clear = new Button { Content = "Ricomincia", Padding = new Thickness(14, 6, 14, 6), Margin = new Thickness(0, 8, 8, 0) };
@@ -87,7 +88,9 @@ public sealed class TouchTestWindow : Window
         _canvas.Children.Clear();
         _log.Items.Clear();
         _contacts.Clear();
-        _penCount = _touchCount = _mouseCount = _withSize = 0;
+        _penCount = _eraserCount = _touchCount = _mouseCount = _withSize = _touchWithSize = 0;
+        _touchMin = double.MaxValue;
+        _touchMax = 0;
         _minMm = double.MaxValue;
         _maxMm = 0;
         UpdateSummary();
@@ -98,14 +101,14 @@ public sealed class TouchTestWindow : Window
         var device = e.StylusDevice;
         var tablet = device.TabletDevice;
         bool isTouch = tablet?.Type == TabletDeviceType.Touch;
-        string kind = isTouch ? "tocco" : device.Inverted ? "penna (gomma)" : "penna";
+        string kind = isTouch ? "tocco" : device.Inverted ? "gomma/palmo" : "penna";
 
         var points = e.GetStylusPoints(_canvas);
         double? mm = ContactWidthMm(points);
 
         if (down)
         {
-            if (isTouch) _touchCount++; else _penCount++;
+            if (isTouch) _touchCount++; else if (device.Inverted) _eraserCount++; else _penCount++;
             _contacts[device.Id] = (kind, mm ?? 0);
             Add($"↓ {kind,-14} dispositivo: «{tablet?.Name}»");
         }
@@ -114,7 +117,7 @@ public sealed class TouchTestWindow : Window
             _contacts[device.Id] = (c.Kind, v);
         }
 
-        var brush = isTouch ? Brushes.DarkOrange : Brushes.RoyalBlue;
+        var brush = isTouch ? Brushes.DarkOrange : device.Inverted ? Brushes.MediumVioletRed : Brushes.RoyalBlue;
         foreach (var p in points)
         {
             double d = Math.Clamp((mm ?? 1.5) * 96 / 25.4, 3, 80);
@@ -135,6 +138,12 @@ public sealed class TouchTestWindow : Window
             _withSize++;
             _minMm = Math.Min(_minMm, c.MaxMm);
             _maxMm = Math.Max(_maxMm, c.MaxMm);
+            if (c.Kind == "tocco")
+            {
+                _touchWithSize++;
+                _touchMin = Math.Min(_touchMin, c.MaxMm);
+                _touchMax = Math.Max(_touchMax, c.MaxMm);
+            }
             Add($"↑ {c.Kind,-14} larghezza massima del contatto: {c.MaxMm.ToString("0.0", CultureInfo.InvariantCulture)} mm");
         }
         else
@@ -169,18 +178,25 @@ public sealed class TouchTestWindow : Window
 
     void UpdateSummary()
     {
-        var verdict = (_penCount, _touchCount) switch
+        string penVsFinger = (_penCount, _touchCount) switch
         {
-            (0, 0) => "Nessun contatto ancora.",
+            (0, 0) => "",
             ( > 0, > 0) => "✔ La LIM distingue la penna dal dito: Ardesia potrà far scrivere solo la penna e usare il dito per spostare la pagina.",
-            (0, > 0) when _withSize > 0 && _maxMm > _minMm * 2 =>
-                "Tutto arriva come «tocco», ma la larghezza del contatto varia: si potrà distinguere penna, dito e palmo dalla misura.",
-            (0, > 0) when _withSize > 0 => "Tutto arriva come «tocco» con una larghezza: prova anche col palmo per vedere se cambia.",
-            (0, > 0) => "Tutto arriva come «tocco» e senza larghezza del contatto: Windows non può distinguere penna e dito.",
-            _ => "Arriva solo input di tipo «penna».",
+            ( > 0, 0) => "La penna arriva come «penna». Prova anche col dito per vedere se arriva come «tocco».",
+            (0, > 0) when _touchWithSize > 0 && _touchMax > _touchMin * 2 =>
+                "Penna e dito arrivano entrambi come «tocco», ma la larghezza del contatto cambia: si potranno distinguere dalla misura.",
+            (0, > 0) when _touchWithSize > 0 =>
+                "Penna e dito arrivano entrambi come «tocco», con larghezze simili: Windows non riesce a distinguerli.",
+            _ => "✘ Penna e dito arrivano entrambi come «tocco», senza misura del contatto: Windows non può distinguerli.",
         };
+        string eraser = _eraserCount > 0
+            ? "✔ Il palmo (o il retro della penna) arriva come «gomma»: in Ardesia cancella direttamente dove passa, con qualsiasi strumento."
+            : _touchCount + _penCount > 0 ? "Prova anche ad appoggiare il palmo: alcune LIM lo segnalano come gomma." : "";
+        string verdict = _penCount + _touchCount + _eraserCount == 0
+            ? "Nessun contatto ancora."
+            : string.Join("\n\n", new[] { penVsFinger, eraser }.Where(s => s.Length > 0));
         _summary.Text =
-            $"Penna: {_penCount}   Tocco: {_touchCount}   Mouse: {_mouseCount}\n" +
+            $"Penna: {_penCount}   Tocco: {_touchCount}   Gomma/palmo: {_eraserCount}   Mouse: {_mouseCount}\n" +
             (_withSize > 0
                 ? $"Larghezza contatti: da {_minMm.ToString("0.0", CultureInfo.InvariantCulture)} a {_maxMm.ToString("0.0", CultureInfo.InvariantCulture)} mm\n"
                 : "") +
