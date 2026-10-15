@@ -21,6 +21,7 @@ public partial class StartWindow : Window
     {
         _settings = settings;
         InitializeComponent();
+        MaxHeight = SystemParameters.WorkArea.Height - 20; // mai più alta dello schermo
         if (message != null)
         {
             MessageText.Text = message;

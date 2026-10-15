@@ -3,8 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:c="clr-namespace:Ardesia.Controls"
         xmlns:ed="clr-namespace:Ardesia.Editor"
-        Title="Ardesia" Width="1440" Height="900" MinWidth="900" MinHeight="600"
-        WindowStartupLocation="CenterScreen"
+        Title="Ardesia" Width="1280" Height="800" MinWidth="640" MinHeight="420"
+        WindowStartupLocation="CenterScreen" WindowState="Maximized"
         Background="{StaticResource NavBrush}"
         FontFamily="Segoe UI" FontSize="13" Foreground="{StaticResource TextBrush}"
         UseLayoutRounding="True">

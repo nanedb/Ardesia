@@ -220,6 +220,38 @@ public sealed class RulerTool : DraggableTool
         DrawRotateHandle(dc);
     }
 
+    /// <summary>
+    /// Se il punto è appena fuori da un bordo lungo del righello (entro <paramref name="tolerance"/>),
+    /// restituisce il lato (-1 sopra, +1 sotto, nel riferimento del righello) e la posizione lungo il bordo.
+    /// </summary>
+    public bool TryEdgeAt(Point world, double tolerance, out int side, out double localX)
+    {
+        side = 0;
+        localX = 0;
+        if (Visibility != Visibility.Visible) return false;
+        var lp = ToLocal(world);
+        double l = Length / 2, t = Thickness / 2;
+        if (lp.X < -l - 6 || lp.X > l + 6) return false;
+        foreach (int s in new[] { -1, 1 })
+        {
+            double outward = (lp.Y - s * t) * s;
+            if (outward > -4 && outward < tolerance)
+            {
+                side = s;
+                localX = Math.Clamp(lp.X, -l, l);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>Posizione lungo il bordo (coordinata x del righello) corrispondente a un punto qualsiasi.</summary>
+    public double LocalX(Point world) => Math.Clamp(ToLocal(world).X, -Length / 2, Length / 2);
+
+    /// <summary>Punto sul bordo indicato, spostato verso l'esterno di <paramref name="offset"/> (metà spessore del tratto).</summary>
+    public Point EdgePoint(int side, double localX, double offset) =>
+        ToWorld(new Point(Math.Clamp(localX, -Length / 2, Length / 2), side * (Thickness / 2 + offset)));
+
     /// <summary>Se il tratto è stato tracciato lungo un bordo del righello, restituisce il segmento dritto equivalente.</summary>
     public Stroke? TrySnap(Stroke s)
     {

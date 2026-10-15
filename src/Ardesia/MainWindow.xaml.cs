@@ -71,6 +71,7 @@ public partial class MainWindow : Window
         ActivatePen(0);
         SetSimpleRibbon(_settings.SimpleRibbon);
         PreviewKeyDown += Window_PreviewKeyDown;
+        SourceInitialized += (_, _) => FitToScreen();
         Closing += Window_Closing;
 
         _autosaveTimer.Tick += (_, _) => AutoSave();
@@ -97,6 +98,21 @@ public partial class MainWindow : Window
             if (TryOpen(start.ResultPath)) return;
             message = null;
         }
+    }
+
+    /// <summary>
+    /// Sulle LIM con ridimensionamento alto (es. 150%) lo spazio utile è piccolo: la finestra "normale"
+    /// (non ingrandita) non deve mai superare lo schermo, altrimenti la barra del titolo finisce fuori.
+    /// </summary>
+    void FitToScreen()
+    {
+        var area = SystemParameters.WorkArea;
+        Width = Math.Min(Width, area.Width - 20);
+        Height = Math.Min(Height, area.Height - 20);
+        MinWidth = Math.Min(MinWidth, Width);
+        MinHeight = Math.Min(MinHeight, Height);
+        Left = area.Left + (area.Width - Width) / 2;
+        Top = area.Top + (area.Height - Height) / 2;
     }
 
     static IEnumerable<T> FindLogical<T>(DependencyObject root) where T : DependencyObject

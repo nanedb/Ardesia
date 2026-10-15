@@ -32,7 +32,7 @@ public partial class PageEditor : UserControl
     static ClipData? _clip;
     static int _pasteCount;
 
-    enum DragMode { None, Pan, Shape, CompassMove, CompassRadius, CompassDraw, MoveSelection }
+    enum DragMode { None, Pan, Shape, CompassMove, CompassRadius, CompassDraw, MoveSelection, RulerLine }
 
     readonly UndoManager _undo = new();
     readonly DispatcherTimer _commitTimer;
@@ -104,6 +104,7 @@ public partial class PageEditor : UserControl
 
         SetupContextMenuInput();
         SetupFingerPan();
+        SetupDrawingAids();
         // Spostamento della selezione con dito o penna (col mouse è gestito in ContentHost_PreviewMouseDown).
         // Palmo / gomma della penna: gomma grande quanto il contatto (o 60 px se la LIM non ne dà la misura).
         ContentHost.PreviewStylusDown += (_, e) =>
@@ -143,6 +144,7 @@ public partial class PageEditor : UserControl
         ContentHost.PreviewTouchUp += (_, _) => DeferCommit();
         ContentHost.ManipulationStarting += ContentHost_ManipulationStarting;
         ContentHost.ManipulationDelta += ContentHost_ManipulationDelta;
+        ContentHost.ManipulationInertiaStarting += ContentHost_ManipulationInertiaStarting;
 
         Scroller.PreviewMouseWheel += Scroller_PreviewMouseWheel;
         Scroller.ScrollChanged += Scroller_ScrollChanged;
@@ -962,10 +964,10 @@ public partial class PageEditor : UserControl
                      fe.ActualWidth, fe.ActualHeight).Contains(p));
 
     /// <summary>Se il punto cade su un oggetto non selezionato, lo seleziona (e attiva lo strumento Seleziona).</summary>
-    void SelectAt(Point p)
+    void SelectAt(Point p, double tolerance = 10)
     {
         if (HasSelection && Ink.GetSelectionBounds().Contains(p)) return;
-        var stroke = Ink.Strokes.HitTest(p, 10).LastOrDefault();
+        var stroke = Ink.Strokes.HitTest(p, tolerance).LastOrDefault();
         var element = stroke == null ? ElementAt(p) : null;
         if (stroke == null && element == null)
         {
@@ -998,11 +1000,14 @@ public partial class PageEditor : UserControl
     }
 
     /// <summary>Menu del tasto destro / pressione prolungata. <paramref name="p"/> è in coordinate della pagina.</summary>
-    void ShowContextMenu(Point p)
+    ContextMenu? _openMenu;
+
+    /// <param name="tolerance">Diametro (px) entro cui un tratto viene «preso»: più largo per dito e penna.</param>
+    void ShowContextMenu(Point p, double tolerance = 10)
     {
         if (_node == null) return;
         CommitPending();
-        SelectAt(p);
+        SelectAt(p, tolerance / _zoom);
         bool selection = HasSelection;
         bool canPaste = CanPaste;
 
@@ -1021,6 +1026,7 @@ public partial class PageEditor : UserControl
         else
         {
             menu.Items.Add(MenuEntry("Incolla qui", "", () => Paste(p), canPaste, "Ctrl+V"));
+            menu.Items.Add(MenuEntry("Elimina (tieni premuto su un oggetto)", "", () => { }, enabled: false));
             menu.Items.Add(new Separator());
             menu.Items.Add(MenuEntry("Scrivi un testo qui", "", () =>
             {
@@ -1038,6 +1044,7 @@ public partial class PageEditor : UserControl
         menu.HorizontalOffset = p.X * _zoom + 12;
         menu.VerticalOffset = p.Y * _zoom + 4;
         menu.IsOpen = true;
+        _openMenu = menu;
     }
 
     public void InsertImageFromFile(Point? at = null)
@@ -1063,22 +1070,43 @@ public partial class PageEditor : UserControl
     Point _holdStart;
     int _holdDevice = -1;
     bool _holdFired;
-    (StrokeCollection Strokes, List<UIElement> Elements)? _holdSelection;
+    readonly System.Windows.Shapes.Ellipse _holdRing = new()
+    {
+        Width = 44,
+        Height = 44,
+        StrokeThickness = 3,
+        Stroke = new SolidColorBrush(Color.FromArgb(0xC0, 0x1E, 0x5A, 0x68)),
+        Fill = new SolidColorBrush(Color.FromArgb(0x30, 0x1E, 0x5A, 0x68)),
+        IsHitTestVisible = false,
+        Visibility = Visibility.Collapsed,
+    };
+
 
     void SetupContextMenuInput()
     {
         Stylus.SetIsPressAndHoldEnabled(ContentHost, false); // lo gestiamo noi, anche mentre si scrive
+        Overlay.Children.Add(_holdRing);
         _holdTimer.Tick += (_, _) =>
         {
+            // Pressione riconosciuta: mostriamo un cerchietto; il menu si apre al rilascio
+            // (se si aprisse subito, il sollevamento del dito lo richiuderebbe).
             _holdTimer.Stop();
             _holdFired = true;
             if (_drag == DragMode.MoveSelection) EndDrag(); // tenuto fermo sulla selezione: menu, non spostamento
-            ShowContextMenu(_holdStart);
-            _holdSelection = HasSelection ? (Ink.GetSelectedStrokes(), Ink.GetSelectedElements().ToList()) : null;
+            StraightCancel();
+            Canvas.SetLeft(_holdRing, _holdStart.X - _holdRing.Width / 2);
+            Canvas.SetTop(_holdRing, _holdStart.Y - _holdRing.Height / 2);
+            _holdRing.Visibility = Visibility.Visible;
         };
 
         ContentHost.PreviewStylusDown += (_, e) =>
         {
+            // Un tocco sulla pagina chiude il menu rimasto aperto (col dito non si chiuderebbe da solo).
+            if (_openMenu is { IsOpen: true })
+            {
+                _openMenu.IsOpen = false;
+                _openMenu = null;
+            }
             if (_holdTimer.IsEnabled)
             {
                 _holdTimer.Stop(); // secondo dito: non è una pressione prolungata
@@ -1086,6 +1114,7 @@ public partial class PageEditor : UserControl
             }
             var src = e.OriginalSource as DependencyObject;
             if (e.StylusDevice.Inverted) return; // il palmo appoggiato cancella, non apre il menu
+            if (_tool == EditorTool.Hand) return; // con «Sposta pagina» la pressione serve a scorrere
             if (_node == null || _drag != DragMode.None || IsWithin(src, TitleArea) ||
                 FindAncestor<DraggableTool>(src) != null || (_tool == EditorTool.Text && FindAncestor<TextBoxBase>(src) != null))
                 return;
@@ -1096,20 +1125,23 @@ public partial class PageEditor : UserControl
         };
         ContentHost.PreviewStylusMove += (_, e) =>
         {
-            if (_holdTimer.IsEnabled && e.StylusDevice.Id == _holdDevice &&
-                (e.GetPosition(Ink) - _holdStart).Length * _zoom > 10)
-                _holdTimer.Stop();
+            if (e.StylusDevice.Id != _holdDevice || (e.GetPosition(Ink) - _holdStart).Length * _zoom <= 10) return;
+            _holdTimer.Stop();
+            if (_holdFired)
+            {
+                // Dopo il cerchietto ci si è spostati: niente menu.
+                _holdFired = false;
+                _holdRing.Visibility = Visibility.Collapsed;
+            }
         };
         ContentHost.PreviewStylusUp += (_, _) =>
         {
             _holdTimer.Stop();
+            _holdRing.Visibility = Visibility.Collapsed;
             if (!_holdFired) return;
-            // Al rilascio lo strumento attivo (es. lazo) potrebbe cambiare la selezione: la ripristiniamo.
-            var keep = _holdSelection;
-            Dispatcher.BeginInvoke(() =>
-            {
-                if (keep is { } k && _tool == EditorTool.Select) Ink.Select(k.Strokes, k.Elements);
-            }, DispatcherPriority.Background);
+            // Il menu si apre dopo che il foglio ha finito di gestire il rilascio (tratto, lazo…).
+            var at = _holdStart;
+            Dispatcher.BeginInvoke(() => ShowContextMenu(at, 36), DispatcherPriority.Background);
         };
 
         // Tasto destro del mouse (quelli simulati dal tocco li gestiamo sopra).
@@ -1139,7 +1171,7 @@ public partial class PageEditor : UserControl
                 return;
             }
         }
-        var replacement = Pencil.Upgrade(_ruler.TrySnap(e.Stroke) ?? e.Stroke);
+        var replacement = Pencil.Upgrade(StraightenIfHeld(e.Stroke) ?? _ruler.TrySnap(e.Stroke) ?? e.Stroke);
         if (!ReferenceEquals(replacement, e.Stroke))
         {
             Ink.Strokes.Remove(e.Stroke);
@@ -1216,6 +1248,16 @@ public partial class PageEditor : UserControl
 
         var p = e.GetPosition(Ink);
         bool onTitle = IsWithin(src, TitleArea);
+        if (e.StylusDevice == null)
+        {
+            if (TryBeginRulerLine(p, src))
+            {
+                ContentHost.CaptureMouse();
+                e.Handled = true;
+                return;
+            }
+            if (IsInkTool && !onTitle) StraightBegin(p);
+        }
         if (_tool == EditorTool.Select && e.ClickCount == 1 && e.StylusDevice == null && !onTitle && TryBeginMove(p))
         {
             ContentHost.CaptureMouse();
@@ -1285,7 +1327,11 @@ public partial class PageEditor : UserControl
 
     void ContentHost_PreviewMouseMove(object sender, MouseEventArgs e)
     {
-        if (_drag == DragMode.None) return;
+        if (_drag == DragMode.None)
+        {
+            if (e.StylusDevice == null && e.LeftButton == MouseButtonState.Pressed) StraightMove(e.GetPosition(Ink));
+            return;
+        }
         var p = e.GetPosition(Ink);
         switch (_drag)
         {
@@ -1308,6 +1354,9 @@ public partial class PageEditor : UserControl
                 break;
             case DragMode.MoveSelection:
                 ContinueMove(p);
+                break;
+            case DragMode.RulerLine:
+                ContinueRulerLine(p);
                 break;
         }
         e.Handled = true;
@@ -1335,7 +1384,197 @@ public partial class PageEditor : UserControl
         if (ContentHost.IsMouseCaptured) ContentHost.ReleaseMouseCapture();
         if (ContentHost.IsStylusCaptured) ContentHost.ReleaseStylusCapture();
         if (ended == DragMode.MoveSelection) EndMove();
+        if (ended == DragMode.RulerLine) EndRulerLine();
         DeferCommit();
+    }
+
+    // ───── Aiuti al disegno: righello «dal vivo» e linea che si raddrizza tenendo premuto ─────
+
+    bool IsInkTool => _tool is EditorTool.Pen or EditorTool.Highlighter or EditorTool.Pencil;
+
+    readonly DispatcherTimer _straightTimer = new() { Interval = TimeSpan.FromMilliseconds(650) };
+    readonly WpfPath _straightPreview = new()
+    {
+        IsHitTestVisible = false,
+        StrokeStartLineCap = PenLineCap.Round,
+        StrokeEndLineCap = PenLineCap.Round,
+        Visibility = Visibility.Collapsed,
+    };
+    readonly List<Point> _straightPts = new();
+    bool _straightActive, _straightReady;
+    Point _straightAnchor;
+
+    Stroke? _rulerStroke;
+    int _rulerSide;
+    double _rulerStartX;
+
+    void SetupDrawingAids()
+    {
+        Overlay.Children.Add(_straightPreview);
+        _straightTimer.Tick += (_, _) =>
+        {
+            _straightTimer.Stop();
+            if (!_straightActive || !StraightSegment(_straightPts, out var a, out var b)) return;
+            _straightReady = true;
+            var da = Ink.DefaultDrawingAttributes;
+            var color = da.Color;
+            if (da.IsHighlighter) color.A = 0x70;
+            _straightPreview.Data = new LineGeometry(a, b);
+            _straightPreview.Stroke = new SolidColorBrush(color);
+            _straightPreview.StrokeThickness = Math.Max(1.5, da.IsHighlighter ? da.Height : da.Width);
+            _straightPreview.Visibility = Visibility.Visible;
+        };
+
+        ContentHost.PreviewStylusDown += (_, e) =>
+        {
+            if (e.StylusDevice.Inverted) return;
+            var src = e.OriginalSource as DependencyObject;
+            var p = e.GetPosition(Ink);
+            if (TryBeginRulerLine(p, src))
+            {
+                e.StylusDevice.Capture(ContentHost);
+                e.Handled = true; // il tratto lo disegniamo noi, dritto lungo il bordo
+                return;
+            }
+            if (IsInkTool && !IsWithin(src, TitleArea) && FindAncestor<DraggableTool>(src) == null) StraightBegin(p);
+        };
+        ContentHost.PreviewStylusMove += (_, e) =>
+        {
+            if (_drag == DragMode.RulerLine)
+            {
+                ContinueRulerLine(e.GetPosition(Ink));
+                e.Handled = true;
+                return;
+            }
+            StraightMove(e.GetPosition(Ink));
+        };
+        ContentHost.PreviewStylusUp += (_, e) =>
+        {
+            if (_drag != DragMode.RulerLine) return;
+            EndDrag();
+            e.Handled = true;
+        };
+    }
+
+    /// <summary>Inizio di un tratto vicino al bordo del righello: la linea viene disegnata già dritta e appoggiata al bordo.</summary>
+    bool TryBeginRulerLine(Point p, DependencyObject? src)
+    {
+        if (!IsInkTool || _node == null || _drag != DragMode.None) return false;
+        if (FindAncestor<DraggableTool>(src) != null || IsWithin(src, TitleArea)) return false;
+        if (!_ruler.TryEdgeAt(p, 36 / _zoom, out _rulerSide, out _rulerStartX)) return false;
+
+        var da = Ink.DefaultDrawingAttributes.Clone();
+        da.FitToCurve = false;
+        da.IgnorePressure = true;
+        var pts = RulerPoints(_rulerStartX, da);
+        _rulerStroke = Pencil.GradeOf(da) != null ? new PencilStroke(pts, da) : new Stroke(pts, da);
+        Ink.Strokes.Add(_rulerStroke);
+        _drag = DragMode.RulerLine;
+        StraightCancel();
+        return true;
+    }
+
+    StylusPointCollection RulerPoints(double toX, DrawingAttributes da)
+    {
+        double offset = (da.IsHighlighter ? da.Height : da.Width) / 2 + 0.5;
+        var a = _ruler.EdgePoint(_rulerSide, _rulerStartX, offset);
+        var b = _ruler.EdgePoint(_rulerSide, toX, offset);
+        return new StylusPointCollection(new[] { new StylusPoint(a.X, a.Y), new StylusPoint(b.X, b.Y) });
+    }
+
+    void ContinueRulerLine(Point p)
+    {
+        if (_rulerStroke != null) _rulerStroke.StylusPoints = RulerPoints(_ruler.LocalX(p), _rulerStroke.DrawingAttributes);
+    }
+
+    void EndRulerLine()
+    {
+        if (_rulerStroke != null)
+        {
+            var sp = _rulerStroke.StylusPoints;
+            double len = new Vector(sp[sp.Count - 1].X - sp[0].X, sp[sp.Count - 1].Y - sp[0].Y).Length;
+            if (len < 2) Ink.Strokes.Remove(_rulerStroke); // solo un tocco: niente linea
+            else MarkChanged();
+        }
+        _rulerStroke = null;
+    }
+
+    void StraightBegin(Point p)
+    {
+        if (!IsInkTool || _node == null) return;
+        StraightCancel();
+        _straightActive = true;
+        _straightPts.Add(p);
+        _straightAnchor = p;
+    }
+
+    void StraightMove(Point p)
+    {
+        if (!_straightActive) return;
+        _straightPts.Add(p);
+        // Finché la penna si muove il conto alla rovescia riparte; tremolii di pochi pixel non contano.
+        if ((p - _straightAnchor).Length * _zoom > 8)
+        {
+            _straightAnchor = p;
+            _straightTimer.Stop();
+            _straightTimer.Start();
+            if (_straightReady)
+            {
+                _straightReady = false;
+                _straightPreview.Visibility = Visibility.Collapsed;
+            }
+        }
+    }
+
+    void StraightCancel()
+    {
+        _straightActive = _straightReady = false;
+        _straightTimer.Stop();
+        _straightPts.Clear();
+        _straightPreview.Visibility = Visibility.Collapsed;
+    }
+
+    /// <summary>
+    /// Se i punti stanno tutti vicino al segmento tra il primo e l'ultimo, restituisce quel segmento
+    /// (reso perfettamente orizzontale o verticale se ci manca poco).
+    /// </summary>
+    bool StraightSegment(IReadOnlyList<Point> pts, out Point a, out Point b)
+    {
+        a = b = default;
+        if (pts.Count < 2) return false;
+        a = pts[0];
+        b = pts[^1];
+        var chord = b - a;
+        double len = chord.Length;
+        if (len * _zoom < 40) return false;
+        double tolerance = Math.Max(10 / _zoom, len * 0.07);
+        var n = new Vector(-chord.Y / len, chord.X / len);
+        foreach (var q in pts)
+            if (Math.Abs(Vector.Multiply(q - a, n)) > tolerance) return false;
+
+        double angle = Math.Atan2(chord.Y, chord.X) * 180 / Math.PI;
+        double nearest = Math.Round(angle / 90) * 90;
+        if (Math.Abs(angle - nearest) < 3)
+        {
+            double r = nearest * Math.PI / 180;
+            b = a + new Vector(Math.Cos(r), Math.Sin(r)) * len;
+        }
+        return true;
+    }
+
+    /// <summary>Al termine del tratto: se la penna è stata tenuta ferma alla fine, il tratto diventa dritto.</summary>
+    Stroke? StraightenIfHeld(Stroke s)
+    {
+        bool ready = _straightReady;
+        StraightCancel();
+        if (!ready) return null;
+        var pts = s.StylusPoints.Select(sp => new Point(sp.X, sp.Y)).ToList();
+        if (!StraightSegment(pts, out var a, out var b)) return null;
+        var da = s.DrawingAttributes.Clone();
+        da.FitToCurve = false;
+        da.IgnorePressure = true;
+        var line = new StylusPointCollection(new[] { new StylusPoint(a.X, a.Y), new StylusPoint(b.X, b.Y) });
+        return Pencil.GradeOf(da) != null ? new PencilStroke(line, da) : new Stroke(line, da);
     }
 
     // ───── «Il dito sposta la pagina»: sulle LIM che distinguono penna e dito (es. Newline) ─────
@@ -1550,8 +1789,21 @@ public partial class PageEditor : UserControl
     void ContentHost_ManipulationDelta(object? sender, ManipulationDeltaEventArgs e)
     {
         var d = e.DeltaManipulation;
-        if (Math.Abs(d.Scale.X - 1) > 1e-3) ZoomAt(_zoom * d.Scale.X, e.ManipulationOrigin);
-        ScrollToOffset(Scroller.HorizontalOffset - d.Translation.X, Scroller.VerticalOffset - d.Translation.Y);
+        // Alcuni pannelli touch mandano valori anomali: li ignoriamo invece di rompere lo zoom.
+        double scale = d.Scale.X;
+        if (double.IsFinite(scale) && scale > 0.5 && scale < 2 && Math.Abs(scale - 1) > 1e-3)
+            ZoomAt(_zoom * scale, e.ManipulationOrigin);
+        double dx = Math.Clamp(double.IsFinite(d.Translation.X) ? d.Translation.X : 0, -400, 400);
+        double dy = Math.Clamp(double.IsFinite(d.Translation.Y) ? d.Translation.Y : 0, -400, 400);
+        ScrollToOffset(Scroller.HorizontalOffset - dx, Scroller.VerticalOffset - dy);
+        e.Handled = true;
+    }
+
+    void ContentHost_ManipulationInertiaStarting(object? sender, ManipulationInertiaStartingEventArgs e)
+    {
+        // Niente "lancio" dopo aver sollevato il dito: la pagina si ferma dove la lasci.
+        e.TranslationBehavior.DesiredDeceleration = 1e6;
+        e.ExpansionBehavior.DesiredDeceleration = 1e6;
         e.Handled = true;
     }
 
@@ -1660,6 +1912,10 @@ public partial class PageEditor : UserControl
     /// <summary>Scorre alla posizione indicata; se si va oltre il bordo destro o inferiore, il foglio si allunga.</summary>
     void ScrollToOffset(double h, double v)
     {
+        if (!double.IsFinite(h) || !double.IsFinite(v)) return;
+        // Il foglio si allunga al massimo di una schermata per volta.
+        h = Math.Min(h, Scroller.ScrollableWidth + Scroller.ViewportWidth);
+        v = Math.Min(v, Scroller.ScrollableHeight + Scroller.ViewportHeight);
         bool grow = false;
         if (v > Scroller.ScrollableHeight)
         {
