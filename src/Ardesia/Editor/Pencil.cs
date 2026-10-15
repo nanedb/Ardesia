@@ -123,32 +123,65 @@ public sealed class PencilStroke : Stroke
     public override Stroke Clone() => new PencilStroke(StylusPoints.Clone(), DrawingAttributes.Clone());
 }
 
-/// <summary>Disegna il tratto della matita già mentre si scrive.</summary>
-public sealed class PencilDynamicRenderer : DynamicRenderer
+/// <summary>
+/// Disegno «dal vivo» del tratto mentre si scrive: normale, a matita, oppure nascosto
+/// (gomma col palmo, o linea appena raddrizzata tenendo premuto).
+/// </summary>
+public sealed class ArdesiaDynamicRenderer : DynamicRenderer
 {
-    /// <summary>Pennello (congelato) impostato dal thread dell'interfaccia.</summary>
+    /// <summary>Pennello della matita (congelato), impostato dal thread dell'interfaccia; null = tratto normale.</summary>
     public volatile Brush? PencilBrush;
 
-    protected override void OnDraw(DrawingContext drawingContext, StylusPointCollection stylusPoints, Geometry geometry, Brush fillBrush) =>
-        drawingContext.DrawGeometry(PencilBrush ?? fillBrush, null, geometry);
+    /// <summary>Se vero non disegna nulla (il renderer lavora su un thread separato).</summary>
+    public volatile bool Suppress;
+
+    protected override void OnDraw(DrawingContext drawingContext, StylusPointCollection stylusPoints, Geometry geometry, Brush fillBrush)
+    {
+        if (Suppress) return;
+        if (PencilBrush is { } pencil) drawingContext.DrawGeometry(pencil, null, geometry);
+        else base.OnDraw(drawingContext, stylusPoints, geometry, fillBrush);
+    }
 }
 
-/// <summary>InkCanvas che può cambiare il disegno "dal vivo" del tratto (normale o matita).</summary>
+/// <summary>InkCanvas con il disegno «dal vivo» personalizzato.</summary>
 public class ArdesiaInkCanvas : InkCanvas
 {
-    DynamicRenderer? _normal;
-    PencilDynamicRenderer? _pencil;
+    readonly ArdesiaDynamicRenderer _live = new();
 
-    public void SetPencilMode(Brush? pencilBrush)
+    public ArdesiaInkCanvas()
     {
-        _normal ??= DynamicRenderer;
-        if (pencilBrush == null)
-        {
-            if (!ReferenceEquals(DynamicRenderer, _normal)) DynamicRenderer = _normal;
-            return;
-        }
-        _pencil ??= new PencilDynamicRenderer();
-        _pencil.PencilBrush = pencilBrush;
-        if (!ReferenceEquals(DynamicRenderer, _pencil)) DynamicRenderer = _pencil;
+        DynamicRenderer = _live;
     }
+
+    bool _liveEnabled = true;
+
+    public void SetPencilMode(Brush? pencilBrush) => _live.PencilBrush = pencilBrush;
+
+    /// <summary>Disegno dal vivo attivo solo con penne, evidenziatori e matite (mai con gomme, selezione, ecc.).</summary>
+    public bool LiveEnabled
+    {
+        get => _liveEnabled;
+        set
+        {
+            _liveEnabled = value;
+            _live.Suppress = !value;
+        }
+    }
+
+    /// <summary>Nasconde il tratto che si sta disegnando (e smette di disegnarlo finché non si chiama <see cref="ShowLiveStrokes"/>).</summary>
+    public void HideLiveStroke(StylusDevice? device, Point at)
+    {
+        _live.Suppress = true;
+        try
+        {
+            // Ridisegna il tratto in corso con il disegno disattivato: in pratica lo cancella dallo schermo.
+            _live.Reset(device, new StylusPointCollection(new[] { new StylusPoint(at.X, at.Y) }));
+        }
+        catch
+        {
+            // Se non è possibile, il tratto resta visibile fino al rilascio: nessun danno.
+        }
+    }
+
+    public void ShowLiveStrokes() => _live.Suppress = !_liveEnabled;
 }

@@ -107,14 +107,31 @@ public partial class PageEditor : UserControl
         SetupDrawingAids();
         // Spostamento della selezione con dito o penna (col mouse è gestito in ContentHost_PreviewMouseDown).
         // Palmo / gomma della penna: gomma grande quanto il contatto (o 60 px se la LIM non ne dà la misura).
+        // Mentre si cancella non va disegnata la «scia» della penna: al suo posto un cerchio che segue la gomma.
+        Overlay.Children.Add(_eraserRing);
         ContentHost.PreviewStylusDown += (_, e) =>
         {
-            if (e.StylusDevice.Inverted)
-                Ink.EraserShape = new EllipseStylusShape(PalmEraserSize(e), PalmEraserSize(e));
+            bool eraserTool = _tool is EditorTool.EraserPoint or EditorTool.EraserStroke;
+            if (!e.StylusDevice.Inverted && !eraserTool) return;
+            if (FingerPans && e.StylusDevice.TabletDevice?.Type == TabletDeviceType.Touch && !e.StylusDevice.Inverted) return;
+            double size = e.StylusDevice.Inverted ? PalmEraserSize(e) : _tool == EditorTool.EraserPoint ? EraserSize : 16;
+            if (e.StylusDevice.Inverted) Ink.EraserShape = new EllipseStylusShape(size, size);
+            var p = e.GetPosition(Ink);
+            Ink.HideLiveStroke(e.StylusDevice, p);
+            _eraserRing.Width = _eraserRing.Height = size * _zoom > 6 ? size : 6 / _zoom;
+            MoveEraserRing(p);
+            _eraserRing.Visibility = Visibility.Visible;
+        };
+        ContentHost.PreviewStylusMove += (_, e) =>
+        {
+            if (_eraserRing.Visibility == Visibility.Visible) MoveEraserRing(e.GetPosition(Ink));
         };
         ContentHost.PreviewStylusUp += (_, e) =>
         {
-            if (e.StylusDevice.Inverted) Ink.EraserShape = new EllipseStylusShape(EraserSize, EraserSize);
+            if (!e.StylusDevice.Inverted && _eraserRing.Visibility != Visibility.Visible) return;
+            Ink.EraserShape = new EllipseStylusShape(EraserSize, EraserSize);
+            _eraserRing.Visibility = Visibility.Collapsed;
+            Ink.ShowLiveStrokes();
         };
         ContentHost.PreviewStylusDown += (_, e) =>
         {
@@ -397,6 +414,7 @@ public partial class PageEditor : UserControl
     void ApplyDrawingAttributes()
     {
         Ink.SetPencilMode(_tool == EditorTool.Pencil ? Pencil.BrushFor(Pencil.ColorOf(_pencilGrade), _pencilGrade) : null);
+        Ink.LiveEnabled = _tool is EditorTool.Pen or EditorTool.Highlighter or EditorTool.Pencil;
         Ink.DefaultDrawingAttributes = _tool switch
         {
             EditorTool.Highlighter => HighlighterAttributes(),
@@ -429,6 +447,21 @@ public partial class PageEditor : UserControl
             _eraserSize = value;
             if (_tool == EditorTool.EraserPoint) ApplyTool();
         }
+    }
+
+    readonly System.Windows.Shapes.Ellipse _eraserRing = new()
+    {
+        StrokeThickness = 2,
+        Stroke = new SolidColorBrush(Color.FromArgb(0xB0, 0x60, 0x60, 0x60)),
+        Fill = new SolidColorBrush(Color.FromArgb(0x25, 0x80, 0x80, 0x80)),
+        IsHitTestVisible = false,
+        Visibility = Visibility.Collapsed,
+    };
+
+    void MoveEraserRing(Point p)
+    {
+        Canvas.SetLeft(_eraserRing, p.X - _eraserRing.Width / 2);
+        Canvas.SetTop(_eraserRing, p.Y - _eraserRing.Height / 2);
     }
 
     /// <summary>Diametro della gomma per il palmo: la larghezza del contatto (se la LIM la comunica), tra 40 e 120 px.</summary>
@@ -1402,7 +1435,8 @@ public partial class PageEditor : UserControl
     };
     readonly List<Point> _straightPts = new();
     bool _straightActive, _straightReady;
-    Point _straightAnchor;
+    Point _straightAnchor, _straightStart;
+    StylusDevice? _straightDevice;
 
     Stroke? _rulerStroke;
     int _rulerSide;
@@ -1413,15 +1447,19 @@ public partial class PageEditor : UserControl
         Overlay.Children.Add(_straightPreview);
         _straightTimer.Tick += (_, _) =>
         {
+            // Penna ferma su una linea quasi dritta: la linea storta sparisce e diventa subito dritta.
             _straightTimer.Stop();
             if (!_straightActive || !StraightSegment(_straightPts, out var a, out var b)) return;
             _straightReady = true;
+            _straightStart = a;
+            Ink.HideLiveStroke(_straightDevice, a);
             var da = Ink.DefaultDrawingAttributes;
-            var color = da.Color;
-            if (da.IsHighlighter) color.A = 0x70;
+            int? grade = Pencil.GradeOf(da);
+            _straightPreview.Stroke = grade is { } g ? Pencil.BrushFor(da.Color, g)
+                : new SolidColorBrush(da.IsHighlighter ? Color.FromArgb(0x70, da.Color.R, da.Color.G, da.Color.B) : da.Color);
+            _straightPreview.StrokeThickness = Math.Max(1, da.IsHighlighter ? da.Height : da.Width);
+            _straightPreview.StrokeStartLineCap = _straightPreview.StrokeEndLineCap = da.IsHighlighter ? PenLineCap.Flat : PenLineCap.Round;
             _straightPreview.Data = new LineGeometry(a, b);
-            _straightPreview.Stroke = new SolidColorBrush(color);
-            _straightPreview.StrokeThickness = Math.Max(1.5, da.IsHighlighter ? da.Height : da.Width);
             _straightPreview.Visibility = Visibility.Visible;
         };
 
@@ -1436,7 +1474,7 @@ public partial class PageEditor : UserControl
                 e.Handled = true; // il tratto lo disegniamo noi, dritto lungo il bordo
                 return;
             }
-            if (IsInkTool && !IsWithin(src, TitleArea) && FindAncestor<DraggableTool>(src) == null) StraightBegin(p);
+            if (IsInkTool && !IsWithin(src, TitleArea) && FindAncestor<DraggableTool>(src) == null) StraightBegin(p, e.StylusDevice);
         };
         ContentHost.PreviewStylusMove += (_, e) =>
         {
@@ -1499,11 +1537,12 @@ public partial class PageEditor : UserControl
         _rulerStroke = null;
     }
 
-    void StraightBegin(Point p)
+    void StraightBegin(Point p, StylusDevice? device = null)
     {
         if (!IsInkTool || _node == null) return;
         StraightCancel();
         _straightActive = true;
+        _straightDevice = device;
         _straightPts.Add(p);
         _straightAnchor = p;
     }
@@ -1511,6 +1550,12 @@ public partial class PageEditor : UserControl
     void StraightMove(Point p)
     {
         if (!_straightActive) return;
+        if (_straightReady)
+        {
+            // Già raddrizzata: muovendo la penna si sposta l'estremità della linea dritta.
+            _straightPreview.Data = new LineGeometry(_straightStart, SnapEnd(_straightStart, p));
+            return;
+        }
         _straightPts.Add(p);
         // Finché la penna si muove il conto alla rovescia riparte; tremolii di pochi pixel non contano.
         if ((p - _straightAnchor).Length * _zoom > 8)
@@ -1518,26 +1563,33 @@ public partial class PageEditor : UserControl
             _straightAnchor = p;
             _straightTimer.Stop();
             _straightTimer.Start();
-            if (_straightReady)
-            {
-                _straightReady = false;
-                _straightPreview.Visibility = Visibility.Collapsed;
-            }
         }
     }
 
     void StraightCancel()
     {
+        if (_straightReady) Ink.ShowLiveStrokes();
         _straightActive = _straightReady = false;
+        _straightDevice = null;
         _straightTimer.Stop();
         _straightPts.Clear();
         _straightPreview.Visibility = Visibility.Collapsed;
     }
 
-    /// <summary>
-    /// Se i punti stanno tutti vicino al segmento tra il primo e l'ultimo, restituisce quel segmento
-    /// (reso perfettamente orizzontale o verticale se ci manca poco).
-    /// </summary>
+    /// <summary>Se la linea è quasi orizzontale o verticale (entro 3°) la rende esattamente tale.</summary>
+    static Point SnapEnd(Point a, Point b)
+    {
+        var chord = b - a;
+        double len = chord.Length;
+        if (len < 1) return b;
+        double angle = Math.Atan2(chord.Y, chord.X) * 180 / Math.PI;
+        double nearest = Math.Round(angle / 90) * 90;
+        if (Math.Abs(angle - nearest) >= 3) return b;
+        double r = nearest * Math.PI / 180;
+        return a + new Vector(Math.Cos(r), Math.Sin(r)) * len;
+    }
+
+    /// <summary>Se i punti stanno tutti vicino al segmento tra il primo e l'ultimo, restituisce quel segmento.</summary>
     bool StraightSegment(IReadOnlyList<Point> pts, out Point a, out Point b)
     {
         a = b = default;
@@ -1551,29 +1603,23 @@ public partial class PageEditor : UserControl
         var n = new Vector(-chord.Y / len, chord.X / len);
         foreach (var q in pts)
             if (Math.Abs(Vector.Multiply(q - a, n)) > tolerance) return false;
-
-        double angle = Math.Atan2(chord.Y, chord.X) * 180 / Math.PI;
-        double nearest = Math.Round(angle / 90) * 90;
-        if (Math.Abs(angle - nearest) < 3)
-        {
-            double r = nearest * Math.PI / 180;
-            b = a + new Vector(Math.Cos(r), Math.Sin(r)) * len;
-        }
+        b = SnapEnd(a, b);
         return true;
     }
 
-    /// <summary>Al termine del tratto: se la penna è stata tenuta ferma alla fine, il tratto diventa dritto.</summary>
+    /// <summary>Al termine del tratto: se la linea era stata raddrizzata tenendo premuto, diventa definitivamente dritta.</summary>
     Stroke? StraightenIfHeld(Stroke s)
     {
         bool ready = _straightReady;
+        var start = _straightStart;
         StraightCancel();
-        if (!ready) return null;
-        var pts = s.StylusPoints.Select(sp => new Point(sp.X, sp.Y)).ToList();
-        if (!StraightSegment(pts, out var a, out var b)) return null;
+        if (!ready || s.StylusPoints.Count == 0) return null;
+        var last = s.StylusPoints[s.StylusPoints.Count - 1];
+        var end = SnapEnd(start, new Point(last.X, last.Y));
         var da = s.DrawingAttributes.Clone();
         da.FitToCurve = false;
         da.IgnorePressure = true;
-        var line = new StylusPointCollection(new[] { new StylusPoint(a.X, a.Y), new StylusPoint(b.X, b.Y) });
+        var line = new StylusPointCollection(new[] { new StylusPoint(start.X, start.Y), new StylusPoint(end.X, end.Y) });
         return Pencil.GradeOf(da) != null ? new PencilStroke(line, da) : new Stroke(line, da);
     }
 
