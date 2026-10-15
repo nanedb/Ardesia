@@ -103,6 +103,7 @@ public partial class PageEditor : UserControl
         Ink.Drop += Ink_Drop;
 
         SetupContextMenuInput();
+        SetupFingerPan();
         // Spostamento della selezione con dito o penna (col mouse è gestito in ContentHost_PreviewMouseDown).
         // Palmo / gomma della penna: gomma grande quanto il contatto (o 60 px se la LIM non ne dà la misura).
         ContentHost.PreviewStylusDown += (_, e) =>
@@ -1335,6 +1336,98 @@ public partial class PageEditor : UserControl
         if (ContentHost.IsStylusCaptured) ContentHost.ReleaseStylusCapture();
         if (ended == DragMode.MoveSelection) EndMove();
         DeferCommit();
+    }
+
+    // ───── «Il dito sposta la pagina»: sulle LIM che distinguono penna e dito (es. Newline) ─────
+
+    /// <summary>Se attivo, il tocco col dito fa scorrere/ingrandire la pagina e solo la penna scrive.</summary>
+    public bool FingerPans { get; set; }
+
+    readonly Dictionary<int, Point> _fingers = new(); // posizione di ogni dito, in coordinate della finestra
+    Point _fingerDownView;
+    bool _fingerMoved;
+
+    bool IsFingerPan(StylusEventArgs e) =>
+        FingerPans && _node != null && !e.StylusDevice.Inverted &&
+        e.StylusDevice.TabletDevice?.Type == TabletDeviceType.Touch;
+
+    void SetupFingerPan()
+    {
+        ContentHost.PreviewStylusDown += (_, e) =>
+        {
+            if (!IsFingerPan(e)) return;
+            var src = e.OriginalSource as DependencyObject;
+            if (IsWithin(src, TitleArea) || FindAncestor<DraggableTool>(src) != null) return;
+            if (_tool == EditorTool.Text && FindAncestor<TextBoxBase>(src) != null) return;
+            var v = e.GetPosition(Scroller);
+            _fingers[e.StylusDevice.Id] = v;
+            if (_fingers.Count == 1)
+            {
+                _fingerDownView = v;
+                _fingerMoved = false;
+            }
+            else
+            {
+                _fingerMoved = true; // con due dita è sempre uno zoom/scorrimento
+            }
+            e.StylusDevice.Capture(ContentHost);
+            e.Handled = true; // il foglio non deve disegnare
+        };
+
+        ContentHost.PreviewStylusMove += (_, e) =>
+        {
+            int id = e.StylusDevice.Id;
+            if (!_fingers.TryGetValue(id, out var old)) return;
+            var v = e.GetPosition(Scroller);
+            if (_fingers.Count == 1)
+            {
+                if ((v - _fingerDownView).Length > 10) _fingerMoved = true;
+                if (_fingerMoved)
+                    ScrollToOffset(Scroller.HorizontalOffset - (v.X - old.X), Scroller.VerticalOffset - (v.Y - old.Y));
+            }
+            else
+            {
+                // Due dita: zoom in base alla distanza, scorrimento in base al punto medio.
+                var other = _fingers.First(f => f.Key != id).Value;
+                var oldMid = new Point((old.X + other.X) / 2, (old.Y + other.Y) / 2);
+                var newMid = new Point((v.X + other.X) / 2, (v.Y + other.Y) / 2);
+                double oldDist = (old - other).Length, newDist = (v - other).Length;
+                if (oldDist > 20 && newDist > 20) ZoomAt(_zoom * newDist / oldDist, newMid);
+                ScrollToOffset(Scroller.HorizontalOffset - (newMid.X - oldMid.X), Scroller.VerticalOffset - (newMid.Y - oldMid.Y));
+            }
+            _fingers[id] = v;
+            e.Handled = true;
+        };
+
+        ContentHost.PreviewStylusUp += (_, e) =>
+        {
+            if (!_fingers.Remove(e.StylusDevice.Id)) return;
+            e.StylusDevice.Capture(null);
+            if (_fingers.Count == 0 && !_fingerMoved && !_holdFired) FingerTap(e.GetPosition(Ink));
+            e.Handled = true;
+        };
+    }
+
+    /// <summary>Tocco breve col dito (senza trascinare): fa l'azione «a tocco» dello strumento attivo.</summary>
+    void FingerTap(Point p)
+    {
+        switch (_tool)
+        {
+            case EditorTool.Text:
+                if (ElementAt(p) is Image image)
+                {
+                    Tool = EditorTool.Select;
+                    Ink.Select(new StrokeCollection(), new UIElement[] { image });
+                }
+                else
+                {
+                    CreateTextBoxAt(p);
+                }
+                break;
+            case EditorTool.Select:
+                SelectAt(p);
+                break;
+        }
     }
 
     // ───── Spostamento della selezione (trascinando da un punto qualsiasi al suo interno) ─────

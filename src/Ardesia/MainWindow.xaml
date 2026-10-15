@@ -72,6 +72,7 @@
                         <ToggleButton Style="{StaticResource IconToggle}" Tag="Tool:Select" ToolTip="Seleziona con il lazo"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconLasso}" /></ToggleButton>
                         <ToggleButton Style="{StaticResource IconToggle}" Tag="Tool:Text" ToolTip="Testo"><TextBlock Style="{StaticResource SmallGlyph}" Text="&#xE8D2;" FontSize="17" /></ToggleButton>
                         <ToggleButton Style="{StaticResource IconToggle}" Tag="Tool:Hand" ToolTip="Sposta pagina (due dita per lo zoom)"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconHand}" /></ToggleButton>
+                        <ToggleButton Style="{StaticResource IconToggle}" Tag="FingerPan" ToolTip="Il dito sposta la pagina, la penna scrive (solo per le LIM che li distinguono, es. Newline)"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconFinger}" /></ToggleButton>
                         <Border Style="{StaticResource BarSeparator}" />
                         <StackPanel x:Name="PensSimple" Orientation="Horizontal" VerticalAlignment="Center" />
                         <Border Style="{StaticResource BarSeparator}" />
@@ -327,10 +328,16 @@
                     </HeaderedContentControl>
 
                     <HeaderedContentControl Header="Lavagna" Style="{StaticResource RibbonGroup}">
-                        <Button Style="{StaticResource RibbonLargeButton}" c:Rb.Label="Prova tocco LIM" Click="TouchTest_Click"
-                                ToolTip="Verifica se la LIM distingue la penna dal dito e dal palmo">
-                            <Path Style="{StaticResource IconPath}" Data="{StaticResource IconHand}" />
-                        </Button>
+                        <StackPanel Orientation="Horizontal">
+                            <ToggleButton Style="{StaticResource RibbonLargeToggle}" Tag="FingerPan" c:Rb.Label="Il dito sposta la pagina"
+                                          ToolTip="La penna scrive, il dito fa scorrere la pagina (due dita: zoom).&#x0a;Attivalo solo se la LIM distingue la penna dal dito (es. Newline): verificalo con «Prova tocco LIM».">
+                                <Path Style="{StaticResource IconPath}" Data="{StaticResource IconFinger}" />
+                            </ToggleButton>
+                            <Button Style="{StaticResource RibbonLargeButton}" c:Rb.Label="Prova tocco LIM" Click="TouchTest_Click"
+                                    ToolTip="Verifica se la LIM distingue la penna dal dito e dal palmo">
+                                <Path Style="{StaticResource IconPath}" Data="{StaticResource IconHand}" />
+                            </Button>
+                        </StackPanel>
                     </HeaderedContentControl>
                 </StackPanel>
             </TabItem>

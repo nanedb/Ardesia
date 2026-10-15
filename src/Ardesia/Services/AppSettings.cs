@@ -33,6 +33,9 @@ public class AppSettings
     public string? LastSaveFolder { get; set; }
     public string? LastExportFolder { get; set; }
     public bool SimpleRibbon { get; set; }
+
+    /// <summary>«Il dito sposta la pagina»: da attivare sulle LIM che distinguono penna e dito (es. Newline).</summary>
+    public bool FingerPans { get; set; }
     public double EraserSize { get; set; } = 22;
     public List<PenPreset> Pens { get; set; } = PenPreset.Defaults();
 

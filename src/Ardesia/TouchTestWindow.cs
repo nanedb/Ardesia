@@ -181,7 +181,7 @@ public sealed class TouchTestWindow : Window
         string penVsFinger = (_penCount, _touchCount) switch
         {
             (0, 0) => "",
-            ( > 0, > 0) => "✔ La LIM distingue la penna dal dito: Ardesia potrà far scrivere solo la penna e usare il dito per spostare la pagina.",
+            ( > 0, > 0) => "✔ La LIM distingue la penna dal dito: attiva «Il dito sposta la pagina» (scheda Visualizza) per scrivere solo con la penna e scorrere la pagina col dito.",
             ( > 0, 0) => "La penna arriva come «penna». Prova anche col dito per vedere se arriva come «tocco».",
             (0, > 0) when _touchWithSize > 0 && _touchMax > _touchMin * 2 =>
                 "Penna e dito arrivano entrambi come «tocco», ma la larghezza del contatto cambia: si potranno distinguere dalla misura.",

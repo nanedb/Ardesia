@@ -67,6 +67,7 @@ public partial class MainWindow : Window
         Editor.ToolChanged += (_, _) => SyncRibbon();
         BuildPens();
         Editor.EraserSize = PageEditor.EraserSizes.Contains(_settings.EraserSize) ? _settings.EraserSize : 22;
+        Editor.FingerPans = _settings.FingerPans;
         ActivatePen(0);
         SetSimpleRibbon(_settings.SimpleRibbon);
         PreviewKeyDown += Window_PreviewKeyDown;
@@ -742,6 +743,13 @@ public partial class MainWindow : Window
             case "Protractor":
                 Editor.ProtractorVisible = t.IsChecked == true;
                 break;
+            case "FingerPan":
+                Editor.FingerPans = _settings.FingerPans = t.IsChecked == true;
+                _settings.Save();
+                StatusText.Text = Editor.FingerPans
+                    ? "Il dito sposta la pagina, la penna scrive"
+                    : "Il dito scrive come la penna";
+                break;
             case "Nav":
                 ToggleNav();
                 break;
@@ -781,6 +789,7 @@ public partial class MainWindow : Window
                     "Ruler" => Editor.RulerVisible,
                     "Protractor" => Editor.ProtractorVisible,
                     "Nav" => !_navHidden,
+                    "FingerPan" => Editor.FingerPans,
                     _ => false,
                 };
             }
