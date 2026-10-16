@@ -260,8 +260,12 @@ public partial class MainWindow : Window
         Editor.Flush();
         if (!_dirty || _path == null || Save(quiet: true))
         {
-            UpdateClassPdf();
-            return true;
+            // Il PDF per la classe si rifà qui: se non riesce bisogna dirlo, perché la barra di stato sparisce con la finestra.
+            if (UpdateClassPdf() is not { } error) return true;
+            return MessageBox.Show(this,
+                error + "\n\nIl blocco appunti è salvato; manca solo il PDF per la classe.\n\n" +
+                "Sì = esci lo stesso    No = resta nell'app (poi File → PDF per la classe… → Aggiorna ora)",
+                "Ardesia – PDF per la classe", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes;
         }
         var r = MessageBox.Show(this,
             $"Non è stato possibile salvare «{_nb.Title}»" + (_path != null ? $" in:\n{_path}" : ".") +
@@ -291,7 +295,8 @@ public partial class MainWindow : Window
             return $"Non trovo la cartella del PDF per la classe:\n{dir}\n\nSe è su Google Drive, controlla che Google Drive per desktop sia avviato.";
         }
         var pages = _nb.ClassPdfPages().ToList();
-        if (pages.Count == 0) return "Nessuna pagina da mettere nel PDF: includi almeno una sezione con delle pagine.";
+        // All'uscita un blocco appunti senza pagine non è un errore: niente avviso.
+        if (pages.Count == 0) return !force ? null : "Nessuna pagina da mettere nel PDF: includi almeno una sezione con delle pagine.";
         var tmp = Path.Combine(dir, "~" + Path.GetFileName(pdf) + ".tmp");
         try
         {
@@ -384,8 +389,9 @@ public partial class MainWindow : Window
 
     void UpdateTitle()
     {
-        var name = _path != null ? Path.GetFileName(_path) : "non salvato";
-        Title = $"{(_dirty ? "● " : "")}{_nb.Title} ({name}) – Ardesia";
+        // Percorso completo: si vede subito in quale cartella (es. di Google Drive) si sta lavorando.
+        var name = _path ?? "non salvato";
+        Title = $"{(_dirty ? "● " : "")}{_nb.Title} – {name} – Ardesia";
     }
 
     void NotebookTitleBox_TextChanged(object sender, TextChangedEventArgs e) => UpdateTitle();
