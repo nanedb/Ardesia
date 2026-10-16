@@ -28,8 +28,9 @@ public partial class App : Application
                 "Ardesia", MessageBoxButton.OK, MessageBoxImage.Error);
         };
 
-        // Icona per tutte le finestre dell'app.
-        var icon = new System.Windows.Media.Imaging.BitmapImage(new Uri("pack://application:,,,/Assets/Ardesia.ico"));
+        // Icona per tutte le finestre dell'app. BitmapFrame (non BitmapImage, che legge solo la prima immagine,
+        // da 16 px) lascia a WPF la scelta della misura giusta per barra del titolo e barra delle applicazioni.
+        var icon = System.Windows.Media.Imaging.BitmapFrame.Create(new Uri("pack://application:,,,/Assets/Ardesia.ico"));
         EventManager.RegisterClassHandler(typeof(Window), FrameworkElement.LoadedEvent, new RoutedEventHandler((s, _) =>
         {
             if (s is Window w && w.Icon == null) w.Icon = icon;
@@ -41,6 +42,17 @@ public partial class App : Application
             var test = new TouchTestWindow { WindowStartupLocation = WindowStartupLocation.CenterScreen, WindowState = WindowState.Maximized };
             MainWindow = test;
             test.Show();
+            return;
+        }
+
+        // Prova di GeoGebra: apre solo la finestra del grafico e scrive nel registro indicato cosa succede.
+        int pg = Array.IndexOf(e.Args, "--prova-geogebra");
+        if (pg >= 0)
+        {
+            var log = pg + 1 < e.Args.Length ? e.Args[pg + 1] : Path.Combine(Path.GetTempPath(), "ardesia-geogebra.log");
+            var win = new GeoGebraWindow(null, "y = x² - 3x + 2\ng(x) = 1,5x") { TraceFile = log, AutoCloseSeconds = 25 };
+            MainWindow = win;
+            win.Show();
             return;
         }
 

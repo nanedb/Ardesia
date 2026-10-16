@@ -69,7 +69,7 @@
                         <Button Style="{StaticResource IconButton}" Click="Undo_Click" ToolTip="Annulla (Ctrl+Z)"><TextBlock Style="{StaticResource SmallGlyph}" Text="&#xE7A7;" /></Button>
                         <Button Style="{StaticResource IconButton}" Click="Redo_Click" ToolTip="Ripeti (Ctrl+Y)"><TextBlock Style="{StaticResource SmallGlyph}" Text="&#xE7A6;" /></Button>
                         <Border Style="{StaticResource BarSeparator}" />
-                        <ToggleButton Style="{StaticResource IconToggle}" Tag="Tool:Select" ToolTip="Seleziona con il lazo"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconLasso}" /></ToggleButton>
+                        <ToggleButton Style="{StaticResource IconToggle}" Tag="Tool:Select" ToolTip="Seleziona: tocca un oggetto o circondalo"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconPointer}" /></ToggleButton>
                         <ToggleButton Style="{StaticResource IconToggle}" Tag="Tool:Text" ToolTip="Testo"><TextBlock Style="{StaticResource SmallGlyph}" Text="&#xE8D2;" FontSize="17" /></ToggleButton>
                         <ToggleButton Style="{StaticResource IconToggle}" Tag="Tool:Hand" ToolTip="Sposta pagina (due dita per lo zoom)"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconHand}" /></ToggleButton>
                         <ToggleButton Style="{StaticResource IconToggle}" Tag="FingerPan" ToolTip="Il dito sposta la pagina, la penna scrive (solo per le LIM che li distinguono, es. Newline)"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconFinger}" /></ToggleButton>
@@ -97,6 +97,7 @@
                         <ToggleButton Style="{StaticResource IconToggle}" Tag="Tool:Compass" ToolTip="Compasso (ricliccalo o premi Esc per chiuderlo)"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconCompass}" /></ToggleButton>
                         <Border Style="{StaticResource BarSeparator}" />
                         <Button Style="{StaticResource IconButton}" Click="InsertImage_Click" ToolTip="Inserisci immagine"><TextBlock Style="{StaticResource SmallGlyph}" Text="&#xE8B9;" FontSize="17" /></Button>
+                        <Button Style="{StaticResource IconButton}" Click="InsertGraph_Click" ToolTip="Grafico con GeoGebra (prende la funzione dalla casella di testo selezionata)"><TextBlock Style="{StaticResource SmallGlyph}" Text="&#xE9D2;" FontSize="17" /></Button>
                         <Button Style="{StaticResource IconButton}" Click="NewPage_Click" ToolTip="Nuova pagina (Ctrl+N)"><TextBlock Style="{StaticResource SmallGlyph}" Text="&#xE7C3;" FontSize="17" /></Button>
                         <Button Style="{StaticResource IconButton}" Click="ExportPdf_Click" ToolTip="Esporta in PDF (Ctrl+P)"><TextBlock Style="{StaticResource SmallGlyph}" Text="&#xE749;" FontSize="17" /></Button>
                     </StackPanel>
@@ -183,6 +184,10 @@
                             <Button Style="{StaticResource RibbonLargeButton}" c:Rb.Label="Immagine" Click="InsertImage_Click" ToolTip="Inserisci un'immagine da file (puoi anche trascinarla sulla pagina)">
                                 <TextBlock Style="{StaticResource Glyph}" Text="&#xE8B9;" />
                             </Button>
+                            <Button Style="{StaticResource RibbonLargeButton}" c:Rb.Label="Grafico" Click="InsertGraph_Click"
+                                    ToolTip="Grafico con GeoGebra: se è selezionata una casella di testo, ne disegna le funzioni (una per riga). Doppio clic su un grafico per modificarlo.">
+                                <TextBlock Style="{StaticResource Glyph}" Text="&#xE9D2;" />
+                            </Button>
                         </StackPanel>
                     </HeaderedContentControl>
                     <HeaderedContentControl Header="Pagine" Style="{StaticResource RibbonGroup}">
@@ -221,8 +226,8 @@
                 <StackPanel Orientation="Horizontal">
                     <HeaderedContentControl Header="Strumenti" Style="{StaticResource RibbonGroup}">
                         <StackPanel Orientation="Horizontal">
-                            <ToggleButton Style="{StaticResource RibbonLargeToggle}" Tag="Tool:Select" c:Rb.Label="Seleziona" ToolTip="Seleziona con il lazo: sposta, ridimensiona, cambia colore">
-                                <Path Style="{StaticResource IconPath}" Data="{StaticResource IconLasso}" />
+                            <ToggleButton Style="{StaticResource RibbonLargeToggle}" Tag="Tool:Select" c:Rb.Label="Seleziona" ToolTip="Seleziona: tocca un oggetto o circondalo; poi sposta, ridimensiona, cambia colore">
+                                <Path Style="{StaticResource IconPath}" Data="{StaticResource IconPointer}" />
                             </ToggleButton>
                             <ToggleButton Style="{StaticResource RibbonLargeToggle}" Tag="Tool:Text" c:Rb.Label="Testo" ToolTip="Tocca la pagina per scrivere con la tastiera">
                                 <TextBlock Style="{StaticResource Glyph}" Text="&#xE8D2;" />

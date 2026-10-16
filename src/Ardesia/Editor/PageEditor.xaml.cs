@@ -162,6 +162,7 @@ public partial class PageEditor : UserControl
         ContentHost.ManipulationStarting += ContentHost_ManipulationStarting;
         ContentHost.ManipulationDelta += ContentHost_ManipulationDelta;
         ContentHost.ManipulationInertiaStarting += ContentHost_ManipulationInertiaStarting;
+        SetupTextSelection(); // per ultimo: riceve solo ciò che gli altri gestori non hanno già preso
 
         Scroller.PreviewMouseWheel += Scroller_PreviewMouseWheel;
         Scroller.ScrollChanged += Scroller_ScrollChanged;
@@ -747,6 +748,71 @@ public partial class PageEditor : UserControl
         Ink.Select(new StrokeCollection(), new UIElement[] { img });
     }
 
+    /// <summary>
+    /// Apre GeoGebra: con un grafico, per modificarlo; altrimenti per uno nuovo, prendendo le funzioni
+    /// dalla casella di testo selezionata (o in scrittura), e lo mette accanto ad essa.
+    /// </summary>
+    public void OpenGraph(GraphImage? existing = null)
+    {
+        if (_notebook == null || _node == null) return;
+        CommitPending();
+        existing ??= Ink.GetSelectedElements().OfType<GraphImage>().FirstOrDefault();
+
+        RichTextBox? source = null;
+        if (existing == null)
+            source = SelectedTextBoxes().FirstOrDefault() ?? (HasActiveTextBox ? ActiveTextBox : null);
+        var formulas = source == null ? null : new TextRange(source.Document.ContentStart, source.Document.ContentEnd).Text;
+
+        var win = new GeoGebraWindow(existing?.State, formulas) { Owner = Window.GetWindow(this) };
+        if (win.ShowDialog() != true || win.Png is not { } png || win.State is not { } state) return;
+
+        BitmapSource bmp;
+        try
+        {
+            bmp = ElementFactory.LoadBitmap(png);
+        }
+        catch
+        {
+            return;
+        }
+        var id = Guid.NewGuid().ToString("N");
+        _notebook.Media[id] = png;
+        // L'immagine è a doppia risoluzione: a metà dimensione ha la grandezza vista in GeoGebra.
+        double w = bmp.PixelWidth / 2.0, h = bmp.PixelHeight / 2.0;
+
+        if (existing != null && Ink.Children.Contains(existing))
+        {
+            // Stessa posizione e larghezza; l'altezza segue le nuove proporzioni.
+            double width = double.IsNaN(existing.Width) ? existing.ActualWidth : existing.Width;
+            existing.Source = bmp;
+            existing.Tag = id;
+            existing.State = state;
+            existing.Width = width;
+            existing.Height = width * h / w;
+            MarkChanged();
+            CommitPending();
+            Tool = EditorTool.Select;
+            Ink.Select(new StrokeCollection(), new UIElement[] { existing });
+            return;
+        }
+
+        double scale = Math.Min(1, Math.Min(720 / w, 540 / h));
+        var graph = ElementFactory.CreateGraph(bmp, id, state, w * scale, h * scale);
+        var pos = VisibleOrigin();
+        if (source != null && Ink.Children.Contains(source))
+        {
+            double sx = InkCanvas.GetLeft(source), sy = InkCanvas.GetTop(source);
+            pos = new Point((double.IsNaN(sx) ? 0 : sx) + source.ActualWidth + 24, double.IsNaN(sy) ? 0 : sy);
+        }
+        InkCanvas.SetLeft(graph, pos.X);
+        InkCanvas.SetTop(graph, pos.Y);
+        AddElement(graph);
+        MarkChanged();
+        CommitPending();
+        Tool = EditorTool.Select;
+        Ink.Select(new StrokeCollection(), new UIElement[] { graph });
+    }
+
     public void BeginTextAtVisibleArea()
     {
         Tool = EditorTool.Text;
@@ -990,11 +1056,119 @@ public partial class PageEditor : UserControl
 
     // ───────────────────────────── Menu contestuale ─────────────────────────────
 
+    /// <summary>L'oggetto nel punto; una casella di testo conta solo dove c'è davvero il testo (il riquadro è molto più largo).</summary>
     UIElement? ElementAt(Point p) =>
-        Ink.Children.Cast<UIElement>().LastOrDefault(c => c is FrameworkElement fe &&
-            new Rect(InkCanvas.GetLeft(fe) is var x && double.IsNaN(x) ? 0 : x,
-                     InkCanvas.GetTop(fe) is var y && double.IsNaN(y) ? 0 : y,
-                     fe.ActualWidth, fe.ActualHeight).Contains(p));
+        Ink.Children.Cast<UIElement>().LastOrDefault(c => c switch
+        {
+            RichTextBox r => TextBounds(r) is { IsEmpty: false } b && b.Contains(p),
+            FrameworkElement fe => new Rect(InkCanvas.GetLeft(fe) is var x && double.IsNaN(x) ? 0 : x,
+                                            InkCanvas.GetTop(fe) is var y && double.IsNaN(y) ? 0 : y,
+                                            fe.ActualWidth, fe.ActualHeight).Contains(p),
+            _ => false,
+        });
+
+    /// <summary>Posizioni del cursore tra i caratteri di una casella di testo, in coordinate della pagina.</summary>
+    static List<Rect> TextCaretRects(RichTextBox rtb)
+    {
+        var list = new List<Rect>();
+        double x0 = InkCanvas.GetLeft(rtb), y0 = InkCanvas.GetTop(rtb);
+        if (double.IsNaN(x0)) x0 = 0;
+        if (double.IsNaN(y0)) y0 = 0;
+        var tp = rtb.Document.ContentStart.GetInsertionPosition(LogicalDirection.Forward);
+        for (int i = 0; tp != null && i < 3000; i++)
+        {
+            var r = tp.GetCharacterRect(LogicalDirection.Forward);
+            if (!r.IsEmpty && !double.IsInfinity(r.X) && !double.IsInfinity(r.Height))
+                list.Add(new Rect(x0 + r.X, y0 + r.Y, 0, r.Height));
+            tp = tp.GetNextInsertionPosition(LogicalDirection.Forward);
+        }
+        return list;
+    }
+
+    /// <summary>Il riquadro occupato dal testo scritto (un po' allargato, per prenderlo anche col dito).</summary>
+    static Rect TextBounds(RichTextBox rtb)
+    {
+        if (ElementFactory.IsEmpty(rtb)) return Rect.Empty;
+        var b = Rect.Empty;
+        foreach (var r in TextCaretRects(rtb)) b.Union(r);
+        if (!b.IsEmpty) b.Inflate(8, 4);
+        return b;
+    }
+
+    // ───── Selezione delle caselle di testo col lazo e con un tocco ─────
+    // Il lazo di InkCanvas prende un oggetto solo se ne racchiude quasi tutto il riquadro, e le caselle di testo
+    // sono larghe 520 px anche con poche parole: qui una casella si prende se il lazo ne racchiude il testo.
+
+    readonly List<Point> _lasso = new();
+    bool _lassoActive;
+
+    void SetupTextSelection()
+    {
+        void Begin(Point p, DependencyObject? src)
+        {
+            _lassoActive = _tool == EditorTool.Select && _drag == DragMode.None && !IsWithin(src, TitleArea);
+            _lasso.Clear();
+            if (_lassoActive) _lasso.Add(p);
+        }
+        void Add(Point p)
+        {
+            if (_lassoActive) _lasso.Add(p);
+        }
+        void End()
+        {
+            if (!_lassoActive) return;
+            _lassoActive = false;
+            var points = _lasso.ToList();
+            // Dopo che InkCanvas ha fatto la sua selezione.
+            Dispatcher.BeginInvoke(() => FinishLasso(points), DispatcherPriority.Background);
+        }
+
+        ContentHost.PreviewStylusDown += (_, e) => { if (!e.StylusDevice.Inverted) Begin(e.GetPosition(Ink), e.OriginalSource as DependencyObject); };
+        ContentHost.PreviewStylusMove += (_, e) => Add(e.GetPosition(Ink));
+        ContentHost.PreviewStylusUp += (_, _) => End();
+        ContentHost.PreviewMouseLeftButtonDown += (_, e) => { if (e.StylusDevice == null) Begin(e.GetPosition(Ink), e.OriginalSource as DependencyObject); };
+        ContentHost.PreviewMouseMove += (_, e) => { if (e.StylusDevice == null) Add(e.GetPosition(Ink)); };
+        ContentHost.PreviewMouseLeftButtonUp += (_, e) => { if (e.StylusDevice == null) End(); };
+    }
+
+    void FinishLasso(List<Point> points)
+    {
+        if (_tool != EditorTool.Select || points.Count == 0) return;
+        var selected = Ink.GetSelectedElements().ToList();
+        double length = 0;
+        for (int i = 1; i < points.Count; i++) length += (points[i] - points[i - 1]).Length;
+
+        if (length < 10 / _zoom)
+        {
+            // Un tocco: se InkCanvas non ha preso niente, si prende l'oggetto sotto il dito.
+            if (Ink.GetSelectedStrokes().Count == 0 && selected.Count == 0 && ElementAt(points[0]) is { } element)
+                Ink.Select(new StrokeCollection(), new[] { element });
+            return;
+        }
+
+        var add = Ink.Children.OfType<RichTextBox>().Where(r =>
+        {
+            if (selected.Contains(r)) return false;
+            var carets = TextCaretRects(r);
+            if (carets.Count == 0 || ElementFactory.IsEmpty(r)) return false;
+            int inside = carets.Count(c => InPolygon(points, new Point(c.X, c.Y + c.Height / 2)));
+            return inside >= carets.Count * 0.6;
+        }).ToList();
+        if (add.Count == 0) return;
+        Ink.Select(Ink.GetSelectedStrokes(), selected.Concat(add).ToList());
+    }
+
+    static bool InPolygon(IReadOnlyList<Point> poly, Point p)
+    {
+        bool inside = false;
+        for (int i = 0, j = poly.Count - 1; i < poly.Count; j = i++)
+        {
+            if ((poly[i].Y > p.Y) != (poly[j].Y > p.Y) &&
+                p.X < (poly[j].X - poly[i].X) * (p.Y - poly[i].Y) / (poly[j].Y - poly[i].Y) + poly[i].X)
+                inside = !inside;
+        }
+        return inside;
+    }
 
     /// <summary>Se il punto cade su un oggetto non selezionato, lo seleziona (e attiva lo strumento Seleziona).</summary>
     void SelectAt(Point p, double tolerance = 10)
@@ -1047,6 +1221,16 @@ public partial class PageEditor : UserControl
         var menu = new ContextMenu { FontSize = 15, MinWidth = 230 };
         if (selection)
         {
+            if (Ink.GetSelectedElements().OfType<GraphImage>().FirstOrDefault() is { } graph)
+            {
+                menu.Items.Add(MenuEntry("Modifica il grafico in GeoGebra", "", () => OpenGraph(graph)));
+                menu.Items.Add(new Separator());
+            }
+            else if (Ink.GetSelectedElements().OfType<RichTextBox>().Any())
+            {
+                menu.Items.Add(MenuEntry("Disegna il grafico di questa funzione", "", () => OpenGraph()));
+                menu.Items.Add(new Separator());
+            }
             menu.Items.Add(MenuEntry("Taglia", "", () => Copy(cut: true), gesture: "Ctrl+X"));
             menu.Items.Add(MenuEntry("Copia", "", () => Copy(cut: false), gesture: "Ctrl+C"));
             menu.Items.Add(MenuEntry("Incolla qui", "", () => Paste(p), canPaste, "Ctrl+V"));
@@ -1345,6 +1529,12 @@ public partial class PageEditor : UserControl
                 break;
 
             case EditorTool.Select when e.ClickCount == 2:
+                if (ElementAt(p) is GraphImage graph)
+                {
+                    e.Handled = true;
+                    OpenGraph(graph);
+                    break;
+                }
                 var rtb = Ink.Children.OfType<RichTextBox>().LastOrDefault(r =>
                     new Rect(InkCanvas.GetLeft(r), InkCanvas.GetTop(r), r.ActualWidth, r.ActualHeight).Contains(p));
                 if (rtb != null)

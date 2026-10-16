@@ -4,7 +4,7 @@ Blocco appunti per **LIM** (lavagne interattive) in stile OneNote, per una scuol
 
 ## Progetto
 
-- WPF, **.NET 10** (`net10.0-windows`), C# con nullable. Nessuna libreria esterna: PDF, ZIP, icone sono fatti in casa.
+- WPF, **.NET 10** (`net10.0-windows`), C# con nullable. Nessuna libreria esterna: PDF, ZIP, icone sono fatti in casa. Unica eccezione, approvata dall'utente: `Microsoft.Web.WebView2` per GeoGebra.
 - Soluzione `Ardesia.slnx`, progetto in `src/Ardesia/`.
 - File `.ardesia` = ZIP con `notebook.json` (struttura, sfondi, caselle di testo in XAML), `ink/{pagina}.isf` (tratti ISF), `media/{id}` (immagini). Vedi `Services/NotebookStore.cs`. Salvataggio atomico (file temporaneo + `File.Replace`).
 - Gerarchia libera: `NotebookNode` con `Sections` (sottosezioni) e `Pages` (pagine/sottopagine) — `Models/Notebook.cs`.
@@ -18,6 +18,8 @@ Blocco appunti per **LIM** (lavagne interattive) in stile OneNote, per una scuol
 | `Editor/Pencil.cs` | Matita 3H–3B (grana), `ArdesiaInkCanvas` + `ArdesiaDynamicRenderer` (disegno dal vivo: normale / matita / nascosto) |
 | `Editor/GeometryTools.cs` | Righello, goniometro, compasso |
 | `MainWindow.xaml(.cs)` | Barra completa e semplificata, penne configurabili (popup), sezioni/pagine, file, PDF, scorciatoie |
+| `GeoGebraWindow.xaml(.cs)` | GeoGebra «graphing» in WebView2, caricato **online** da geogebra.org (le LIM hanno sempre internet); restituisce PNG (doppia risoluzione) e costruzione `.ggb` in Base64 |
+| `ClassPdfDialog` + `MainWindow.UpdateClassPdf` | PDF per la classe: percorso ed esclusioni salvati **nel blocco appunti** (`ClassPdfPath`, `ClassPdfExcluded`); rifatto in `ConfirmClose` (chiusura / cambio blocco) solo se ci sono modifiche o manca il file, scrivendo prima un `.tmp`. Non a ogni salvataggio automatico: bloccherebbe la LIM. Serve perché gli alunni (anche con Mac/iPad) non possono aprire i `.ardesia` |
 | `StartWindow`, `ExportDialog`, `TouchTestWindow` | Schermata iniziale, esportazione PDF, prova del tocco della LIM |
 | `Services/AppSettings.cs` | Impostazioni in `%AppData%\Ardesia\settings.json` (penne, ultimo file, barra semplificata, FingerPans…) |
 
@@ -59,10 +61,18 @@ dotnet build                                   # se fallisce per file bloccato, 
 ## Insidie già incontrate
 
 - InkCanvas sposta una selezione solo se la si afferra su un tratto o sul bordo: lo spostamento dall'interno è fatto a mano (`TryBeginMove`). Gli elementi (immagini, testi) non sono hit-test visibili fuori dallo strumento Testo.
+- Il lazo di InkCanvas prende un oggetto solo se ne racchiude quasi tutto il riquadro, e le caselle di testo sono larghe 520 px: `SetupTextSelection`/`FinishLasso` le aggiungono se il lazo ne racchiude il **testo**; un tocco/clic sul testo le seleziona. `ElementAt` per le caselle conta solo l'area del testo (`TextBounds`).
+- Icona delle finestre: `BitmapFrame.Create` (non `BitmapImage`, che legge solo l'immagine da 16 px e rende l'icona minuscola nella barra delle applicazioni).
+- GeoGebra all'avvio apre la tastiera e un pannello Algebra largo: non ci sono parametri, la pagina simula il clic su «Chiudi» e il trascinamento del divisore (`closeKeyboard`, `narrowAlgebra`).
 - Col tocco un `ContextMenu` aperto durante la pressione si richiude al rilascio: il menu si apre **al rilascio** (cerchietto durante l'attesa).
 - Il disegno dal vivo di WPF tracciava la scia anche con la gomma: ora lo gestisce `ArdesiaDynamicRenderer` (`LiveEnabled`, `HideLiveStroke`).
 - La gomma precisa spezza i tratti matita in tratti normali: `Pencil.UpgradeAll` li ripristina.
 
-## Idee in sospeso
+## GeoGebra
 
-- **GeoGebra**: riquadro con GeoGebra in WebView2; funzione presa da una casella di testo (prima fase) o dalla scrittura a mano (seconda fase, riconoscimento Windows con conferma); grafico inserito come immagine e riapribile modificabile salvando lo stato GeoGebra. Da chiarire: internet sulle LIM, licenza del pacchetto offline.
+- Elemento `"geogebra"` (`GraphImage` in `ElementFactory.cs`): `MediaId` = PNG, `Content` = costruzione `.ggb` in Base64. Si apre in una **finestra a parte** (WebView2 sul foglio coprirebbe l'inchiostro e non seguirebbe lo zoom).
+- Prima fase (fatta): pulsante «Grafico» (barra semplificata e scheda Inserisci) e voce del menu contestuale; prende le funzioni dalla casella di testo selezionata, una per riga (x² → x^(2), virgola decimale → punto) e mette il grafico accanto. Doppio clic o menu contestuale su un grafico lo riapre.
+- Seconda fase (da fare): funzione scritta a mano, riconoscimento Windows con conferma.
+- La pagina è servita da Ardesia all'indirizzo finto `https://ardesia.local/geogebra.html` (`WebResourceRequested`): con `NavigateToString` l'origine è opaca e GeoGebra si blocca leggendo `document.cookie` (pagina bianca).
+- Prova: `Ardesia.exe --prova-geogebra [registro.log]` apre solo la finestra con due funzioni, registra avvio, console, errori JavaScript ed esportazione, e si chiude dopo 25 s. La finestra compare sullo schermo dell'utente: avvisarlo prima.
+- Nel pannello Browser nascosto GeoGebra non disegna e `getPNGBase64` fallisce: per provare la pagina tenere il pannello visibile.

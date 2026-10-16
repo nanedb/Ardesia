@@ -36,6 +36,7 @@ public partial class MainWindow : Window
     Notebook _nb = new();
     string? _path;
     bool _dirty, _fullScreen, _navHidden, _syncing;
+    bool _classPdfStale; // modifiche non ancora nel PDF per la classe
     NotebookNode? _section, _page;
     GridLength _sectionsWidth, _pagesWidth;
     WindowState _restoreState;
@@ -137,6 +138,7 @@ public partial class MainWindow : Window
         _page = null;
         ShowSection(nb.Sections.FirstOrDefault());
         _dirty = false;
+        _classPdfStale = false;
         UpdateTitle();
     }
 
@@ -256,7 +258,11 @@ public partial class MainWindow : Window
     bool ConfirmClose()
     {
         Editor.Flush();
-        if (!_dirty || _path == null || Save(quiet: true)) return true;
+        if (!_dirty || _path == null || Save(quiet: true))
+        {
+            UpdateClassPdf();
+            return true;
+        }
         var r = MessageBox.Show(this,
             $"Non è stato possibile salvare «{_nb.Title}»" + (_path != null ? $" in:\n{_path}" : ".") +
             "\n\nVuoi scegliere un'altra posizione in cui salvarlo?\n\n" +
@@ -268,6 +274,73 @@ public partial class MainWindow : Window
             MessageBoxResult.No => true,
             _ => false,
         };
+    }
+
+    /// <summary>
+    /// Rifà il PDF per la classe se ci sono modifiche (o se il file manca). Si scrive prima un file temporaneo,
+    /// così Google Drive non carica mai un PDF a metà. Restituisce un messaggio di errore, o null.
+    /// </summary>
+    string? UpdateClassPdf(bool force = false)
+    {
+        if (_path == null || _nb.ClassPdfPath is not { } pdf) return null;
+        if (!force && !_classPdfStale && File.Exists(pdf)) return null;
+        var dir = Path.GetDirectoryName(pdf);
+        if (dir == null || !Directory.Exists(dir))
+        {
+            StatusText.Text = "PDF per la classe non aggiornato: cartella non trovata";
+            return $"Non trovo la cartella del PDF per la classe:\n{dir}\n\nSe è su Google Drive, controlla che Google Drive per desktop sia avviato.";
+        }
+        var pages = _nb.ClassPdfPages().ToList();
+        if (pages.Count == 0) return "Nessuna pagina da mettere nel PDF: includi almeno una sezione con delle pagine.";
+        var tmp = Path.Combine(dir, "~" + Path.GetFileName(pdf) + ".tmp");
+        try
+        {
+            Mouse.OverrideCursor = Cursors.Wait;
+            StatusText.Text = "Aggiorno il PDF per la classe…";
+            Editor.Flush();
+            PdfExporter.Export(_nb, pages, tmp, _nb.Title);
+            File.Move(tmp, pdf, overwrite: true);
+            _classPdfStale = false;
+            StatusText.Text = $"PDF per la classe aggiornato alle {DateTime.Now:HH:mm}";
+            StatusText.ToolTip = pdf;
+            return null;
+        }
+        catch (Exception ex)
+        {
+            try { File.Delete(tmp); } catch { /* già assente */ }
+            StatusText.Text = "PDF per la classe non aggiornato";
+            return $"Non è stato possibile aggiornare il PDF per la classe:\n{pdf}\n\n{ex.Message}";
+        }
+        finally
+        {
+            Mouse.OverrideCursor = null;
+        }
+    }
+
+    void ClassPdfSettings()
+    {
+        if (_path == null)
+        {
+            MessageBox.Show(this, "Salva prima il blocco appunti.", "Ardesia", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+        var before = (_nb.ClassPdfPath, string.Join(",", _nb.ClassPdfExcluded));
+        bool updatedNow = false;
+        var dlg = new ClassPdfDialog(_nb)
+        {
+            Owner = this,
+            UpdateNow = () =>
+            {
+                var error = UpdateClassPdf(force: true);
+                updatedNow = error == null;
+                return error;
+            },
+        };
+        dlg.ShowDialog();
+        if (before == (_nb.ClassPdfPath, string.Join(",", _nb.ClassPdfExcluded))) return;
+        // Impostazioni cambiate: si salvano col blocco appunti; il PDF va rifatto, se non è appena stato fatto.
+        SetDirty();
+        _classPdfStale = !updatedNow;
     }
 
     void Window_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
@@ -303,6 +376,7 @@ public partial class MainWindow : Window
         // Ogni modifica fa ripartire il conto alla rovescia del salvataggio automatico.
         _autosaveTimer.Stop();
         if (_path != null) _autosaveTimer.Start();
+        _classPdfStale = true;
         if (_dirty) return;
         _dirty = true;
         UpdateTitle();
@@ -321,7 +395,7 @@ public partial class MainWindow : Window
         if (e.PropertyName == nameof(Notebook.Title)) SetDirty();
     }
 
-    static string SafeFileName(string s)
+    internal static string SafeFileName(string s)
     {
         var invalid = Path.GetInvalidFileNameChars();
         var clean = new string(s.Select(ch => invalid.Contains(ch) ? '_' : ch).ToArray()).Trim();
@@ -905,6 +979,8 @@ public partial class MainWindow : Window
         }
     }
 
+    void InsertGraph_Click(object sender, RoutedEventArgs e) => Editor.OpenGraph();
+
     void ApplyBackgroundToSection_Click(object sender, RoutedEventArgs e)
     {
         if (_page?.Page is not { } current || _section == null) return;
@@ -1439,6 +1515,7 @@ public partial class MainWindow : Window
         menu.Items.Add(Item("Salva con nome…", () => SaveAs()));
         menu.Items.Add(new Separator());
         menu.Items.Add(Item("Esporta in PDF…   (Ctrl+P)", () => ExportPdf(ExportScope.Page)));
+        menu.Items.Add(Item(_nb.ClassPdfPath != null ? "PDF per la classe (attivo)…" : "PDF per la classe…", ClassPdfSettings, _path != null));
         menu.Items.Add(Item("Apri la cartella del blocco appunti", () =>
         {
             if (_path != null) Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{_path}\"") { UseShellExecute = true });

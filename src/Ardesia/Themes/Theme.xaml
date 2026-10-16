@@ -26,6 +26,7 @@
     <Geometry x:Key="IconCompass">M12,2.5 V5 M12,7 L6,21.5 M12,7 L18,21.5 M8.3,15.5 H15.7 M10.5,5.5 A1.5,1.5 0 1 0 13.5,5.5 A1.5,1.5 0 1 0 10.5,5.5 Z</Geometry>
     <Geometry x:Key="IconProtractor">M2,18 H22 M2,18 A10,10 0 0 1 22,18 M7,18 A5,5 0 0 1 17,18 M12,8 V10.5 M5,11 L6.6,12.6 M19,11 L17.4,12.6 M12,18 V16.5</Geometry>
     <Geometry x:Key="IconPointEraser">M12,4 A8,8 0 1 0 12.01,4 Z M12,10.5 A1.5,1.5 0 1 0 12.01,10.5 Z</Geometry>
+    <Geometry x:Key="IconPointer">M6,3 L6,19 L10.2,15.2 L13,21 L15.6,19.8 L12.8,14 L18.5,14 Z</Geometry>
     <Geometry x:Key="IconLine">M4,20 L20,4</Geometry>
     <Geometry x:Key="IconArrow">M4,20 L20,4 M11,4 H20 V13</Geometry>
     <Geometry x:Key="IconRect">M3.5,6 H20.5 V18 H3.5 Z</Geometry>
@@ -551,6 +552,9 @@
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="Bd" Property="Background" Value="{StaticResource AccentDarkBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Bd" Property="Opacity" Value="0.4" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>

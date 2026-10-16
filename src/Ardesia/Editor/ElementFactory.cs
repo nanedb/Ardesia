@@ -10,6 +10,13 @@ using Ardesia.Models;
 
 namespace Ardesia.Editor;
 
+/// <summary>Grafico GeoGebra sulla pagina: un'immagine che ricorda lo stato di GeoGebra, per riaprirlo modificabile.</summary>
+public class GraphImage : Image
+{
+    /// <summary>Costruzione GeoGebra in formato .ggb codificato in Base64.</summary>
+    public string State { get; set; } = "";
+}
+
 /// <summary>Crea gli oggetti WPF della pagina a partire dai dati salvati, e viceversa.</summary>
 public static class ElementFactory
 {
@@ -108,6 +115,16 @@ public static class ElementFactory
         Tag = mediaId,
     };
 
+    public static GraphImage CreateGraph(BitmapSource source, string mediaId, string state, double width, double height) => new()
+    {
+        Source = source,
+        Stretch = Stretch.Fill,
+        Width = width,
+        Height = height,
+        Tag = mediaId,
+        State = state,
+    };
+
     public static UIElement? Create(ElementData d, Notebook nb, bool export = false)
     {
         UIElement? ui = null;
@@ -120,14 +137,16 @@ public static class ElementFactory
                 ui = rtb;
                 break;
             case "image":
+            case "geogebra":
                 if (d.MediaId != null && nb.Media.TryGetValue(d.MediaId, out var bytes))
                 {
                     try
                     {
                         var bmp = LoadBitmap(bytes);
-                        ui = CreateImage(bmp, d.MediaId,
-                            d.Width > 0 ? d.Width : bmp.PixelWidth,
-                            d.Height > 0 ? d.Height : bmp.PixelHeight);
+                        double w = d.Width > 0 ? d.Width : bmp.PixelWidth, h = d.Height > 0 ? d.Height : bmp.PixelHeight;
+                        ui = d.Type == "geogebra"
+                            ? CreateGraph(bmp, d.MediaId, d.Content ?? "", w, h)
+                            : CreateImage(bmp, d.MediaId, w, h);
                     }
                     catch
                     {
@@ -156,6 +175,14 @@ public static class ElementFactory
                 Type = "text", X = x, Y = y,
                 Width = double.IsNaN(r.Width) ? r.ActualWidth : r.Width,
                 Content = GetXaml(r),
+            },
+            GraphImage { Tag: string gid } g => new ElementData
+            {
+                Type = "geogebra", X = x, Y = y,
+                Width = double.IsNaN(g.Width) ? g.ActualWidth : g.Width,
+                Height = double.IsNaN(g.Height) ? g.ActualHeight : g.Height,
+                MediaId = gid,
+                Content = g.State,
             },
             Image { Tag: string id } i => new ElementData
             {

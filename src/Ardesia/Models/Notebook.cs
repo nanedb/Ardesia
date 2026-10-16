@@ -36,6 +36,21 @@ public class Notebook : ObservableObject
     public string Title { get => _title; set => Set(ref _title, value); }
     public ObservableCollection<NotebookNode> Sections { get; set; } = new();
 
+    /// <summary>PDF per la classe: file aggiornato da solo (di solito in una cartella Google Drive condivisa); null = spento.</summary>
+    public string? ClassPdfPath { get; set; }
+
+    /// <summary>Sezioni escluse dal PDF per la classe (con le loro sottosezioni), es. le verifiche.</summary>
+    public List<Guid> ClassPdfExcluded { get; set; } = new();
+
+    /// <summary>Le pagine che vanno nel PDF per la classe.</summary>
+    public IEnumerable<NotebookNode> ClassPdfPages() =>
+        AllPages().Where(p =>
+        {
+            for (var n = p.Parent; n != null; n = n.Parent)
+                if (n.Kind == NodeKind.Section && ClassPdfExcluded.Contains(n.Id)) return false;
+            return true;
+        });
+
     /// <summary>Immagini incorporate, indicizzate per id.</summary>
     [JsonIgnore] public Dictionary<string, byte[]> Media { get; } = new();
 
@@ -233,7 +248,7 @@ public class PageData
     };
 }
 
-/// <summary>Un oggetto posizionato sulla pagina (casella di testo o immagine).</summary>
+/// <summary>Un oggetto posizionato sulla pagina (casella di testo, immagine o grafico GeoGebra).</summary>
 public record ElementData
 {
     public string Type { get; set; } = "text";
@@ -242,9 +257,10 @@ public record ElementData
     public double Width { get; set; }
     public double Height { get; set; }
 
-    /// <summary>Per le caselle di testo: contenuto in formato XAML (FlowDocument).</summary>
+    /// <summary>Per le caselle di testo: contenuto in formato XAML (FlowDocument).
+    /// Per i grafici GeoGebra: la costruzione (.ggb in Base64).</summary>
     public string? Content { get; set; }
 
-    /// <summary>Per le immagini: id nel dizionario Media del blocco appunti.</summary>
+    /// <summary>Per immagini e grafici: id nel dizionario Media del blocco appunti.</summary>
     public string? MediaId { get; set; }
 }
