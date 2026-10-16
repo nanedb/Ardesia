@@ -20,6 +20,7 @@ Blocco appunti per **LIM** (lavagne interattive) in stile OneNote, per una scuol
 | `MainWindow.xaml(.cs)` | Barra completa e semplificata, penne configurabili (popup), sezioni/pagine, file, PDF, scorciatoie |
 | `GeoGebraWindow.xaml(.cs)` | **GeoGebra Classic** (`appName: 'classic'`, prospettiva Algebra + Grafici: scelto dall'utente perché più pulito della Calcolatrice grafica) in WebView2, caricato **online** da geogebra.org (le LIM hanno sempre internet); restituisce PNG (doppia risoluzione) e costruzione `.ggb` in Base64 |
 | `ClassPdfDialog` + `MainWindow.UpdateClassPdf` | PDF per la classe: **attivo di default** per ogni blocco appunti (scelta dell'utente), accanto al file con lo stesso nome (`ClassPdfFile`); impostazioni salvate **nel blocco appunti** (`ClassPdfDisabled`, `ClassPdfPath` solo se diverso da quello accanto al file, `ClassPdfExcluded`); rifatto in `ConfirmClose` (chiusura / cambio blocco) solo se ci sono modifiche o manca il file, scrivendo prima un `.tmp`. Non a ogni salvataggio automatico: bloccherebbe la LIM. Serve perché gli alunni (anche con Mac/iPad) non possono aprire i `.ardesia` |
+| `SettingsWindow` (File › Impostazioni…) | Due schede: **Questo PC** (`AppSettings`: «Il dito sposta la pagina», prova del tocco, file recenti) e **Questo blocco appunti** (PDF per la classe, salvato nel file). Il riquadro del PDF è `Controls/ClassPdfPanel`, condiviso con `ClassPdfDialog`; le voci sparse nei menu restano (scelta dell'utente) |
 | `StartWindow`, `ExportDialog`, `TouchTestWindow` | Schermata iniziale, esportazione PDF, prova del tocco della LIM |
 | `Services/AppSettings.cs` | Impostazioni in `%AppData%\Ardesia\settings.json` (penne, ultimo file, barra semplificata, FingerPans…) |
 
@@ -52,6 +53,7 @@ dotnet build                                   # se fallisce per file bloccato, 
 ### Prove automatiche
 
 - `Ardesia.exe --snapshot out.png --demo [--tab Disegna]`: crea contenuti di prova, salva lo screenshot della finestra, salva/ricarica un `.ardesia` ed esporta un PDF nella stessa cartella, poi esce. Non tocca le impostazioni.
+- `--tab Impostazioni` / `--tab "Impostazioni blocco"`: fotografa la finestra Impostazioni (scheda Questo PC / Questo blocco appunti) invece del foglio.
 - `Ardesia.exe --prova-tocco`: apre solo la prova del tocco.
 - **Prima di aprire l'app per prove** copiare `%AppData%\Ardesia\settings.json` e ripristinarlo alla fine (le prove modificano ultimo file, penne, ecc.). Usare file `.ardesia` di prova nello scratchpad, mai quelli dell'utente.
 - **Tocco simulato**: `tools/TouchInject.ps1 -Paths "x,y;x,y;…" [-Paths2 …] [-HoldEndMs n]` (coordinate fisiche; schermo dell'utente 1920×1080, gli screenshot di computer-use sono 1456×819 → ×1,3187).

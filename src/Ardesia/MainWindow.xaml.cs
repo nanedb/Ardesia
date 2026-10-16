@@ -343,6 +343,35 @@ public partial class MainWindow : Window
         _classPdfStale = !updatedNow;
     }
 
+    /// <summary>Finestra Impostazioni: «Questo PC» (settings.json) e «Questo blocco appunti» (nel file).</summary>
+    SettingsWindow OpenSettings(bool notebookTab = false, bool modal = true, string? path = null)
+    {
+        var before = (_nb.ClassPdfDisabled, _nb.ClassPdfPath, string.Join(",", _nb.ClassPdfExcluded));
+        var dlg = new SettingsWindow(_settings, _nb, path ?? _path)
+        {
+            Owner = this,
+            UpdateNow = () => UpdateClassPdf(force: true),
+        };
+        if (notebookTab) dlg.ShowNotebookTab();
+        if (!modal)
+        {
+            dlg.Show();
+            return dlg;
+        }
+        if (dlg.ShowDialog() == true)
+        {
+            Editor.FingerPans = _settings.FingerPans;
+            SyncRibbon();
+        }
+        // «Aggiorna ora il PDF» applica subito le scelte del PDF, anche se poi si preme Annulla.
+        if (before != (_nb.ClassPdfDisabled, _nb.ClassPdfPath, string.Join(",", _nb.ClassPdfExcluded)))
+        {
+            SetDirty();
+            _classPdfStale = !dlg.ClassPdfUpdated;
+        }
+        return dlg;
+    }
+
     void Window_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
         if (!ConfirmClose())
@@ -1522,6 +1551,7 @@ public partial class MainWindow : Window
         }, _path != null));
         menu.Items.Add(new Separator());
         menu.Items.Add(Item("Prova del tocco della LIM…", () => new TouchTestWindow { Owner = this, WindowState = WindowState.Maximized }.ShowDialog()));
+        menu.Items.Add(Item("Impostazioni…", () => OpenSettings()));
         menu.Items.Add(new Separator());
         menu.Items.Add(Item("Esci", Close));
         menu.IsOpen = true;
@@ -1672,9 +1702,14 @@ public partial class MainWindow : Window
                 foreach (TabItem ti in Ribbon.Items)
                     if (string.Equals(ti.Header as string, tab, StringComparison.OrdinalIgnoreCase))
                         Ribbon.SelectedItem = ti;
+            // --tab Impostazioni / «Impostazioni blocco»: si fotografa la finestra Impostazioni invece del foglio
+            Window shot = this;
+            if (tab != null && tab.StartsWith("Impostazioni", StringComparison.OrdinalIgnoreCase))
+                shot = OpenSettings(notebookTab: tab.Contains("blocco", StringComparison.OrdinalIgnoreCase), modal: false,
+                    path: Path.Combine(Path.GetDirectoryName(Path.GetFullPath(pngPath))!, "demo" + NotebookStore.Extension));
             await Task.Delay(600);
-            var root = (FrameworkElement)Content;
-            var dpi = VisualTreeHelper.GetDpi(this);
+            var root = (FrameworkElement)shot.Content;
+            var dpi = VisualTreeHelper.GetDpi(shot);
             var bmp = new RenderTargetBitmap((int)(root.ActualWidth * dpi.DpiScaleX), (int)(root.ActualHeight * dpi.DpiScaleY),
                 dpi.PixelsPerInchX, dpi.PixelsPerInchY, PixelFormats.Pbgra32);
             bmp.Render(root);
