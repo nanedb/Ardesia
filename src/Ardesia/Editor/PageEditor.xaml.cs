@@ -9,6 +9,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using Ardesia.Editor.Graph;
 using Ardesia.Models;
 using WpfPath = System.Windows.Shapes.Path;
 
@@ -752,16 +753,25 @@ public partial class PageEditor : UserControl
     /// Apre GeoGebra: con un grafico, per modificarlo; altrimenti per uno nuovo, prendendo le funzioni
     /// dalla casella di testo selezionata (o in scrittura), e lo mette accanto ad essa.
     /// </summary>
-    public void OpenGraph(GraphImage? existing = null)
+    public void OpenGraph(GraphImage? existing = null, FunctionGraph? from = null)
     {
         if (_notebook == null || _node == null) return;
         CommitPending();
-        existing ??= Ink.GetSelectedElements().OfType<GraphImage>().FirstOrDefault();
+        existing ??= from == null ? Ink.GetSelectedElements().OfType<GraphImage>().FirstOrDefault() : null;
 
-        RichTextBox? source = null;
-        if (existing == null)
-            source = SelectedTextBoxes().FirstOrDefault() ?? (HasActiveTextBox ? ActiveTextBox : null);
-        var formulas = source == null ? null : new TextRange(source.Document.ContentStart, source.Document.ContentEnd).Text;
+        // le funzioni vengono da un grafico di Ardesia («Apri in GeoGebra») o dalla casella di testo selezionata
+        FrameworkElement? source = null;
+        string? formulas = null;
+        if (from != null)
+        {
+            source = from;
+            formulas = from.State.FunctionsText;
+        }
+        else if (existing == null && (SelectedTextBoxes().FirstOrDefault() ?? (HasActiveTextBox ? ActiveTextBox : null)) is { } box)
+        {
+            source = box;
+            formulas = new TextRange(box.Document.ContentStart, box.Document.ContentEnd).Text;
+        }
 
         var win = new GeoGebraWindow(existing?.State, formulas) { Owner = Window.GetWindow(this) };
         if (win.ShowDialog() != true || win.Png is not { } png || win.State is not { } state) return;
@@ -811,6 +821,111 @@ public partial class PageEditor : UserControl
         CommitPending();
         Tool = EditorTool.Select;
         Ink.Select(new StrokeCollection(), new UIElement[] { graph });
+    }
+
+    /// <summary>
+    /// Grafico di Ardesia: con un grafico selezionato apre le sue funzioni; altrimenti ne crea uno nuovo con le
+    /// funzioni della casella di testo selezionata (una per riga) e lo mette accanto, o chiede le funzioni.
+    /// </summary>
+    public void InsertGraph()
+    {
+        if (_notebook == null || _node == null) return;
+        CommitPending();
+        if (Ink.GetSelectedElements().OfType<FunctionGraph>().FirstOrDefault() is { } selected)
+        {
+            EditGraphFunctions(selected);
+            return;
+        }
+
+        var source = SelectedTextBoxes().FirstOrDefault() ?? (HasActiveTextBox ? ActiveTextBox : null);
+        IReadOnlyList<string> lines = source == null
+            ? Array.Empty<string>()
+            : new TextRange(source.Document.ContentStart, source.Document.ContentEnd).Text
+                .Replace("\r\n", "\n").Split('\n').Select(l => l.Trim()).Where(l => l.Length > 0).ToList();
+        if (lines.Count == 0)
+        {
+            var dlg = new GraphFunctionsDialog("") { Owner = Window.GetWindow(this) };
+            if (dlg.ShowDialog() != true || dlg.Lines.Count == 0) return;
+            lines = dlg.Lines;
+            source = null;
+        }
+
+        var state = new GraphState();
+        state.SetFunctions(lines);
+        var graph = ElementFactory.CreateFunctionGraph(state, 600, 450);
+        graph.ResetView();
+        var pos = VisibleOrigin();
+        if (source != null && Ink.Children.Contains(source))
+        {
+            // accanto al testo scritto, non al riquadro della casella (largo 520 px anche con poche parole)
+            var b = TextBounds(source);
+            double sx = InkCanvas.GetLeft(source), sy = InkCanvas.GetTop(source);
+            double right = b.IsEmpty ? (double.IsNaN(sx) ? 0 : sx) + source.ActualWidth : b.Right;
+            pos = new Point(right + 24, double.IsNaN(sy) ? 0 : sy);
+        }
+        InkCanvas.SetLeft(graph, pos.X);
+        InkCanvas.SetTop(graph, pos.Y);
+        AddElement(graph);
+        MarkChanged();
+        CommitPending();
+        Tool = EditorTool.Select;
+        Ink.Select(new StrokeCollection(), new UIElement[] { graph });
+    }
+
+    /// <summary>Finestrella con le funzioni del grafico, da correggere o aggiungere.</summary>
+    public void EditGraphFunctions(FunctionGraph graph)
+    {
+        CommitPending();
+        var dlg = new GraphFunctionsDialog(graph.State.FunctionsText) { Owner = Window.GetWindow(this) };
+        if (dlg.ShowDialog() != true) return;
+        graph.State.SetFunctions(dlg.Lines);
+        graph.Refresh();
+        GraphChanged();
+    }
+
+    /// <summary>Dopo una modifica allo stato di un grafico: si salva e si può annullare.</summary>
+    void GraphChanged()
+    {
+        MarkChanged();
+        CommitPending();
+    }
+
+    /// <summary>Voci del menu contestuale di un grafico di Ardesia; le caselle lasciano il menu aperto.</summary>
+    void AddGraphMenuItems(ContextMenu menu, FunctionGraph graph)
+    {
+        menu.Items.Add(MenuEntry("Funzioni del grafico…", "", () => EditGraphFunctions(graph)));
+        var show = graph.State.Show;
+        void Toggle(string header, Func<bool> get, Action<bool> set)
+        {
+            var item = new MenuItem
+            {
+                Header = header,
+                IsCheckable = true,
+                IsChecked = get(),
+                StaysOpenOnClick = true,
+                Padding = new Thickness(6, 7, 6, 7),
+            };
+            item.Click += (_, _) =>
+            {
+                set(item.IsChecked);
+                graph.InvalidateVisual();
+                GraphChanged();
+            };
+            menu.Items.Add(item);
+        }
+        Toggle("Zeri", () => show.Zeros, v => show.Zeros = v);
+        Toggle("Intersezioni", () => show.Intersections, v => show.Intersections = v);
+        Toggle("Massimi e minimi", () => show.Extrema, v => show.Extrema = v);
+        Toggle("Derivata", () => show.Derivative, v => show.Derivative = v);
+        Toggle("Segno della funzione", () => show.Sign, v => show.Sign = v);
+        Toggle("Griglia", () => show.Grid, v => show.Grid = v);
+        Toggle("Tacche in π", () => show.Pi, v => show.Pi = v);
+        menu.Items.Add(new Separator());
+        menu.Items.Add(MenuEntry("Ingrandisci il grafico", "", () => { graph.Zoom(1 / 1.5); GraphChanged(); }));
+        menu.Items.Add(MenuEntry("Rimpicciolisci il grafico", "", () => { graph.Zoom(1.5); GraphChanged(); }));
+        menu.Items.Add(MenuEntry("Vista standard", "", () => { graph.ResetView(); GraphChanged(); }));
+        menu.Items.Add(MenuEntry("Apri in GeoGebra", "", () => OpenGraph(from: graph)));
+        menu.Items.Add(new Separator());
     }
 
     public void BeginTextAtVisibleArea()
@@ -1226,9 +1341,14 @@ public partial class PageEditor : UserControl
                 menu.Items.Add(MenuEntry("Modifica il grafico in GeoGebra", "", () => OpenGraph(graph)));
                 menu.Items.Add(new Separator());
             }
+            else if (Ink.GetSelectedElements().OfType<FunctionGraph>().FirstOrDefault() is { } fgraph)
+            {
+                AddGraphMenuItems(menu, fgraph);
+            }
             else if (Ink.GetSelectedElements().OfType<RichTextBox>().Any())
             {
-                menu.Items.Add(MenuEntry("Disegna il grafico di questa funzione", "", () => OpenGraph()));
+                menu.Items.Add(MenuEntry("Disegna il grafico di questa funzione", "", InsertGraph));
+                menu.Items.Add(MenuEntry("Disegna il grafico con GeoGebra", "", () => OpenGraph()));
                 menu.Items.Add(new Separator());
             }
             menu.Items.Add(MenuEntry("Taglia", "", () => Copy(cut: true), gesture: "Ctrl+X"));
@@ -1486,7 +1606,7 @@ public partial class PageEditor : UserControl
             case EditorTool.Text:
                 if (onTitle || FindAncestor<TextBoxBase>(src) != null) return;
                 // Un clic su un'immagine la seleziona (per spostarla o ridimensionarla) invece di creare un testo.
-                if (ElementAt(p) is Image image)
+                if (ElementAt(p) is (Image or FunctionGraph) and var image)
                 {
                     Tool = EditorTool.Select;
                     Ink.Select(new StrokeCollection(), new UIElement[] { image });
@@ -1533,6 +1653,12 @@ public partial class PageEditor : UserControl
                 {
                     e.Handled = true;
                     OpenGraph(graph);
+                    break;
+                }
+                if (ElementAt(p) is FunctionGraph fgraph)
+                {
+                    e.Handled = true;
+                    EditGraphFunctions(fgraph);
                     break;
                 }
                 var rtb = Ink.Children.OfType<RichTextBox>().LastOrDefault(r =>
@@ -1889,7 +2015,7 @@ public partial class PageEditor : UserControl
         switch (_tool)
         {
             case EditorTool.Text:
-                if (ElementAt(p) is Image image)
+                if (ElementAt(p) is (Image or FunctionGraph) and var image)
                 {
                     Tool = EditorTool.Select;
                     Ink.Select(new StrokeCollection(), new UIElement[] { image });
@@ -2211,5 +2337,16 @@ public partial class PageEditor : UserControl
             ContinueArc(new Point(560 + 300 * Math.Cos(i * 0.1), 260 + 300 * Math.Sin(i * 0.1)));
         _drag = DragMode.None;
         _arcStroke = null;
+
+        // grafico di Ardesia con parametro, zeri, intersezioni, estremi e segno
+        var state = new GraphState();
+        state.SetFunctions(new[] { "y = x² − 4", "f(x) = 1,5x + a", "x = 3" });
+        state.Show.Zeros = state.Show.Intersections = state.Show.Extrema = state.Show.Sign = true;
+        var graph = ElementFactory.CreateFunctionGraph(state, 560, 420);
+        graph.ResetView();
+        InkCanvas.SetLeft(graph, 1080);
+        InkCanvas.SetTop(graph, 130);
+        AddElement(graph);
+        MarkChanged();
     }
 }

@@ -97,7 +97,7 @@
                         <ToggleButton Style="{StaticResource IconToggle}" Tag="Tool:Compass" ToolTip="Compasso (ricliccalo o premi Esc per chiuderlo)"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconCompass}" /></ToggleButton>
                         <Border Style="{StaticResource BarSeparator}" />
                         <Button Style="{StaticResource IconButton}" Click="InsertImage_Click" ToolTip="Inserisci immagine"><TextBlock Style="{StaticResource SmallGlyph}" Text="&#xE8B9;" FontSize="17" /></Button>
-                        <Button Style="{StaticResource IconButton}" Click="InsertGraph_Click" ToolTip="Grafico con GeoGebra (prende la funzione dalla casella di testo selezionata)"><TextBlock Style="{StaticResource SmallGlyph}" Text="&#xE9D2;" FontSize="17" /></Button>
+                        <Button Style="{StaticResource IconButton}" Click="InsertGraph_Click" ToolTip="Grafico di funzione (prende le funzioni dalla casella di testo selezionata, una per riga)"><TextBlock Style="{StaticResource SmallGlyph}" Text="&#xE9D2;" FontSize="17" /></Button>
                         <Button Style="{StaticResource IconButton}" Click="NewPage_Click" ToolTip="Nuova pagina (Ctrl+N)"><TextBlock Style="{StaticResource SmallGlyph}" Text="&#xE7C3;" FontSize="17" /></Button>
                         <Button Style="{StaticResource IconButton}" Click="ExportPdf_Click" ToolTip="Esporta in PDF (Ctrl+P)"><TextBlock Style="{StaticResource SmallGlyph}" Text="&#xE749;" FontSize="17" /></Button>
                     </StackPanel>
@@ -185,8 +185,12 @@
                                 <TextBlock Style="{StaticResource Glyph}" Text="&#xE8B9;" />
                             </Button>
                             <Button Style="{StaticResource RibbonLargeButton}" c:Rb.Label="Grafico" Click="InsertGraph_Click"
-                                    ToolTip="Grafico con GeoGebra: se è selezionata una casella di testo, ne disegna le funzioni (una per riga). Doppio clic su un grafico per modificarlo.">
+                                    ToolTip="Grafico di funzione disegnato sul foglio: se è selezionata una casella di testo, ne disegna le funzioni (una per riga). Doppio clic su un grafico per cambiare le funzioni, clic destro per zeri, derivata, segno…">
                                 <TextBlock Style="{StaticResource Glyph}" Text="&#xE9D2;" />
+                            </Button>
+                            <Button Style="{StaticResource RibbonLargeButton}" c:Rb.Label="GeoGebra" Click="InsertGeoGebra_Click"
+                                    ToolTip="Grafico con GeoGebra (serve internet), per la geometria e i casi più avanzati: se è selezionata una casella di testo, ne disegna le funzioni. Doppio clic su un grafico GeoGebra per modificarlo.">
+                                <TextBlock Style="{StaticResource Glyph}" Text="&#xE909;" />
                             </Button>
                         </StackPanel>
                     </HeaderedContentControl>

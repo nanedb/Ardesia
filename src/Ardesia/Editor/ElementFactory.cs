@@ -6,6 +6,7 @@ using System.Windows.Documents;
 using System.Windows.Markup;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using Ardesia.Editor.Graph;
 using Ardesia.Models;
 
 namespace Ardesia.Editor;
@@ -15,6 +16,21 @@ public class GraphImage : Image
 {
     /// <summary>Costruzione GeoGebra in formato .ggb codificato in Base64.</summary>
     public string State { get; set; } = "";
+}
+
+/// <summary>
+/// Oggetto di un tipo che questa versione di Ardesia non conosce (salvato da una versione più nuova):
+/// non si vede, ma si riscrive invariato al salvataggio invece di andare perso.
+/// </summary>
+public sealed class PreservedElement : FrameworkElement
+{
+    public PreservedElement(ElementData data)
+    {
+        Data = data;
+        Visibility = Visibility.Collapsed;
+    }
+
+    public ElementData Data { get; }
 }
 
 /// <summary>Crea gli oggetti WPF della pagina a partire dai dati salvati, e viceversa.</summary>
@@ -125,6 +141,13 @@ public static class ElementFactory
         State = state,
     };
 
+    public static FunctionGraph CreateFunctionGraph(GraphState state, double width, double height) => new()
+    {
+        State = state,
+        Width = width,
+        Height = height,
+    };
+
     public static UIElement? Create(ElementData d, Notebook nb, bool export = false)
     {
         UIElement? ui = null;
@@ -154,6 +177,12 @@ public static class ElementFactory
                     }
                 }
                 break;
+            case "graph":
+                ui = CreateFunctionGraph(GraphState.FromJson(d.Content), d.Width > 0 ? d.Width : 600, d.Height > 0 ? d.Height : 450);
+                break;
+            default:
+                ui = new PreservedElement(d with { });
+                break;
         }
         if (ui != null)
         {
@@ -170,6 +199,14 @@ public static class ElementFactory
         if (double.IsNaN(y)) y = 0;
         return e switch
         {
+            PreservedElement p => p.Data with { X = x, Y = y },
+            FunctionGraph f => new ElementData
+            {
+                Type = "graph", X = x, Y = y,
+                Width = double.IsNaN(f.Width) ? f.ActualWidth : f.Width,
+                Height = double.IsNaN(f.Height) ? f.ActualHeight : f.Height,
+                Content = f.State.ToJson(),
+            },
             RichTextBox r => new ElementData
             {
                 Type = "text", X = x, Y = y,

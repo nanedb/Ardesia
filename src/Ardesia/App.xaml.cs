@@ -45,6 +45,17 @@ public partial class App : Application
             return;
         }
 
+        // Prova del grafico di Ardesia: parser e calcoli, senza finestre; scrive il registro e esce.
+        int pf = Array.IndexOf(e.Args, "--prova-grafico");
+        if (pf >= 0)
+        {
+            var log = pf + 1 < e.Args.Length && !e.Args[pf + 1].StartsWith("--") ? e.Args[pf + 1]
+                : Path.Combine(Path.GetTempPath(), "ardesia-grafico.log");
+            File.WriteAllText(log, Editor.Graph.GraphSelfTest.Run(out int failures));
+            Shutdown(failures == 0 ? 0 : 1);
+            return;
+        }
+
         // Prova di GeoGebra: apre solo la finestra del grafico e scrive nel registro indicato cosa succede.
         int pg = Array.IndexOf(e.Args, "--prova-geogebra");
         if (pg >= 0)

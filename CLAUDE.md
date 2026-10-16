@@ -73,9 +73,24 @@ dotnet build                                   # se fallisce per file bloccato, 
 ## GeoGebra
 
 - Elemento `"geogebra"` (`GraphImage` in `ElementFactory.cs`): `MediaId` = PNG, `Content` = costruzione `.ggb` in Base64. Si apre in una **finestra a parte** (WebView2 sul foglio coprirebbe l'inchiostro e non seguirebbe lo zoom).
-- Prima fase (fatta): pulsante «Grafico» (barra semplificata e scheda Inserisci) e voce del menu contestuale; prende le funzioni dalla casella di testo selezionata, una per riga (x² → x^(2), virgola decimale → punto) e mette il grafico accanto. Doppio clic o menu contestuale su un grafico lo riapre.
-- Seconda fase (da fare): funzione scritta a mano, riconoscimento Windows con conferma.
-- **Grafico nativo di Ardesia (da fare, piano approvato)**: elemento `"graph"` vettoriale sul foglio, con parser fatto in casa, cursori, punti notevoli, derivata, segno; il pulsante «Grafico» lo creerà e GeoGebra diventerà una voce a parte. Piano completo in `docs/grafico-nativo.md`.
+- Pulsante **«GeoGebra»** (scheda Inserisci) e voce «Disegna il grafico con GeoGebra» nel menu contestuale di una casella di testo; prende le funzioni dalla casella selezionata, una per riga (normalizzate da `MathText`: x² → x^(2), virgola decimale → punto) e mette il grafico accanto. Doppio clic o menu contestuale su un grafico GeoGebra lo riapre. Il pulsante «Grafico» ora crea invece il grafico di Ardesia (sotto).
 - La pagina è servita da Ardesia all'indirizzo finto `https://ardesia.local/geogebra.html` (`WebResourceRequested`): con `NavigateToString` l'origine è opaca e GeoGebra si blocca leggendo `document.cookie` (pagina bianca).
 - Prova: `Ardesia.exe --prova-geogebra [registro.log] [--graphing]` apre solo la finestra con due funzioni, registra avvio, console, errori JavaScript ed esportazione, salva uno screenshot (`registro.png`, da `CapturePreviewAsync`) e si chiude dopo 25 s. La finestra compare sullo schermo dell'utente: avvisarlo prima.
 - Nel pannello Browser nascosto GeoGebra non disegna e `getPNGBase64` fallisce: per provare la pagina tenere il pannello visibile.
+
+## Grafico di funzione di Ardesia (lavoro in corso)
+
+Alternativa leggera a GeoGebra, disegnata da Ardesia sul foglio: vettoriale, segue lo zoom, sta sotto l'inchiostro, esce nitida nel PDF. **Piano approvato, scelte dell'utente e lista delle cose da fare in `docs/grafico-nativo.md`: leggerlo prima di continuare.**
+
+| File (`src/Ardesia/Editor/Graph/`) | Contenuto |
+|---|---|
+| `MathExpr.cs` | `MathText.Normalize` (anche per GeoGebra), `MathParser` a discesa ricorsiva: `y = …`, `f(x) = …`, `x = k`, moltiplicazione sottintesa (2x, ax, 3(x+1)), funzioni senza parentesi (sen 2x), `|x|`, `√`, nomi italiani (sen, tg, arcsen); errori `MathSyntaxException` in italiano. Le lettere diverse da x sono parametri |
+| `GraphMath.cs` | Campionamento che spezza la curva agli asintoti, zeri (anche doppi), estremi, derivata numerica, tacche 1-2-5 e in π, numeri all'italiana («(1,5; −2)») |
+| `GraphState.cs` | Stato salvato come JSON in `ElementData.Content` (tipo `"graph"`): funzioni con colore, vista, parametri, opzioni |
+| `FunctionGraph.cs` | L'elemento (`FrameworkElement`, `OnRender`): griglia, segno, assi con frecce, curve, derivata tratteggiata, punti notevoli con etichette che si evitano, legenda |
+| `GraphFunctionsDialog.cs` | Finestrella «Funzioni del grafico» (una per riga, tasti x² √ π \|x\| sen…, controllo degli errori) |
+| `GraphSelfTest.cs` | Prove: `Ardesia.exe --prova-grafico [registro.txt]` (codice d'uscita 1 se qualcosa non va) |
+
+- In `PageEditor`: `InsertGraph` (pulsante «Grafico»), `EditGraphFunctions` (doppio clic), `AddGraphMenuItems` (menu contestuale: caselle che lasciano il menu aperto, zoom, vista standard, «Apri in GeoGebra» = `OpenGraph(from:)`). `--snapshot --demo` mette un grafico di prova sulla prima pagina.
+- Tipi di elemento sconosciuti (da versioni più nuove) diventano `PreservedElement` e si riscrivono invariati. Le versioni ≤ 0.3.2 invece **cancellano** i grafici salvando: non aprire con quelle un file di prova con grafici.
+- **Da fare (richieste dell'utente dopo la prima prova, 16/10/2026)**: legenda in stile LaTeX; sistemare il doppio clic (chiedere che cosa non va); «Apri in GeoGebra» non riconosce i parametri; spostamento e zoom degli assi col mouse con lo strumento «Seleziona»; poi barretta, cursori, gesti con le dita, scrittura a mano. Dettagli in `docs/grafico-nativo.md`.

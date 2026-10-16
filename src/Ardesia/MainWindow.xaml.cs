@@ -1014,7 +1014,8 @@ public partial class MainWindow : Window
         }
     }
 
-    void InsertGraph_Click(object sender, RoutedEventArgs e) => Editor.OpenGraph();
+    void InsertGraph_Click(object sender, RoutedEventArgs e) => Editor.InsertGraph();
+    void InsertGeoGebra_Click(object sender, RoutedEventArgs e) => Editor.OpenGraph();
 
     void ApplyBackgroundToSection_Click(object sender, RoutedEventArgs e)
     {

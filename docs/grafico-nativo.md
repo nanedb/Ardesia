@@ -1,6 +1,24 @@
 # Grafico di funzione nativo – piano
 
-Stato: **approvato dall'utente (16/10/2026)**. Nessun codice scritto.
+Stato: **approvato dall'utente (16/10/2026)**, implementazione cominciata.
+
+- Fatto: fasi 1 e 2 (parser, calcolo, `--prova-grafico`, elemento `"graph"` con salvataggio, PDF, inserimento
+  da «Grafico», GeoGebra come pulsante a parte), tutte le opzioni già disegnate e attivabili dal menu
+  contestuale, finestrella «Funzioni del grafico» (doppio clic), oggetti sconosciuti conservati (§4).
+- Da fare: barretta sotto il grafico selezionato (fase 3), cursori trascinabili (fase 4; per ora i
+  parametri valgono 1 e sono scritti nella legenda), gesti sugli assi (fase 5), scrittura a mano (fase 6).
+
+### Dopo la prova dell'utente (16/10/2026) – da fare il giorno dopo
+
+1. **Legenda in stile LaTeX**: formule composte bene (apici, frazioni, radici), non il testo così come è scritto.
+   Senza librerie esterne: un piccolo impaginatore fatto in casa che parte dall'albero di `MathParser`.
+2. **Sistemare il doppio clic** sul grafico (chiedere all'utente che cosa non va: non apre la finestrella,
+   la apre due volte, o fa altro).
+3. **«Apri in GeoGebra» non riconosce i parametri**: GeoGebra vuole i cursori definiti prima
+   (es. `a = 1` prima di `f(x) = 1.5x + a`); passare i valori di `GraphState.Params` come prime righe.
+4. **Spostamento e zoom degli assi col mouse** quando è attivo lo strumento «Seleziona» e il grafico è
+   selezionato (trascinamento = sposta gli assi, rotellina = zoom), oltre ai gesti con le dita della fase 5.
+5. Il resto: barretta (fase 3), cursori (fase 4), gesti (fase 5), scrittura a mano (fase 6).
 
 Un elemento «grafico» disegnato da Ardesia direttamente sul foglio, vettoriale, che segue lo zoom
 della pagina e resta **sotto l'inchiostro**. Affianca GeoGebra, che resta per geometria e casi avanzati.

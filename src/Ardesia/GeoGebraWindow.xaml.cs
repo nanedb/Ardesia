@@ -1,6 +1,5 @@
 using System.IO;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using System.Windows;
 using Microsoft.Web.WebView2.Core;
 
@@ -67,25 +66,7 @@ public partial class GeoGebraWindow : Window
     }
 
     /// <summary>Trasforma il testo di una casella in comandi GeoGebra: una riga, un comando.</summary>
-    public static IReadOnlyList<string> ToCommands(string? text)
-    {
-        if (string.IsNullOrWhiteSpace(text)) return Array.Empty<string>();
-        var list = new List<string>();
-        foreach (var raw in text.Replace("\r\n", "\n").Split('\n'))
-        {
-            var s = raw.Trim();
-            if (s.Length == 0) continue;
-            // Esponenti scritti in apice (x²) → x^(2)
-            s = Regex.Replace(s, "[⁰¹²³⁴⁵⁶⁷⁸⁹]+", m => "^(" + string.Concat(m.Value.Select(Superscript)) + ")");
-            s = s.Replace('·', '*').Replace('×', '*').Replace('÷', '/').Replace('−', '-').Replace('–', '-');
-            // Virgola decimale all'italiana (1,5) → punto; in GeoGebra la virgola separa gli argomenti.
-            s = Regex.Replace(s, @"(?<=\d),(?=\d)", ".");
-            list.Add(s);
-        }
-        return list;
-    }
-
-    static char Superscript(char c) => "⁰¹²³⁴⁵⁶⁷⁸⁹".IndexOf(c) is var i and >= 0 ? (char)('0' + i) : c;
+    public static IReadOnlyList<string> ToCommands(string? text) => Editor.Graph.MathText.Lines(text);
 
     async Task StartAsync()
     {
