@@ -282,7 +282,7 @@ public partial class MainWindow : Window
     /// </summary>
     string? UpdateClassPdf(bool force = false)
     {
-        if (_path == null || _nb.ClassPdfPath is not { } pdf) return null;
+        if (_nb.ClassPdfFile(_path) is not { } pdf) return null;
         if (!force && !_classPdfStale && File.Exists(pdf)) return null;
         var dir = Path.GetDirectoryName(pdf);
         if (dir == null || !Directory.Exists(dir))
@@ -324,9 +324,9 @@ public partial class MainWindow : Window
             MessageBox.Show(this, "Salva prima il blocco appunti.", "Ardesia", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
-        var before = (_nb.ClassPdfPath, string.Join(",", _nb.ClassPdfExcluded));
+        var before = (_nb.ClassPdfDisabled, _nb.ClassPdfPath, string.Join(",", _nb.ClassPdfExcluded));
         bool updatedNow = false;
-        var dlg = new ClassPdfDialog(_nb)
+        var dlg = new ClassPdfDialog(_nb, _path)
         {
             Owner = this,
             UpdateNow = () =>
@@ -337,7 +337,7 @@ public partial class MainWindow : Window
             },
         };
         dlg.ShowDialog();
-        if (before == (_nb.ClassPdfPath, string.Join(",", _nb.ClassPdfExcluded))) return;
+        if (before == (_nb.ClassPdfDisabled, _nb.ClassPdfPath, string.Join(",", _nb.ClassPdfExcluded))) return;
         // Impostazioni cambiate: si salvano col blocco appunti; il PDF va rifatto, se non è appena stato fatto.
         SetDirty();
         _classPdfStale = !updatedNow;
@@ -1515,7 +1515,7 @@ public partial class MainWindow : Window
         menu.Items.Add(Item("Salva con nome…", () => SaveAs()));
         menu.Items.Add(new Separator());
         menu.Items.Add(Item("Esporta in PDF…   (Ctrl+P)", () => ExportPdf(ExportScope.Page)));
-        menu.Items.Add(Item(_nb.ClassPdfPath != null ? "PDF per la classe (attivo)…" : "PDF per la classe…", ClassPdfSettings, _path != null));
+        menu.Items.Add(Item(_nb.ClassPdfDisabled ? "PDF per la classe (spento)…" : "PDF per la classe…", ClassPdfSettings, _path != null));
         menu.Items.Add(Item("Apri la cartella del blocco appunti", () =>
         {
             if (_path != null) Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{_path}\"") { UseShellExecute = true });

@@ -49,8 +49,14 @@ public partial class App : Application
         int pg = Array.IndexOf(e.Args, "--prova-geogebra");
         if (pg >= 0)
         {
-            var log = pg + 1 < e.Args.Length ? e.Args[pg + 1] : Path.Combine(Path.GetTempPath(), "ardesia-geogebra.log");
-            var win = new GeoGebraWindow(null, "y = x² - 3x + 2\ng(x) = 1,5x") { TraceFile = log, AutoCloseSeconds = 25 };
+            var log = pg + 1 < e.Args.Length && !e.Args[pg + 1].StartsWith("--") ? e.Args[pg + 1]
+                : Path.Combine(Path.GetTempPath(), "ardesia-geogebra.log");
+            var win = new GeoGebraWindow(null, "y = x² - 3x + 2\ng(x) = 1,5x")
+            {
+                TraceFile = log,
+                AutoCloseSeconds = 25,
+                AppName = e.Args.Contains("--graphing") ? "graphing" : "classic",
+            };
             MainWindow = win;
             win.Show();
             return;

@@ -7,7 +7,7 @@
     <StackPanel Margin="28,22" Width="520">
         <TextBlock Text="PDF per la classe" FontSize="20" FontWeight="SemiBold" Margin="0,0,0,8" />
         <TextBlock TextWrapping="Wrap" Foreground="{StaticResource SubtleTextBrush}" Margin="0,0,0,14"
-                   Text="Ardesia tiene aggiornato un PDF di questo blocco appunti: lo rifà quando chiudi Ardesia o apri un altro blocco appunti, se ci sono modifiche. Salvalo in una cartella di Google Drive condivisa con gli alunni: lo leggono da qualsiasi computer, tablet o telefono, anche Mac e iPad." />
+                   Text="Ardesia tiene aggiornato un PDF di questo blocco appunti, di solito accanto al file con lo stesso nome: lo rifà quando chiudi Ardesia o apri un altro blocco appunti, se ci sono modifiche. In una cartella di Google Drive condivisa con gli alunni, lo leggono da qualsiasi computer, tablet o telefono, anche Mac e iPad." />
 
         <CheckBox x:Name="Enabled" Content="Aggiorna da solo il PDF per la classe" FontWeight="SemiBold" />
 

@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 
@@ -36,8 +37,15 @@ public class Notebook : ObservableObject
     public string Title { get => _title; set => Set(ref _title, value); }
     public ObservableCollection<NotebookNode> Sections { get; set; } = new();
 
-    /// <summary>PDF per la classe: file aggiornato da solo (di solito in una cartella Google Drive condivisa); null = spento.</summary>
+    /// <summary>PDF per la classe spento a mano. Di regola è attivo per ogni blocco appunti.</summary>
+    public bool ClassPdfDisabled { get; set; }
+
+    /// <summary>Dove scrivere il PDF per la classe; null = accanto al file del blocco appunti, con lo stesso nome.</summary>
     public string? ClassPdfPath { get; set; }
+
+    /// <summary>Il file del PDF per la classe per un blocco appunti salvato in <paramref name="notebookPath"/>, o null se è spento.</summary>
+    public string? ClassPdfFile(string? notebookPath) =>
+        ClassPdfDisabled ? null : ClassPdfPath ?? (notebookPath != null ? Path.ChangeExtension(notebookPath, ".pdf") : null);
 
     /// <summary>Sezioni escluse dal PDF per la classe (con le loro sottosezioni), es. le verifiche.</summary>
     public List<Guid> ClassPdfExcluded { get; set; } = new();

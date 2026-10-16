@@ -16,20 +16,17 @@ public partial class ClassPdfDialog : Window
     /// <summary>Chiamato da «Aggiorna ora» dopo aver applicato le impostazioni: restituisce un messaggio di errore o null.</summary>
     public Func<string?>? UpdateNow { get; init; }
 
-    public ClassPdfDialog(Notebook nb)
+    /// <summary>Accanto al file del blocco appunti, con lo stesso nome.</summary>
+    readonly string _defaultPath;
+
+    public ClassPdfDialog(Notebook nb, string notebookPath)
     {
         InitializeComponent();
         _nb = nb;
-        Enabled.IsChecked = nb.ClassPdfPath != null;
-        PathBox.Text = nb.ClassPdfPath ?? DefaultPath();
+        _defaultPath = Path.ChangeExtension(notebookPath, ".pdf");
+        Enabled.IsChecked = !nb.ClassPdfDisabled;
+        PathBox.Text = nb.ClassPdfPath ?? _defaultPath;
         foreach (var s in nb.Sections) AddSection(s, 0);
-    }
-
-    string DefaultPath()
-    {
-        var folder = DriveLocator.GoogleDriveFolders().FirstOrDefault()
-                     ?? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-        return Path.Combine(folder, MainWindow.SafeFileName(_nb.Title) + ".pdf");
     }
 
     void AddSection(NotebookNode s, int depth)
@@ -71,7 +68,11 @@ public partial class ClassPdfDialog : Window
                 return false;
             }
         }
-        _nb.ClassPdfPath = Enabled.IsChecked == true ? PathBox.Text : null;
+        _nb.ClassPdfDisabled = Enabled.IsChecked != true;
+        // Il percorso proposto non si memorizza: così segue il blocco appunti se viene spostato o rinominato.
+        if (Enabled.IsChecked == true)
+            _nb.ClassPdfPath = string.Equals(Path.GetFullPath(PathBox.Text), Path.GetFullPath(_defaultPath), StringComparison.OrdinalIgnoreCase)
+                ? null : PathBox.Text;
         _nb.ClassPdfExcluded = _checks.Where(c => c.Value.IsChecked != true).Select(c => c.Key).ToList();
         return true;
     }

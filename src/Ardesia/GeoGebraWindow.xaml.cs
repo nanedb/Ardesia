@@ -7,7 +7,7 @@ using Microsoft.Web.WebView2.Core;
 namespace Ardesia;
 
 /// <summary>
-/// GeoGebra («Calcolatrice grafica») in una finestra a parte, caricato da geogebra.org dentro WebView2.
+/// GeoGebra Classic in una finestra a parte, caricato da geogebra.org dentro WebView2.
 /// Restituisce l'immagine del grafico e la costruzione, per inserirla nella pagina e riaprirla in seguito.
 /// </summary>
 public partial class GeoGebraWindow : Window
@@ -24,6 +24,10 @@ public partial class GeoGebraWindow : Window
 
     /// <summary>Costruzione GeoGebra (.ggb in Base64).</summary>
     public string? State { get; private set; }
+
+    /// <summary>Quale app di GeoGebra: "classic" (GeoGebra Classic, scelta dall'utente: interfaccia più pulita)
+    /// o "graphing" (Calcolatrice grafica).</summary>
+    public string AppName { get; init; } = "classic";
 
     /// <summary>Solo per le prove (--prova-geogebra): file in cui scrivere cosa succede.</summary>
     public string? TraceFile { get; init; }
@@ -170,6 +174,9 @@ public partial class GeoGebraWindow : Window
             Trace("esportazione: " + await core.ExecuteScriptAsync(
                 "typeof ggb === 'object' ? JSON.stringify({ png: ggb.getPNGBase64(2, false, 144).length, ggb: ggb.getBase64().length }) : null"));
             Trace($"dimensioni del controllo: {Web.ActualWidth}×{Web.ActualHeight}, pulsante attivo={InsertButton.IsEnabled}");
+            // Immagine della finestra di GeoGebra, accanto al registro.
+            using (var shot = File.Create(Path.ChangeExtension(TraceFile!, ".png")))
+                await core.CapturePreviewAsync(CoreWebView2CapturePreviewImageFormat.Png, shot);
             Close();
         }
     }
@@ -235,7 +242,7 @@ public partial class GeoGebraWindow : Window
                 if (typeof GGBApplet === 'undefined') { offline(); return; }
                 document.getElementById('ggb').innerHTML = '';
                 const params = {
-                  appName: 'graphing', language: 'it',
+                  appName: '{{AppName}}', {{(AppName == "classic" ? "perspective: 'AG'," : "")}} language: 'it',
                   width: window.innerWidth, height: window.innerHeight,
                   showMenuBar: false, showToolBar: true, showAlgebraInput: true,
                   enableShiftDragZoom: true, showResetIcon: false, useBrowserForJS: false,
