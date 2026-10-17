@@ -1714,10 +1714,22 @@ public partial class MainWindow : Window
             if (tab != null && tab.StartsWith("Impostazioni", StringComparison.OrdinalIgnoreCase))
                 shot = OpenSettings(notebookTab: tab.Contains("blocco", StringComparison.OrdinalIgnoreCase), modal: false,
                     path: Path.Combine(Path.GetDirectoryName(Path.GetFullPath(pngPath))!, "demo" + NotebookStore.Extension));
+            // --tab «Funzioni grafico»: la finestrella delle funzioni, con una funzione nascosta e una riga sbagliata
+            if (tab != null && tab.StartsWith("Funzioni", StringComparison.OrdinalIgnoreCase))
+            {
+                var state = new Editor.Graph.GraphState();
+                state.SetFunctions(new[] { "y = x² − 4", "f(x) = 1,5x + a", "x = 3", "y = sen(" });
+                state.Functions[1].Hidden = true;
+                var dlg = new Editor.Graph.GraphFunctionsDialog(state.Functions) { Owner = this };
+                dlg.Show();
+                shot = dlg;
+            }
             await Task.Delay(600);
             var root = (FrameworkElement)shot.Content;
             var dpi = VisualTreeHelper.GetDpi(shot);
-            var bmp = new RenderTargetBitmap((int)(root.ActualWidth * dpi.DpiScaleX), (int)(root.ActualHeight * dpi.DpiScaleY),
+            // il margine del contenuto sposta il disegno: va contato, o si perde il bordo destro e il fondo
+            var m = root.Margin;
+            var bmp = new RenderTargetBitmap((int)((root.ActualWidth + m.Left + m.Right) * dpi.DpiScaleX), (int)((root.ActualHeight + m.Top + m.Bottom) * dpi.DpiScaleY),
                 dpi.PixelsPerInchX, dpi.PixelsPerInchY, PixelFormats.Pbgra32);
             bmp.Render(root);
             var enc = new PngBitmapEncoder();

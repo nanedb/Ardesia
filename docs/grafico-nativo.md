@@ -20,6 +20,18 @@ Stato: **approvato dall'utente (16/10/2026)**, implementazione cominciata.
    selezionato (trascinamento = sposta gli assi, rotellina = zoom), oltre ai gesti con le dita della fase 5.
 5. Il resto: barretta (fase 3), cursori (fase 4), gesti (fase 5), scrittura a mano (fase 6).
 
+### 17/10/2026
+
+- **Scelta dell'utente**: tutti i comandi sul grafico (doppio clic, zoom, spostamento degli assi…) funzionano
+  **solo con lo strumento «Seleziona»**; con una penna sul grafico si scrive e basta.
+- Doppio clic col mouse: l'utente non ricorda il problema e ora apre la finestrella. Resta da provare il
+  doppio tocco con dito e penna della LIM.
+- Fatto: la finestrella «Funzioni del grafico» è a righe, ognuna con la **casella per mostrare o nascondere**
+  la funzione (`GraphFunctionData.Hidden`, salvato solo se vero), il trattino del colore, ✕ per toglierla,
+  «+ Aggiungi una funzione»; Invio = riga nuova, testo di più righe incollato = più righe. Una riga corretta
+  tiene il suo colore. Le funzioni nascoste non si disegnano, non vanno nella legenda né a GeoGebra, ma i
+  loro parametri restano. Istantanea: `--snapshot out.png --tab "Funzioni grafico"`.
+
 Un elemento «grafico» disegnato da Ardesia direttamente sul foglio, vettoriale, che segue lo zoom
 della pagina e resta **sotto l'inchiostro**. Affianca GeoGebra, che resta per geometria e casi avanzati.
 

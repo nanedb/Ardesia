@@ -842,16 +842,18 @@ public partial class PageEditor : UserControl
             ? Array.Empty<string>()
             : new TextRange(source.Document.ContentStart, source.Document.ContentEnd).Text
                 .Replace("\r\n", "\n").Split('\n').Select(l => l.Trim()).Where(l => l.Length > 0).ToList();
+        IReadOnlyList<GraphFunctionData>? functions = null;
         if (lines.Count == 0)
         {
-            var dlg = new GraphFunctionsDialog("") { Owner = Window.GetWindow(this) };
-            if (dlg.ShowDialog() != true || dlg.Lines.Count == 0) return;
-            lines = dlg.Lines;
+            var dlg = new GraphFunctionsDialog(Array.Empty<GraphFunctionData>()) { Owner = Window.GetWindow(this) };
+            if (dlg.ShowDialog() != true || dlg.Functions.Count == 0) return;
+            functions = dlg.Functions;
             source = null;
         }
 
         var state = new GraphState();
-        state.SetFunctions(lines);
+        if (functions != null) state.SetFunctions(functions);
+        else state.SetFunctions(lines);
         var graph = ElementFactory.CreateFunctionGraph(state, 600, 450);
         graph.ResetView();
         var pos = VisibleOrigin();
@@ -876,9 +878,9 @@ public partial class PageEditor : UserControl
     public void EditGraphFunctions(FunctionGraph graph)
     {
         CommitPending();
-        var dlg = new GraphFunctionsDialog(graph.State.FunctionsText) { Owner = Window.GetWindow(this) };
+        var dlg = new GraphFunctionsDialog(graph.State.Functions) { Owner = Window.GetWindow(this) };
         if (dlg.ShowDialog() != true) return;
-        graph.State.SetFunctions(dlg.Lines);
+        graph.State.SetFunctions(dlg.Functions);
         graph.Refresh();
         GraphChanged();
     }

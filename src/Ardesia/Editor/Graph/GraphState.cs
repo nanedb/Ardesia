@@ -39,25 +39,35 @@ public sealed class GraphState
     public GraphState Clone() => FromJson(ToJson());
 
     /// <summary>Sostituisce le funzioni con le righe del testo, tenendo i colori già scelti per le righe rimaste uguali.</summary>
-    public void SetFunctions(IEnumerable<string> lines)
+    public void SetFunctions(IEnumerable<string> lines) =>
+        SetFunctions(lines.Select(l => new GraphFunctionData { Text = l, Color = "" }));
+
+    /// <summary>
+    /// Sostituisce le funzioni con quelle date (testo e visibilità). Il colore di ognuna resta quello che ha già
+    /// (anche se la riga è stata corretta) o quello della riga uguale di prima; le righe nuove prendono un colore libero.
+    /// </summary>
+    public void SetFunctions(IEnumerable<GraphFunctionData> entries)
     {
-        var list = lines.ToList();
+        var list = entries.ToList();
         var old = Functions;
         // colori delle righe che restano: non vanno dati alle righe nuove
-        var reserved = old.Where(o => list.Contains(o.Text)).Select(o => o.Color).ToHashSet();
+        var reserved = list.Select(e => e.Color).Where(c => c.Length > 0)
+            .Concat(old.Where(o => list.Any(e => e.Text == o.Text)).Select(o => o.Color)).ToHashSet();
         Functions = new List<GraphFunctionData>();
-        foreach (var line in list)
+        foreach (var e in list)
         {
             bool Free(string c) => Functions.All(f => f.Color != c);
-            var color = old.FirstOrDefault(o => o.Text == line && Free(o.Color))?.Color
+            var color = (e.Color.Length > 0 && Free(e.Color) ? e.Color : null)
+                        ?? old.FirstOrDefault(o => o.Text == e.Text && Free(o.Color))?.Color
                         ?? Palette.FirstOrDefault(c => Free(c) && !reserved.Contains(c))
                         ?? Palette.FirstOrDefault(Free)
                         ?? Palette[Functions.Count % Palette.Length];
-            Functions.Add(new GraphFunctionData { Text = line, Color = color });
+            Functions.Add(new GraphFunctionData { Text = e.Text, Color = color, Hidden = e.Hidden });
         }
     }
 
-    public string FunctionsText => string.Join(Environment.NewLine, Functions.Select(f => f.Text));
+    /// <summary>Le funzioni visibili, una per riga (per GeoGebra).</summary>
+    public string FunctionsText => string.Join(Environment.NewLine, Functions.Where(f => !f.Hidden).Select(f => f.Text));
 }
 
 public sealed class GraphFunctionData
@@ -65,6 +75,10 @@ public sealed class GraphFunctionData
     /// <summary>La riga come l'ha scritta il docente (con x², virgola decimale…): si mostra così nella legenda.</summary>
     public string Text { get; set; } = "";
     public string Color { get; set; } = GraphState.Palette[0];
+
+    /// <summary>Tolta dal grafico con la casella della finestrella, ma tenuta (si rimette con un tocco).</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool Hidden { get; set; }
 }
 
 /// <summary>La parte di piano visibile.</summary>

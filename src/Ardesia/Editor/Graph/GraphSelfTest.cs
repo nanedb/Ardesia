@@ -162,6 +162,26 @@ public static class GraphSelfTest
         Check(GraphMath.FormatPoint(1.5, -2, false) == "(1,5; −2)", "punto → " + GraphMath.FormatPoint(1.5, -2, false));
         Check(GraphMath.NiceStep(20, 600) == 2, "passo per 20 unità su 600 px: " + GraphMath.NiceStep(20, 600));
 
+        // ── stato: funzioni nascoste e colori ──
+        var st = new GraphState();
+        st.SetFunctions(new[] { "y = x²", "y = a·x + b", "x = 3" });
+        string red = st.Functions[1].Color;
+        // la seconda si corregge e si nasconde: tiene il suo colore; la terza è nuova
+        st.SetFunctions(new[]
+        {
+            new GraphFunctionData { Text = "y = x²", Color = st.Functions[0].Color },
+            new GraphFunctionData { Text = "y = a·x + 2b", Color = red, Hidden = true },
+            new GraphFunctionData { Text = "y = 1/x", Color = "" },
+        });
+        Check(st.Functions[1].Color == red && st.Functions[1].Hidden, "funzione corretta e nascosta: stesso colore, nascosta");
+        Check(st.Functions.Select(f => f.Color).Distinct().Count() == 3, "colori diversi: " + string.Join(" ", st.Functions.Select(f => f.Color)));
+        var back = GraphState.FromJson(st.ToJson());
+        Check(back.Functions[1].Hidden && !back.Functions[0].Hidden, "«nascosta» si salva e si rilegge");
+        Check(!st.ToJson().Contains("\"hidden\":false"), "le funzioni visibili non scrivono «hidden»");
+        Check(st.FunctionsText == "y = x²" + Environment.NewLine + "y = 1/x", "a GeoGebra vanno solo le visibili");
+        _ = new FunctionGraph { State = back }; // Refresh aggiorna i parametri
+        Check(back.Params.Select(p => p.Name).SequenceEqual(new[] { "a", "b" }), "i parametri delle funzioni nascoste restano");
+
         log.AppendLine();
         log.AppendLine(fail == 0 ? "Tutte le prove sono andate bene." : $"{fail} prove non sono andate bene.");
         failures = fail;

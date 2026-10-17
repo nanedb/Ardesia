@@ -61,12 +61,13 @@ public sealed class FunctionGraph : FrameworkElement
             try
             {
                 var parsed = MathParser.ParseLine(MathText.Normalize(f.Text));
+                // anche le funzioni nascoste tengono i loro parametri, per ritrovarne i valori quando si rimettono
                 foreach (var p in parsed.Parameters) names.Add(p);
-                _curves.Add(new Curve(f, parsed, null, null, brush));
+                if (!f.Hidden) _curves.Add(new Curve(f, parsed, null, null, brush));
             }
             catch (MathSyntaxException ex)
             {
-                _curves.Add(new Curve(f, null, ex.Message, null, brush));
+                if (!f.Hidden) _curves.Add(new Curve(f, null, ex.Message, null, brush));
             }
         }
 
