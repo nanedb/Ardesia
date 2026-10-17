@@ -52,6 +52,8 @@ public partial class App : Application
             var log = pf + 1 < e.Args.Length && !e.Args[pf + 1].StartsWith("--") ? e.Args[pf + 1]
                 : Path.Combine(Path.GetTempPath(), "ardesia-grafico.log");
             File.WriteAllText(log, Editor.Graph.GraphSelfTest.Run(out int failures));
+            // accanto al registro, l'immagine di un grafico con formule difficili, per controllare la legenda a occhio
+            Editor.Graph.GraphSelfTest.RenderLegendSample(Path.ChangeExtension(log, ".png"));
             Shutdown(failures == 0 ? 0 : 1);
             return;
         }
@@ -62,7 +64,8 @@ public partial class App : Application
         {
             var log = pg + 1 < e.Args.Length && !e.Args[pg + 1].StartsWith("--") ? e.Args[pg + 1]
                 : Path.Combine(Path.GetTempPath(), "ardesia-geogebra.log");
-            var win = new GeoGebraWindow(null, "y = x² - 3x + 2\ng(x) = 1,5x")
+            // con un parametro: GeoGebra deve ricevere il cursore prima della funzione
+            var win = new GeoGebraWindow(null, "y = x² - 3x + 2\ng(x) = 1,5x + a", new[] { new Editor.Graph.GraphParameter { Name = "a", Value = 2 } })
             {
                 TraceFile = log,
                 AutoCloseSeconds = 25,

@@ -190,7 +190,16 @@
                             </Button>
                             <Button Style="{StaticResource RibbonLargeButton}" c:Rb.Label="GeoGebra" Click="InsertGeoGebra_Click"
                                     ToolTip="Grafico con GeoGebra (serve internet), per la geometria e i casi più avanzati: se è selezionata una casella di testo, ne disegna le funzioni. Doppio clic su un grafico GeoGebra per modificarlo.">
-                                <TextBlock Style="{StaticResource Glyph}" Text="&#xE909;" />
+                                <!-- icona nello stile del logo di GeoGebra: ellisse inclinata con cinque punti -->
+                                <Canvas Width="28" Height="28" RenderTransformOrigin="0.5,0.5">
+                                    <Canvas.RenderTransform><RotateTransform Angle="-18" /></Canvas.RenderTransform>
+                                    <Ellipse Canvas.Left="3" Canvas.Top="6" Width="22" Height="16" Stroke="#333333" StrokeThickness="1.6" />
+                                    <Ellipse Canvas.Left="0.2" Canvas.Top="9.6" Width="6" Height="6" Fill="#99CCFF" Stroke="#333333" StrokeThickness="1.2" />
+                                    <Ellipse Canvas.Left="8.2" Canvas.Top="3.3" Width="6" Height="6" Fill="#99CCFF" Stroke="#333333" StrokeThickness="1.2" />
+                                    <Ellipse Canvas.Left="19.4" Canvas.Top="5.9" Width="6" Height="6" Fill="#99CCFF" Stroke="#333333" StrokeThickness="1.2" />
+                                    <Ellipse Canvas.Left="21.3" Canvas.Top="13.7" Width="6" Height="6" Fill="#99CCFF" Stroke="#333333" StrokeThickness="1.2" />
+                                    <Ellipse Canvas.Left="7.2" Canvas.Top="18.5" Width="6" Height="6" Fill="#99CCFF" Stroke="#333333" StrokeThickness="1.2" />
+                                </Canvas>
                             </Button>
                         </StackPanel>
                     </HeaderedContentControl>

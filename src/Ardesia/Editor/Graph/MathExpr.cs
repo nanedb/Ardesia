@@ -66,6 +66,13 @@ public sealed record NumNode(double Value) : MathNode
     public override void CollectParameters(ISet<string> set) { }
 }
 
+/// <summary>π o e: si calcolano come numeri, ma si scrivono col loro simbolo.</summary>
+public sealed record ConstNode(string Symbol, double Value) : MathNode
+{
+    public override Func<double, double[], double> Compile(IReadOnlyList<string> p) { var v = Value; return (_, _) => v; }
+    public override void CollectParameters(ISet<string> set) { }
+}
+
 public sealed record VarNode(string Name) : MathNode
 {
     public override Func<double, double[], double> Compile(IReadOnlyList<string> p)
@@ -84,7 +91,8 @@ public sealed record NegNode(MathNode Arg) : MathNode
     public override void CollectParameters(ISet<string> set) => Arg.CollectParameters(set);
 }
 
-public sealed record BinNode(char Op, MathNode Left, MathNode Right) : MathNode
+/// <summary>Operazione; <paramref name="Implicit"/> = moltiplicazione sottintesa (2x, ax): nella legenda resta senza «·».</summary>
+public sealed record BinNode(char Op, MathNode Left, MathNode Right, bool Implicit = false) : MathNode
 {
     public override Func<double, double[], double> Compile(IReadOnlyList<string> p)
     {
@@ -342,7 +350,7 @@ public sealed class MathParser
             }
             else if (StartsFactor(Peek))
             {
-                left = new BinNode('*', left, ParsePower());
+                left = new BinNode('*', left, ParsePower(), Implicit: true);
             }
             else
             {
@@ -407,8 +415,8 @@ public sealed class MathParser
             }
             case T.Ident:
                 Next();
-                if (t.Text == "π") return new NumNode(Math.PI);
-                if (t.Text == "e") return new NumNode(Math.E);
+                if (t.Text == "π") return new ConstNode("π", Math.PI);
+                if (t.Text == "e") return new ConstNode("e", Math.E);
                 if (MathFunctions.IsFunction(t.Text)) return ParseCall(t);
                 if (t.Text.Length == 1 && char.IsLetter(t.Text[0])) return new VarNode(t.Text);
                 throw new MathSyntaxException($"Non conosco «{t.Text}»", t.Pos);
@@ -474,7 +482,7 @@ public sealed class MathParser
             arg = ParsePower();
         }
         while (StartsFactor(Peek) && !(Peek.Type == T.Ident && MathFunctions.IsFunction(Peek.Text)))
-            arg = new BinNode('*', arg, ParsePower());
+            arg = new BinNode('*', arg, ParsePower(), Implicit: true);
         var result = new CallNode(fn.Text, arg);
         return power != null ? new BinNode('^', result, power) : result;
     }

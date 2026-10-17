@@ -33,7 +33,7 @@ public partial class PageEditor : UserControl
     static ClipData? _clip;
     static int _pasteCount;
 
-    enum DragMode { None, Pan, Shape, CompassMove, CompassRadius, CompassDraw, MoveSelection, RulerLine }
+    enum DragMode { None, Pan, Shape, CompassMove, CompassRadius, CompassDraw, MoveSelection, RulerLine, GraphPan, GraphSlider }
 
     readonly UndoManager _undo = new();
     readonly DispatcherTimer _commitTimer;
@@ -103,6 +103,7 @@ public partial class PageEditor : UserControl
         Ink.DragOver += Ink_DragOver;
         Ink.Drop += Ink_Drop;
 
+        SetupGraphSliders(); // per primo: un cursore preso col dito non deve far scorrere la pagina né aprire il menu
         SetupContextMenuInput();
         SetupFingerPan();
         SetupDrawingAids();
@@ -773,7 +774,7 @@ public partial class PageEditor : UserControl
             formulas = new TextRange(box.Document.ContentStart, box.Document.ContentEnd).Text;
         }
 
-        var win = new GeoGebraWindow(existing?.State, formulas) { Owner = Window.GetWindow(this) };
+        var win = new GeoGebraWindow(existing?.State, formulas, from?.State.Params) { Owner = Window.GetWindow(this) };
         if (win.ShowDialog() != true || win.Png is not { } png || win.State is not { } state) return;
 
         BitmapSource bmp;
@@ -1597,6 +1598,18 @@ public partial class PageEditor : UserControl
             }
             if (IsInkTool && !onTitle) StraightBegin(p);
         }
+        if (_tool == EditorTool.Select && e.StylusDevice == null && !onTitle && TryBeginGraphSlider(p))
+        {
+            ContentHost.CaptureMouse();
+            e.Handled = true;
+            return;
+        }
+        if (_tool == EditorTool.Select && e.ClickCount == 1 && e.StylusDevice == null && !onTitle && TryBeginGraphPan(p))
+        {
+            ContentHost.CaptureMouse();
+            e.Handled = true;
+            return;
+        }
         if (_tool == EditorTool.Select && e.ClickCount == 1 && e.StylusDevice == null && !onTitle && TryBeginMove(p))
         {
             ContentHost.CaptureMouse();
@@ -1681,6 +1694,7 @@ public partial class PageEditor : UserControl
         if (_drag == DragMode.None)
         {
             if (e.StylusDevice == null && e.LeftButton == MouseButtonState.Pressed) StraightMove(e.GetPosition(Ink));
+            if (e.StylusDevice == null && e.LeftButton == MouseButtonState.Released) UpdateGraphHover(e.GetPosition(Ink));
             return;
         }
         var p = e.GetPosition(Ink);
@@ -1709,6 +1723,12 @@ public partial class PageEditor : UserControl
             case DragMode.RulerLine:
                 ContinueRulerLine(p);
                 break;
+            case DragMode.GraphPan:
+                ContinueGraphPan(p);
+                break;
+            case DragMode.GraphSlider:
+                ContinueGraphSlider(p);
+                break;
         }
         e.Handled = true;
     }
@@ -1736,6 +1756,8 @@ public partial class PageEditor : UserControl
         if (ContentHost.IsStylusCaptured) ContentHost.ReleaseStylusCapture();
         if (ended == DragMode.MoveSelection) EndMove();
         if (ended == DragMode.RulerLine) EndRulerLine();
+        if (ended == DragMode.GraphPan) EndGraphPan();
+        if (ended == DragMode.GraphSlider) EndGraphSlider();
         DeferCommit();
     }
 
@@ -2088,6 +2110,145 @@ public partial class PageEditor : UserControl
         if (_moved) MarkChanged();
     }
 
+    // ───────────────────────────── Assi del grafico col mouse ─────────────────────────────
+
+    FunctionGraph? _panGraph;
+    Point _graphLast;
+    bool _graphMoved, _graphHover;
+
+    /// <summary>
+    /// Il grafico di Ardesia selezionato (da solo, con lo strumento «Seleziona») se <paramref name="p"/> cade sopra;
+    /// <paramref name="onEdge"/> = sul bordo, dove lo si afferra per spostarlo invece di muovere gli assi.
+    /// </summary>
+    FunctionGraph? SelectedGraphAt(Point p, out bool onEdge)
+    {
+        onEdge = false;
+        if (_tool != EditorTool.Select || Ink.EditingMode != InkCanvasEditingMode.Select || Ink.GetSelectedStrokes().Count > 0) return null;
+        var selected = Ink.GetSelectedElements();
+        if (selected.Count != 1 || selected[0] is not FunctionGraph graph) return null;
+        double x = InkCanvas.GetLeft(graph), y = InkCanvas.GetTop(graph);
+        var bounds = new Rect(double.IsNaN(x) ? 0 : x, double.IsNaN(y) ? 0 : y, graph.ActualWidth, graph.ActualHeight);
+        if (!bounds.Contains(p)) return null;
+        double edge = 16 / _zoom;
+        var inner = bounds;
+        inner.Inflate(-edge, -edge);
+        onEdge = inner.IsEmpty || !inner.Contains(p);
+        return graph;
+    }
+
+    /// <summary>Trascinamento dentro il grafico selezionato: sposta gli assi (sul bordo invece si sposta il grafico).</summary>
+    bool TryBeginGraphPan(Point p)
+    {
+        if (_drag != DragMode.None || SelectedGraphAt(p, out bool onEdge) is not { } graph || onEdge) return false;
+        _panGraph = graph;
+        _graphLast = p;
+        _graphMoved = false;
+        _drag = DragMode.GraphPan;
+        return true;
+    }
+
+    void ContinueGraphPan(Point p)
+    {
+        if (_panGraph == null) return;
+        var d = p - _graphLast;
+        if (Math.Abs(d.X) < 0.01 && Math.Abs(d.Y) < 0.01) return;
+        _graphLast = p;
+        _graphMoved = true;
+        _panGraph.Pan(d);
+    }
+
+    void EndGraphPan()
+    {
+        // un solo passo di «Annulla» per tutto il trascinamento
+        if (_graphMoved) GraphChanged();
+        _panGraph = null;
+    }
+
+    // ───────────────────────────── Cursori dei parametri ─────────────────────────────
+
+    FunctionGraph? _sliderGraph;
+    int _sliderIndex;
+    bool _sliderMoved;
+
+    /// <summary>Il grafico di Ardesia con un cursore sotto il punto (solo con lo strumento «Seleziona»), anche se non è selezionato.</summary>
+    FunctionGraph? GraphSliderAt(Point p, out int index)
+    {
+        index = -1;
+        if (_tool != EditorTool.Select || _node == null) return null;
+        foreach (var graph in Ink.Children.OfType<FunctionGraph>().Reverse())
+        {
+            double x = InkCanvas.GetLeft(graph), y = InkCanvas.GetTop(graph);
+            var local = new Point(p.X - (double.IsNaN(x) ? 0 : x), p.Y - (double.IsNaN(y) ? 0 : y));
+            if (local.X < 0 || local.Y < 0 || local.X > graph.ActualWidth || local.Y > graph.ActualHeight) continue;
+            index = graph.SliderAt(local);
+            return index >= 0 ? graph : null;
+        }
+        return null;
+    }
+
+    static Point GraphLocal(FunctionGraph graph, Point p)
+    {
+        double x = InkCanvas.GetLeft(graph), y = InkCanvas.GetTop(graph);
+        return new Point(p.X - (double.IsNaN(x) ? 0 : x), p.Y - (double.IsNaN(y) ? 0 : y));
+    }
+
+    /// <summary>Cursore preso (mouse, dito o penna): il parametro segue subito il punto e il grafico si seleziona.</summary>
+    bool TryBeginGraphSlider(Point p)
+    {
+        if (_drag != DragMode.None || GraphSliderAt(p, out int index) is not { } graph) return false;
+        _sliderGraph = graph;
+        _sliderIndex = index;
+        _sliderMoved = graph.SetSlider(index, GraphLocal(graph, p).X);
+        _drag = DragMode.GraphSlider;
+        if (!Ink.GetSelectedElements().Contains(graph)) Ink.Select(new StrokeCollection(), new UIElement[] { graph });
+        return true;
+    }
+
+    void ContinueGraphSlider(Point p)
+    {
+        if (_sliderGraph != null && _sliderGraph.SetSlider(_sliderIndex, GraphLocal(_sliderGraph, p).X)) _sliderMoved = true;
+    }
+
+    void EndGraphSlider()
+    {
+        // un solo passo di «Annulla» per tutto il trascinamento
+        if (_sliderMoved) GraphChanged();
+        _sliderGraph = null;
+    }
+
+    /// <summary>Col dito e con la penna (col mouse è gestito in ContentHost_PreviewMouseDown).</summary>
+    void SetupGraphSliders()
+    {
+        ContentHost.PreviewStylusDown += (_, e) =>
+        {
+            if (e.StylusDevice.Inverted || !TryBeginGraphSlider(e.GetPosition(Ink))) return;
+            ContentHost.CaptureStylus();
+            e.Handled = true; // niente tratto, niente scorrimento della pagina
+        };
+        ContentHost.PreviewStylusMove += (_, e) =>
+        {
+            if (_drag != DragMode.GraphSlider) return;
+            ContinueGraphSlider(e.GetPosition(Ink));
+            e.Handled = true;
+        };
+        ContentHost.PreviewStylusUp += (_, e) =>
+        {
+            if (_drag != DragMode.GraphSlider) return;
+            EndDrag();
+            e.Handled = true;
+        };
+    }
+
+    /// <summary>Manina sopra il grafico selezionato, dove il trascinamento muove gli assi, e sopra i cursori.</summary>
+    void UpdateGraphHover(Point p)
+    {
+        bool inside = SelectedGraphAt(p, out bool onEdge) != null && !onEdge || GraphSliderAt(p, out _) != null;
+        if (inside == _graphHover) return;
+        _graphHover = inside;
+        Ink.UseCustomCursor = inside || Ink.EditingMode == InkCanvasEditingMode.None;
+        Ink.Cursor = inside ? Cursors.Hand : null;
+    }
+
     void UpdateShapePreview(Point p)
     {
         _shapeEnd = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift) ? ShapeBuilder.Constrain(ShapeKind, _dragStart, p) : p;
@@ -2175,6 +2336,14 @@ public partial class PageEditor : UserControl
 
     void Scroller_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
     {
+        // sopra il grafico selezionato (strumento «Seleziona») la rotella fa lo zoom degli assi, non scorre la pagina
+        if (!Keyboard.Modifiers.HasFlag(ModifierKeys.Control) && SelectedGraphAt(e.GetPosition(Ink), out _) is { } graph)
+        {
+            graph.ZoomAt(e.Delta > 0 ? 1 / 1.15 : 1.15, e.GetPosition(graph));
+            MarkChanged();
+            e.Handled = true;
+            return;
+        }
         if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
         {
             ZoomAt(_zoom * (e.Delta > 0 ? 1.1 : 1 / 1.1), e.GetPosition(Scroller));

@@ -1,5 +1,9 @@
 using System.Globalization;
+using System.IO;
 using System.Text;
+using System.Windows;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 
 namespace Ardesia.Editor.Graph;
 
@@ -182,9 +186,53 @@ public static class GraphSelfTest
         _ = new FunctionGraph { State = back }; // Refresh aggiorna i parametri
         Check(back.Params.Select(p => p.Name).SequenceEqual(new[] { "a", "b" }), "i parametri delle funzioni nascoste restano");
 
+        // ── comandi per GeoGebra ──
+        foreach (var (text, expected) in new[]
+        {
+            ("f(x) = 1,5x + a", "f(x) = 1.5 * x + a"),
+            ("y = sen 2x", "sin(2 * x)"),
+            ("-x²", "-x^(2)"),
+            ("(x+1)(x-1)", "(x + 1) * (x - 1)"),
+            ("2^3^2", "2^(3^(2))"),
+            ("x - (x - 1)", "x - (x - 1)"),
+            ("1/(2x)", "1 / (2 * x)"),
+            ("log x + 2π", "lg(x) + 2 * pi"),
+            ("|x − 1|", "abs(x - 1)"),
+            ("x = 3", "x = 3"),
+            ("(-x)^2", "(-x)^(2)"),
+        })
+        {
+            var cmd = GeoGebraExport.Commands(new[] { text }).Last();
+            Check(cmd == expected, $"GeoGebra «{text}» → «{cmd}» (atteso «{expected}»)");
+        }
+        var ggb = GeoGebraExport.Commands(new[] { "y = a·x² + b" }, new List<GraphParameter> { new() { Name = "a", Value = 2.5 } });
+        Check(ggb.Count == 5 && ggb[0] == "a = Slider(-5, 5, 0.1)" && ggb[1] == "SetValue(a, 2.5)" && ggb[2].StartsWith("b = Slider") && ggb[4] == "a * x^(2) + b",
+            "GeoGebra: prima i cursori, poi la funzione: " + string.Join(" | ", ggb));
+
         log.AppendLine();
         log.AppendLine(fail == 0 ? "Tutte le prove sono andate bene." : $"{fail} prove non sono andate bene.");
         failures = fail;
         return log.ToString();
+    }
+
+    /// <summary>Un grafico con formule difficili da comporre (frazioni, radici, esponenti, valori assoluti), salvato in PNG.</summary>
+    public static void RenderLegendSample(string png)
+    {
+        var state = new GraphState();
+        state.SetFunctions(new[]
+        {
+            "y = x² − 4", "f(x) = 1,5x + a", "g(x) = (x+1)/(x−1)", "y = √(x+4) − 1/x", "y = 2^-x", "y = |x − 1| + sen² x",
+            "h(x) = a·x³ − bx", "y = -(x-1)^2/(2x)", "y = e^(x/2) - ln(x+1)", "y = 3(x+1)(x−2)", "x = 3", "y = sen(2x + π) + cos x",
+        });
+        var graph = ElementFactory.CreateFunctionGraph(state, 900, 700);
+        graph.ResetView();
+        graph.Measure(new Size(900, 700));
+        graph.Arrange(new Rect(0, 0, 900, 700));
+        var bmp = new RenderTargetBitmap(1800, 1400, 192, 192, PixelFormats.Pbgra32);
+        bmp.Render(graph);
+        var enc = new PngBitmapEncoder();
+        enc.Frames.Add(BitmapFrame.Create(bmp));
+        using var fs = File.Create(png);
+        enc.Save(fs);
     }
 }

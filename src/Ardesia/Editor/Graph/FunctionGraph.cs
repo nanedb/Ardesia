@@ -25,6 +25,15 @@ public sealed class FunctionGraph : FrameworkElement
     static readonly Brush LabelBack = Frozen(new SolidColorBrush(Color.FromArgb(0xE6, 0xFF, 0xFF, 0xFF)));
     static readonly Brush PointBrush = Frozen(new SolidColorBrush(Color.FromRgb(0x22, 0x22, 0x22)));
     static readonly Pen WhitePen = Frozen(new Pen(Brushes.White, 1.5));
+    static readonly Brush AccentBrush = Frozen(new SolidColorBrush(Color.FromRgb(0x1E, 0x5A, 0x68)));
+    static readonly Pen TrackPen = Frozen(new Pen(Frozen(new SolidColorBrush(Color.FromRgb(0xC8, 0xC8, 0xC8))), 5) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round });
+    static readonly Pen TrackFillPen = Frozen(new Pen(AccentBrush, 5) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round });
+    static readonly Pen KnobPen = Frozen(new Pen(Brushes.White, 2.5));
+
+    /// <summary>Altezza di una riga dei cursori: a misura di dito sulla LIM.</summary>
+    const double SliderRow = 44;
+    /// <summary>Spazio a sinistra della pista per «a = 1,5».</summary>
+    const double SliderLabel = 110;
 
     GraphState _state = new();
     List<Curve> _curves = new();
@@ -33,6 +42,15 @@ public sealed class FunctionGraph : FrameworkElement
 
     /// <summary>Una riga del grafico, già interpretata (o con l'errore da mostrare).</summary>
     sealed record Curve(GraphFunctionData Data, ParsedCurve? Parsed, string? Error, Func<double, double[], double>? Eval, Brush Brush);
+
+    /// <summary>Per il PDF: dei cursori restano solo i valori («a = 1,5»), senza pista; non si trascinano.</summary>
+    public bool Export { get; set; }
+
+    /// <summary>Altezza della fascia dei cursori, in fondo al grafico (0 se non ci sono parametri).</summary>
+    double SliderAreaHeight => _state.Params.Count == 0 ? 0 : _state.Params.Count * SliderRow + 6;
+
+    /// <summary>Altezza della parte con gli assi.</summary>
+    double PlotHeight(double total) => Math.Max(40, total - SliderAreaHeight);
 
     public FunctionGraph()
     {
@@ -73,7 +91,15 @@ public sealed class FunctionGraph : FrameworkElement
 
         // parametri: si tengono i valori già scelti, si aggiungono i nuovi, si tolgono quelli non più usati
         var old = _state.Params;
+        double oldPlot = PlotHeight(Size.Height);
         _state.Params = names.Select(n => old.FirstOrDefault(p => p.Name == n) ?? new GraphParameter { Name = n }).ToList();
+        // i cursori tolgono (o ridanno) spazio agli assi: si tiene la stessa scala in verticale, fermo il bordo in alto
+        double newPlot = PlotHeight(Size.Height);
+        if (Math.Abs(newPlot - oldPlot) > 0.5 && oldPlot > 1)
+        {
+            var v = _state.View;
+            _state.View = new GraphView { Xmin = v.Xmin, Xmax = v.Xmax, Ymax = v.Ymax, Ymin = v.Ymax - (v.Ymax - v.Ymin) * newPlot / oldPlot };
+        }
         var paramNames = _state.Params.Select(p => p.Name).ToList();
         _curves = _curves.Select(c => c.Parsed == null ? c : c with { Eval = c.Parsed.Compile(paramNames) }).ToList();
         InvalidateVisual();
@@ -82,7 +108,7 @@ public sealed class FunctionGraph : FrameworkElement
     /// <summary>Vista con la stessa unità sui due assi, da −10 a 10 in orizzontale, centrata nell'origine.</summary>
     public void ResetView()
     {
-        double w = Size.Width, h = Size.Height;
+        double w = Size.Width, h = PlotHeight(Size.Height);
         double half = 10 * h / w;
         _state.View = new GraphView { Xmin = -10, Xmax = 10, Ymin = -half, Ymax = half };
         InvalidateVisual();
@@ -99,6 +125,91 @@ public sealed class FunctionGraph : FrameworkElement
         InvalidateVisual();
     }
 
+    /// <summary>Sposta gli assi seguendo il mouse: <paramref name="delta"/> in unità dell'elemento (come il trascinamento).</summary>
+    public void Pan(Vector delta)
+    {
+        var v = _state.View;
+        var s = new Size(RenderSize.Width, PlotHeight(RenderSize.Height));
+        if (s.Width < 1 || s.Height < 1) return;
+        double dx = delta.X * (v.Xmax - v.Xmin) / s.Width, dy = delta.Y * (v.Ymax - v.Ymin) / s.Height;
+        _state.View = new GraphView { Xmin = v.Xmin - dx, Xmax = v.Xmax - dx, Ymin = v.Ymin + dy, Ymax = v.Ymax + dy };
+        InvalidateVisual();
+    }
+
+    /// <summary>Zoom degli assi attorno a un punto dell'elemento (quello sotto il mouse resta fermo).</summary>
+    public void ZoomAt(double factor, Point at)
+    {
+        var v = _state.View;
+        var s = new Size(RenderSize.Width, PlotHeight(RenderSize.Height));
+        if (s.Width < 1 || s.Height < 1) return;
+        double hx = (v.Xmax - v.Xmin) * factor;
+        if (hx < 1e-6 || hx > 1e6) return;
+        double cx = v.Xmin + at.X / s.Width * (v.Xmax - v.Xmin);
+        double cy = v.Ymax - at.Y / s.Height * (v.Ymax - v.Ymin);
+        _state.View = new GraphView
+        {
+            Xmin = cx - (cx - v.Xmin) * factor, Xmax = cx + (v.Xmax - cx) * factor,
+            Ymin = cy - (cy - v.Ymin) * factor, Ymax = cy + (v.Ymax - cy) * factor,
+        };
+        InvalidateVisual();
+    }
+
+    // ───────────────────────────── Cursori ─────────────────────────────
+
+    (double Left, double Right) Track(double w) => (SliderLabel, Math.Max(SliderLabel + 40, w - 52));
+
+    /// <summary>Il cursore sotto il punto (coordinate dell'elemento), o −1: vale la pista con il pallino, non l'etichetta.</summary>
+    public int SliderAt(Point p)
+    {
+        double w = RenderSize.Width, top = PlotHeight(RenderSize.Height) + 3;
+        if (Export || SliderAreaHeight == 0 || p.Y < top || p.X < Track(w).Left - 16 || p.X > w) return -1;
+        int i = (int)((p.Y - top) / SliderRow);
+        return i >= 0 && i < _state.Params.Count ? i : -1;
+    }
+
+    /// <summary>Porta il parametro <paramref name="index"/> al valore sotto <paramref name="x"/>, a passi interi.</summary>
+    public bool SetSlider(int index, double x)
+    {
+        if (index < 0 || index >= _state.Params.Count) return false;
+        var p = _state.Params[index];
+        var (l, r) = Track(RenderSize.Width);
+        double min = Math.Min(p.Min, p.Max), max = Math.Max(p.Min, p.Max);
+        double t = Math.Clamp((x - l) / (r - l), 0, 1);
+        double value = min + t * (max - min);
+        double step = p.Step > 0 ? p.Step : 0.1;
+        value = Math.Clamp(Math.Round(Math.Round((value - min) / step) * step + min, 10), min, max);
+        if (value == p.Value) return false;
+        p.Value = value;
+        InvalidateVisual();
+        return true;
+    }
+
+    void DrawSliders(DrawingContext dc, double w, double top, double ppd)
+    {
+        dc.DrawLine(Border, new Point(0, top), new Point(w, top));
+        var (l, r) = Track(w);
+        for (int i = 0; i < _state.Params.Count; i++)
+        {
+            var p = _state.Params[i];
+            double mid = top + 3 + i * SliderRow + SliderRow / 2 - 3;
+            var label = new MathLayout.RowOf(MathLayout.Text(p.Name, 18, AxisBrush, ppd, italic: true),
+                MathLayout.Text(" = " + GraphMath.Format(p.Value, p.Step), 18, AxisBrush, ppd));
+            label.Draw(dc, 12, mid + 6);
+            if (Export) continue;
+            double min = Math.Min(p.Min, p.Max), max = Math.Max(p.Min, p.Max);
+            double t = max > min ? Math.Clamp((p.Value - min) / (max - min), 0, 1) : 0;
+            double kx = l + t * (r - l);
+            dc.DrawLine(TrackPen, new Point(l, mid), new Point(r, mid));
+            dc.DrawLine(TrackFillPen, new Point(l, mid), new Point(kx, mid));
+            var lo = Text(GraphMath.Format(min), 11, LabelBrush, ppd);
+            var hi = Text(GraphMath.Format(max), 11, LabelBrush, ppd);
+            dc.DrawText(lo, new Point(l - lo.Width / 2, mid + 7));
+            dc.DrawText(hi, new Point(r - hi.Width / 2, mid + 7));
+            // pallino grande, da prendere col dito
+            dc.DrawEllipse(AccentBrush, KnobPen, new Point(kx, mid), 12, 12);
+        }
+    }
+
     Size Size => new(double.IsNaN(Width) ? Math.Max(ActualWidth, 1) : Width, double.IsNaN(Height) ? Math.Max(ActualHeight, 1) : Height);
 
     protected override void OnRenderSizeChanged(SizeChangedInfo info)
@@ -111,12 +222,13 @@ public sealed class FunctionGraph : FrameworkElement
 
     protected override void OnRender(DrawingContext dc)
     {
-        double w = RenderSize.Width, h = RenderSize.Height;
+        double w = RenderSize.Width, h = PlotHeight(RenderSize.Height);
         if (w < 20 || h < 20) return;
         _taken.Clear();
         double ppd = VisualTreeHelper.GetDpi(this).PixelsPerDip;
+        dc.DrawRectangle(BackBrush, Border, new Rect(0, 0, w, RenderSize.Height));
+        if (SliderAreaHeight > 0) DrawSliders(dc, w, h, ppd);
         var rect = new Rect(0, 0, w, h);
-        dc.DrawRectangle(BackBrush, Border, rect);
         dc.PushClip(new RectangleGeometry(rect));
 
         var v = _state.View;
@@ -348,49 +460,56 @@ public sealed class FunctionGraph : FrameworkElement
         dc.DrawGeometry(AxisBrush, null, geo);
     }
 
-    /// <summary>Legenda in alto a sinistra: le funzioni come le ha scritte il docente, gli errori in rosso, i parametri.</summary>
+    /// <summary>
+    /// Legenda in alto a sinistra: le funzioni composte come in LaTeX (frazioni, esponenti, radici),
+    /// le righe sbagliate come le ha scritte il docente, in rosso, e i valori dei parametri.
+    /// </summary>
     Rect DrawLegend(DrawingContext dc, double w, double ppd)
     {
-        var lines = new List<(FormattedText Text, Brush? Swatch, bool Dashed)>();
+        const double size = 17;
+        var lines = new List<(MathLayout.MathBox Box, Brush? Swatch, bool Dashed)>();
         foreach (var c in _curves)
         {
-            var text = c.Data.Text.Trim();
             if (c.Error != null)
             {
-                lines.Add((Text($"{text}   ⚠ {c.Error}", 15, ErrorBrush, ppd), null, false));
+                lines.Add((MathLayout.Text($"{c.Data.Text.Trim()}   ⚠ {c.Error}", 15, ErrorBrush, ppd), null, false));
                 continue;
             }
-            if (!text.Contains('=')) text = "y = " + text;
-            lines.Add((Text(text, 16, c.Brush, ppd, italic: true), c.Brush, false));
+            lines.Add((MathLayout.Line(c.Parsed!, size, c.Brush, ppd), c.Brush, false));
             if (_state.Show.Derivative && c.Parsed!.Kind == CurveKind.Function)
-                lines.Add((Text(c.Parsed.Name != null ? $"{c.Parsed.Name}′(x)" : $"derivata di {text}", 15, c.Brush, ppd, italic: true), c.Brush, true));
+            {
+                var label = c.Parsed.Name != null
+                    ? MathLayout.Text($"{c.Parsed.Name}′(x)", size, c.Brush, ppd, italic: true)
+                    : new MathLayout.RowOf(MathLayout.Text("derivata di ", 15, c.Brush, ppd), MathLayout.Expression(c.Parsed.Expr, size, c.Brush, ppd));
+                lines.Add((label, c.Brush, true));
+            }
         }
-        foreach (var p in _state.Params)
-            lines.Add((Text($"{p.Name} = {GraphMath.Format(p.Value, p.Step)}", 15, LabelBrush, ppd, italic: true), null, false));
         if (lines.Count == 0) return Rect.Empty;
 
-        double width = lines.Max(l => l.Text.Width + (l.Swatch != null ? 30 : 0)) + 16;
-        double height = lines.Sum(l => l.Text.Height + 2) + 10;
+        const double gap = 5;
+        double width = lines.Max(l => l.Box.Width + (l.Swatch != null ? 30 : 0)) + 16;
+        double height = lines.Sum(l => l.Box.Height + gap) - gap + 12;
         width = Math.Min(width, w - 16);
         var box = new Rect(8, 8, width, height);
         dc.DrawRoundedRectangle(LabelBack, Border, box, 5, 5);
-        double y = 13;
-        foreach (var (ft, swatch, dashed) in lines)
+        // una formula troppo lunga si taglia sul bordo della legenda
+        dc.PushClip(new RectangleGeometry(new Rect(box.X + 1, box.Y + 1, box.Width - 4, box.Height - 2)));
+        double y = box.Y + 6;
+        foreach (var (line, swatch, dashed) in lines)
         {
-            double x = 16;
+            double x = 16, baseline = y + line.Ascent;
             if (swatch != null)
             {
                 var pen = new Pen(swatch, 3);
                 if (dashed) pen.DashStyle = new DashStyle(new[] { 2.0, 1.5 }, 0);
-                dc.DrawLine(pen, new Point(x, y + ft.Height / 2), new Point(x + 22, y + ft.Height / 2));
+                double mid = baseline - size * 0.27;
+                dc.DrawLine(pen, new Point(x, mid), new Point(x + 22, mid));
                 x += 30;
             }
-            ft.MaxTextWidth = Math.Max(10, width - (x - 8) - 6);
-            ft.Trimming = TextTrimming.CharacterEllipsis;
-            ft.MaxLineCount = 1;
-            dc.DrawText(ft, new Point(x, y));
-            y += ft.Height + 2;
+            line.Draw(dc, x, baseline);
+            y += line.Height + gap;
         }
+        dc.Pop();
         return box;
     }
 

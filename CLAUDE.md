@@ -89,8 +89,11 @@ Alternativa leggera a GeoGebra, disegnata da Ardesia sul foglio: vettoriale, seg
 | `GraphState.cs` | Stato salvato come JSON in `ElementData.Content` (tipo `"graph"`): funzioni con colore, vista, parametri, opzioni |
 | `FunctionGraph.cs` | L'elemento (`FrameworkElement`, `OnRender`): griglia, segno, assi con frecce, curve, derivata tratteggiata, punti notevoli con etichette che si evitano, legenda |
 | `GraphFunctionsDialog.cs` | Finestrella «Funzioni del grafico» (una per riga, tasti x² √ π \|x\| sen…, controllo degli errori) |
-| `GraphSelfTest.cs` | Prove: `Ardesia.exe --prova-grafico [registro.txt]` (codice d'uscita 1 se qualcosa non va) |
+| `GraphSelfTest.cs` | Prove: `Ardesia.exe --prova-grafico [registro.txt]` (codice d'uscita 1 se qualcosa non va); salva anche `registro.png`, un grafico con formule difficili per controllare la legenda |
+| `MathLayout.cs` | Impaginatore di formule fatto in casa (stile LaTeX) per la legenda: frazioni, esponenti, radici, valore assoluto |
+| `GeoGebraExport.cs` | Funzioni → comandi GeoGebra: prima i cursori dei parametri (`Slider`, `SetValue`), poi le funzioni (sen → sin, log → lg) |
 
 - In `PageEditor`: `InsertGraph` (pulsante «Grafico»), `EditGraphFunctions` (doppio clic), `AddGraphMenuItems` (menu contestuale: caselle che lasciano il menu aperto, zoom, vista standard, «Apri in GeoGebra» = `OpenGraph(from:)`). `--snapshot --demo` mette un grafico di prova sulla prima pagina.
 - Tipi di elemento sconosciuti (da versioni più nuove) diventano `PreservedElement` e si riscrivono invariati. Le versioni ≤ 0.3.2 invece **cancellano** i grafici salvando: non aprire con quelle un file di prova con grafici.
-- **Da fare (richieste dell'utente dopo la prima prova, 16/10/2026)**: legenda in stile LaTeX; sistemare il doppio clic (chiedere che cosa non va); «Apri in GeoGebra» non riconosce i parametri; spostamento e zoom degli assi col mouse con lo strumento «Seleziona»; poi barretta, cursori, gesti con le dita, scrittura a mano. Dettagli in `docs/grafico-nativo.md`.
+- **Comandi sul grafico solo con lo strumento «Seleziona»** (scelta dell'utente): trascinamento dentro il grafico selezionato = assi, bordo = sposta il grafico, rotellina = zoom degli assi, doppio clic = «Funzioni del grafico» (con la casella per nascondere ogni funzione), cursori dei parametri in fondo al grafico (anche col dito).
+- **Da fare**: barretta, min/max/passo dei cursori, gesti con dita e penna sulle LIM (anche il doppio tocco), scrittura a mano. Stato e dettagli in `docs/grafico-nativo.md`.

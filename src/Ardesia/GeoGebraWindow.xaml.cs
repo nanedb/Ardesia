@@ -51,11 +51,12 @@ public partial class GeoGebraWindow : Window
 
     /// <param name="state">Costruzione da riaprire, oppure null per un grafico nuovo.</param>
     /// <param name="formulas">Testo da cui prendere le funzioni (una per riga), per un grafico nuovo.</param>
-    public GeoGebraWindow(string? state, string? formulas)
+    /// <param name="parameters">Valori dei parametri (dal grafico di Ardesia), o null: valgono 1.</param>
+    public GeoGebraWindow(string? state, string? formulas, IReadOnlyList<Editor.Graph.GraphParameter>? parameters = null)
     {
         InitializeComponent();
         _state = string.IsNullOrEmpty(state) ? null : state;
-        _commands = _state == null ? ToCommands(formulas) : Array.Empty<string>();
+        _commands = _state == null ? ToCommands(formulas, parameters) : Array.Empty<string>();
 
         // Grande, ma mai più grande dello schermo (sulle LIM il ridimensionamento è alto).
         var area = SystemParameters.WorkArea;
@@ -65,8 +66,9 @@ public partial class GeoGebraWindow : Window
         Loaded += async (_, _) => await StartAsync();
     }
 
-    /// <summary>Trasforma il testo di una casella in comandi GeoGebra: una riga, un comando.</summary>
-    public static IReadOnlyList<string> ToCommands(string? text) => Editor.Graph.MathText.Lines(text);
+    /// <summary>Trasforma il testo di una casella in comandi GeoGebra: prima i cursori dei parametri, poi una riga per funzione.</summary>
+    public static IReadOnlyList<string> ToCommands(string? text, IReadOnlyList<Editor.Graph.GraphParameter>? parameters = null) =>
+        Editor.Graph.GeoGebraExport.Commands(Editor.Graph.MathText.Lines(text), parameters);
 
     async Task StartAsync()
     {

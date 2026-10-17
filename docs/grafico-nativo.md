@@ -31,6 +31,26 @@ Stato: **approvato dall'utente (16/10/2026)**, implementazione cominciata.
   «+ Aggiungi una funzione»; Invio = riga nuova, testo di più righe incollato = più righe. Una riga corretta
   tiene il suo colore. Le funzioni nascoste non si disegnano, non vanno nella legenda né a GeoGebra, ma i
   loro parametri restano. Istantanea: `--snapshot out.png --tab "Funzioni grafico"`.
+- Fatto (punto 3): **«Apri in GeoGebra» con i parametri**. `GeoGebraExport` traduce dall'albero di `MathParser`:
+  prima `a = Slider(min, max, passo)` e `SetValue(a, valore)` per ogni parametro, poi le funzioni con nomi
+  inglesi (sen → sin, log → lg) e `*` espliciti. Vale anche per il pulsante GeoGebra dalla casella di testo.
+  Provato con `--prova-geogebra` (ora con `g(x) = 1,5x + a`): cursore visibile, retta disegnata.
+- Fatto (punto 1): **legenda in stile LaTeX** con `MathLayout` (impaginatore fatto in casa): frazioni,
+  esponenti (frazioni in linea dentro gli esponenti), radici, valore assoluto, sen² x, parentesi solo dove
+  servono, moltiplicazione sottintesa senza «·» (`BinNode.Implicit`), π ed e come simboli (`ConstNode`).
+  `--prova-grafico registro.txt` salva anche `registro.png` con un grafico di formule difficili.
+- Fatto (punto 4): **assi col mouse**, solo strumento «Seleziona» e grafico selezionato da solo: trascinamento
+  dentro = sposta gli assi (manina), sul bordo (16 px) = sposta il grafico, rotellina = zoom attorno al mouse
+  (Ctrl+rotellina resta lo zoom della pagina). Un solo «Annulla» per trascinamento. **Da provare a mano**;
+  tocco e penna (fase 5) non ancora. Provato dall'utente col mouse: va bene.
+- Fatto (fase 4): **cursori dei parametri** in fondo al grafico, una riga da 44 px per parametro (nome = valore,
+  pista, pallino grande, min e max). **Scelta dell'utente: solo con lo strumento «Seleziona»** (anche col grafico
+  non selezionato: prenderne un cursore lo seleziona); mouse, dito e penna (`SetupGraphSliders`, registrato per
+  primo), a passi di `Step`, un solo «Annulla» per trascinamento. La fascia dei cursori toglie spazio agli assi
+  tenendo la scala verticale. Nel PDF (`FunctionGraph.Export`) restano solo i valori. Da fare: cambiare min, max
+  e passo (oggi −5…5, 0,1); provarli col dito sulle LIM.
+- Icona del pulsante «GeoGebra»: disegnata nel XAML nello stile del logo (ellisse con cinque punti), scelta
+  dell'utente; il logo è un marchio di GeoGebra, da verificare se Ardesia venisse distribuita fuori dalla scuola.
 
 Un elemento «grafico» disegnato da Ardesia direttamente sul foglio, vettoriale, che segue lo zoom
 della pagina e resta **sotto l'inchiostro**. Affianca GeoGebra, che resta per geometria e casi avanzati.

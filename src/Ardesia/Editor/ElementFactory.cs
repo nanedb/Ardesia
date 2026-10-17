@@ -178,7 +178,9 @@ public static class ElementFactory
                 }
                 break;
             case "graph":
-                ui = CreateFunctionGraph(GraphState.FromJson(d.Content), d.Width > 0 ? d.Width : 600, d.Height > 0 ? d.Height : 450);
+                var graph = CreateFunctionGraph(GraphState.FromJson(d.Content), d.Width > 0 ? d.Width : 600, d.Height > 0 ? d.Height : 450);
+                graph.Export = export;
+                ui = graph;
                 break;
             default:
                 ui = new PreservedElement(d with { });
