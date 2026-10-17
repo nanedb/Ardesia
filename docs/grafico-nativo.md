@@ -7,6 +7,7 @@ Stato: **approvato dall'utente (16/10/2026)**, implementazione cominciata.
   contestuale, finestrella «Funzioni del grafico» (doppio clic), oggetti sconosciuti conservati (§4).
 - Da fare: barretta sotto il grafico selezionato (fase 3), cursori trascinabili (fase 4; per ora i
   parametri valgono 1 e sono scritti nella legenda), gesti sugli assi (fase 5), scrittura a mano (fase 6).
+  Aggiornamento 17/10/2026: cursori e scrittura a mano fatti (vedi sotto).
 
 ### Dopo la prova dell'utente (16/10/2026) – da fare il giorno dopo
 
@@ -51,6 +52,103 @@ Stato: **approvato dall'utente (16/10/2026)**, implementazione cominciata.
   e passo (oggi −5…5, 0,1); provarli col dito sulle LIM.
 - Icona del pulsante «GeoGebra»: disegnata nel XAML nello stile del logo (ellisse con cinque punti), scelta
   dell'utente; il logo è un marchio di GeoGebra, da verificare se Ardesia venisse distribuita fuori dalla scuola.
+
+## Fase 6 – scrittura a mano (proposta approvata dall'utente il 17/10/2026, fatta lo stesso giorno)
+
+**Fatto**:
+- `Graph/HandwritingMath.cs`: `IsAvailable` (controlla nel registro `micaut.dll` e l'inchiostro COM),
+  `SplitLines` (fasce orizzontali; la linea di frazione, un tratto piatto e largo, tiene attaccati numeratore e
+  denominatore), `RecognizeAsync` (controllo fuori schermo, `LoadInk`, «Insert» ripremuto ogni 0,4 s finché arriva
+  l'evento, al massimo ~5 s), `Recognize` sincrono per le prove, `Trace` per il registro.
+- `Graph/MathMLText.cs`: MathML → testo (`x²`, `(x + 1)/(x − 2)`, `√(x)`, `(x − 1)²`, `x^(a + 1)`, `(3/2)x`,
+  segno meno davanti) con le correzioni `s e π` → `sen`, `t₉` → `tg`, `ⅇ` → `e`, `Y` → `y`, `F(x)` → `f(x)`.
+- Finestrella: **anteprima composta** (`MathLayout`) sotto ogni riga, avviso in evidenza (`note`), pulsante
+  **«✍ Scrivi a mano»** con la striscia (si legge 1,1 s dopo l'ultimo tratto; le righe lette vanno nelle righe vuote
+  o in righe nuove e spariscono dalla striscia; «Pulisci»). Pulsante spento con spiegazione se Windows non ha il
+  riconoscitore.
+- Foglio: «Grafico» (o la voce del menu contestuale «Disegna il grafico della funzione scritta») con **tratti
+  selezionati** e nessuna casella di testo → lettura, finestrella con le righe lette e l'avviso, grafico **accanto
+  alla scrittura** (`InsertGraphFromHandwriting`, `PlaceNewGraph`).
+- Prove: `--prova-grafico` controlla 13 traduzioni MathML, la divisione in righe e 5 formule scritte col «font a
+  tratto» (`GraphSelfTest.StrokeFont`) lette dal riconoscitore vero (5 righe in ~1,5 s). Istantanea:
+  `--snapshot out.png --tab "Scrivi a mano"` (scrive due funzioni nella striscia e le fa leggere davvero).
+- **Da provare a mano** sulle LIM: scrittura vera (non sintetica) col dito e con la penna, lazo + «Grafico»,
+  striscia nella finestrella; e `Ardesia.exe --prova-grafico` sui PC delle LIM per sapere se hanno `micaut.dll`.
+
+### Proposta
+
+### Che cosa c'è in Windows (provato su questo PC, Windows 11 26300, senza librerie esterne)
+
+Programma di prova (poi diventato `--prova-grafico`): inchiostro **sintetico** (un piccolo «font a tratto» fatto a mano, quindi più
+pulito della scrittura vera) passato ai riconoscitori via COM, con `dynamic`, senza riferimenti a pacchetti.
+
+| Tecnologia | Esito |
+|---|---|
+| **Math Input Control** (`micaut.dll`, COM `micaut.MathInputControl`, quello del vecchio «Pannello di input matematico») | **Riconosce la matematica** e restituisce **MathML**: `y = x² − 4` (con `msup`), `f(x) = 2x + 1`, `y = 1/x` e `y = (x+1)/(x−2)` come **frazioni vere** (`mfrac`), `y = √x` (`msqrt`), `f(x) = x³ − 3x`, `y = x² − 4x + 3`, `y = sin x` (come funzione). Sbaglia: **«sen» e «tg»** (non li conosce: `s e Π`, `t₉`; `AddFunctionName("sen")` non aiuta), lettere isolate ambigue (la mia `a` → `∂`). **Una sola espressione**: due righe insieme danno un pasticcio |
+| `mraut.MathRecognizer` (il motore sotto) | Non usabile: «la classe non dispone della licenza» (riservato a `micaut`) |
+| Riconoscitore di **testo** italiano (COM Tablet PC `InkRecognizerContext`, `InkObj.dll`) | Riconosce testo con alternative: `Y=2x+1`, `y=senx`, `Y=1/x`; ma **perde gli esponenti** (`x2`), le frazioni diventano simboli a caso, `(` letta come `1` |
+| WinRT `Windows.UI.Input.Inking` (`InkRecognizerContainer`, `InkAnalyzer`) | Non provato: serve il TFM `net10.0-windows10.0.x`, che **scarica da NuGet** il pacchetto di proiezione (~25 MB in più nell'eseguibile) e usa lo **stesso motore di testo** del COM: niente in più per la matematica |
+| `InkAnalyzer` di WPF (`IAWinFX.dll`, `IACore.dll`) | Non c'è: era nel vecchio Tablet PC SDK, non in .NET né in Windows |
+
+Il Math Input Control ha una sua finestra (in inglese: Write, Erase, Select and Correct, Clear, Insert) e dà il
+risultato solo quando si preme «Insert». Provato: si può **tenere fuori dallo schermo**, caricargli i tratti
+(`LoadInk`), premere «Insert» con UI Automation e ricevere il MathML dall'evento `Insert`: circa **1–2,5 s** a riga
+(gran parte è la ricerca della finestra con UI Automation, si può accorciare). Senza `Show()` non funziona.
+
+### Proposta
+
+**Tecnologia**: Math Input Control, nascosto; Ardesia mostra solo la sua interfaccia.
+Si scrive **con le penne di Ardesia** (non nella finestra di Microsoft), così funziona come il resto su Promethean
+(tutto tocco) e Newline (penna vera), con palmo-gomma e tutto quanto.
+
+**Dove si scrive** – due ingressi, stessa finestrella di conferma:
+
+1. **Sul foglio** (il caso principale, il più naturale alla LIM): il docente scrive `y = x² − 4` con la penna,
+   la prende col lazo e preme **«Grafico»** (o la voce del menu contestuale «Disegna il grafico di questa
+   funzione»). Come oggi per la casella di testo selezionata: le righe scritte diventano le funzioni e il grafico
+   va **accanto alla scrittura**, che resta sul foglio com'è.
+2. **Nella finestrella «Funzioni del grafico»**: pulsante **«✍ Scrivi»** che apre sotto le righe una striscia
+   bianca grande dove scrivere; quando si alza la penna e passa un attimo (~1 s) la funzione riconosciuta va in una
+   riga nuova e la striscia si pulisce. Utile per aggiungere una funzione a un grafico che c'è già.
+
+**Più righe**: il riconoscitore vuole un'espressione per volta, quindi Ardesia divide i tratti in righe
+(fasce orizzontali separate da uno spazio vuoto; frazioni ed esponenti restano nella loro riga perché i pezzi si
+sovrappongono in orizzontale) e le riconosce una alla volta.
+
+**Come si mostra e si corregge**: si apre la finestrella «Funzioni del grafico» con le righe già riempite
+(testo modificabile, come oggi) e, accanto a ciascuna, la **formula composta** con `MathLayout` (come nella
+legenda), così si vede subito se `x²` è diventato `x2`. Le righe che il parser non capisce sono in rosso come oggi.
+Si corregge **con la tastiera** (o la tastiera virtuale della LIM) oppure **riscrivendo** nella striscia «✍ Scrivi».
+«OK» disegna il grafico, «Annulla» non fa nulla. Nessun grafico senza conferma.
+
+**Traduzione MathML → testo di Ardesia** (nuovo `Editor/Graph/MathMLText.cs`): `msup` → `^`, (`x^2` → `x²` per
+leggibilità), `mfrac` → `(num)/(den)` con parentesi solo dove servono, `msqrt` → `√(…)`, `mroot`, `mfenced`;
+correzioni note: lettere `s e n`/`s e Π` → `sen`, `t₉`/`t g` → `tg`, `ⅇ` → `e`, `Y` → `y`, `F(x)` → `f(x)`,
+`×`/`·` → moltiplicazione, virgola decimale lasciata così (il parser la capisce).
+
+**Prove automatiche**: in `--prova-grafico` il «font a tratto» della prova (cifre, x, y, f, =, +, −, parentesi,
+frazione, radice, esponente) scrive alcune funzioni, le passa al riconoscitore vero e controlla il testo che
+esce (`y = x² − 4`, `y = 1/x`…). Se `micaut` manca la prova lo dice e non fallisce. La traduzione MathML → testo
+ha prove sue, indipendenti da Windows.
+
+### Limiti e rischi
+
+- **Componente vecchio e non documentato per questo uso**: il Math Input Control è dell'epoca di Windows 7; il
+  programma «Pannello di input matematico» è già stato tolto da Windows 10, il controllo invece c'è ancora (qui
+  versione 10.0.26100). Potrebbe sparire in un aggiornamento futuro. Premere «Insert» con UI Automation è un
+  trucco: se Microsoft cambia la finestra, smette di funzionare. Ardesia controlla all'avvio della funzione se il
+  componente c'è; se manca, il pulsante dice «Su questo PC Windows non ha il riconoscimento delle formule» e
+  si scrive con la tastiera. **Da verificare sui PC delle LIM** (Promethean e Newline/OPS): basta lanciare
+  `Ardesia.exe --prova-grafico` lì.
+- Riconosce solo **il risultato migliore** (niente elenco di alternative da toccare): per correggere si
+  riscrive o si usa la tastiera. Le alternative le dà solo il riconoscitore di testo, che però non vede apici e
+  frazioni.
+- **sen, tg, arcsen** vanno sistemati dopo, con le regole sopra; nomi poco comuni o lettere isolate (parametri
+  `a`, `b`, `k`) possono uscire sbagliati: per questo la conferma è obbligatoria.
+- La finestra fuori schermo per ~1 s: non dovrebbe vedersi; da controllare con due schermi (si mette fuori da
+  tutti gli schermi).
+- Tempo: 1–2,5 s per riga, con il cerchietto d'attesa.
+- Il riconoscitore è inglese: la virgola decimale va (provato `2,5x`), il punto e virgola dei punti no (non serve).
 
 Un elemento «grafico» disegnato da Ardesia direttamente sul foglio, vettoriale, che segue lo zoom
 della pagina e resta **sotto l'inchiostro**. Affianca GeoGebra, che resta per geometria e casi avanzati.

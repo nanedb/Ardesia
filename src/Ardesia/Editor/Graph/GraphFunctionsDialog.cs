@@ -1,14 +1,18 @@
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Ink;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
+using System.Windows.Threading;
 
 namespace Ardesia.Editor.Graph;
 
 /// <summary>
 /// Finestrella «Funzioni del grafico»: una funzione per riga, ognuna con la casella per mostrarla o toglierla
-/// dal grafico, e i simboli più usati a portata di dito.
+/// dal grafico, e i simboli più usati a portata di dito. Sotto ogni riga la formula composta, per vedere subito
+/// come è stata capita; la striscia «Scrivi a mano» legge le funzioni scritte con la penna.
 /// </summary>
 public sealed class GraphFunctionsDialog : Window
 {
@@ -18,6 +22,7 @@ public sealed class GraphFunctionsDialog : Window
         public required Grid Panel;
         public required CheckBox Visible;
         public required TextBox Box;
+        public required FormulaView Preview;
         /// <summary>Colore della funzione da cui viene la riga ("" per le righe nuove): resta anche se la si corregge.</summary>
         public string Color = "";
     }
@@ -26,8 +31,15 @@ public sealed class GraphFunctionsDialog : Window
     readonly List<Row> _list = new();
     readonly TextBlock _check;
     TextBox? _lastBox;
+    readonly Border _writeArea;
+    readonly InkCanvas _writeInk;
+    readonly TextBlock _writeHint, _writeStatus;
+    readonly DispatcherTimer _writeTimer = new() { Interval = TimeSpan.FromSeconds(1.1) };
+    bool _recognizing;
 
-    public GraphFunctionsDialog(IEnumerable<GraphFunctionData> functions)
+    /// <param name="note">Avviso in evidenza sopra le righe (per esempio dopo il riconoscimento della scrittura).</param>
+    /// <param name="startWriting">Apre subito la striscia per scrivere a mano.</param>
+    public GraphFunctionsDialog(IEnumerable<GraphFunctionData> functions, string? note = null, bool startWriting = false)
     {
         Title = "Funzioni del grafico";
         SizeToContent = SizeToContent.WidthAndHeight;
@@ -48,13 +60,62 @@ public sealed class GraphFunctionsDialog : Window
             Foreground = Brushes.DimGray,
             Margin = new Thickness(0, 0, 0, 10),
         });
+        if (note != null)
+        {
+            var accentBrush = Application.Current.TryFindResource("AccentBrush") as Brush ?? new SolidColorBrush(Color.FromRgb(0x1E, 0x5A, 0x68));
+            root.Children.Add(new TextBlock { Text = note, TextWrapping = TextWrapping.Wrap, FontWeight = FontWeights.SemiBold, Foreground = accentBrush, Margin = new Thickness(0, 0, 0, 10) });
+        }
 
         root.Children.Add(new ScrollViewer { Content = _rows, MaxHeight = 360, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
 
-        var add = new Button { Content = "+ Aggiungi una funzione", Height = 36, Margin = new Thickness(0, 4, 0, 0), HorizontalAlignment = HorizontalAlignment.Left, Padding = new Thickness(10, 0, 10, 0), Focusable = false };
+        var tools = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
+        var add = new Button { Content = "+ Aggiungi una funzione", Height = 36, Padding = new Thickness(10, 0, 10, 0), Focusable = false };
         if (Application.Current.TryFindResource("PlainButton") is Style addStyle) add.Style = addStyle;
         add.Click += (_, _) => AddRow(new GraphFunctionData { Text = "", Color = "" }, _list.Count).Box.Focus();
-        root.Children.Add(add);
+        tools.Children.Add(add);
+        var write = new Button { Content = "✍ Scrivi a mano", Height = 36, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(8, 0, 0, 0), Focusable = false };
+        if (Application.Current.TryFindResource("PlainButton") is Style writeStyle) write.Style = writeStyle;
+        if (!HandwritingMath.IsAvailable)
+        {
+            write.IsEnabled = false;
+            write.ToolTip = HandwritingMath.NotAvailableMessage;
+            ToolTipService.SetShowOnDisabled(write, true);
+        }
+        write.Click += (_, _) => ShowWriting(_writeArea!.Visibility != Visibility.Visible);
+        tools.Children.Add(write);
+        root.Children.Add(tools);
+
+        // striscia per scrivere a mano: si legge quando la penna si ferma
+        _writeInk = new InkCanvas { Height = 180, Background = Brushes.White };
+        _writeInk.DefaultDrawingAttributes = new DrawingAttributes { Color = Colors.Black, Width = 3.5, Height = 3.5, FitToCurve = true };
+        _writeHint = new TextBlock
+        {
+            Text = "Scrivi qui la funzione, una per riga: la leggo appena ti fermi.",
+            Foreground = Brushes.Gray,
+            Margin = new Thickness(12, 10, 12, 0),
+            IsHitTestVisible = false,
+        };
+        var writeGrid = new Grid();
+        writeGrid.Children.Add(_writeInk);
+        writeGrid.Children.Add(_writeHint);
+        var clear = new Button { Content = "Pulisci", Height = 34, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(6), HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Bottom, Focusable = false };
+        if (Application.Current.TryFindResource("PlainButton") is Style clearStyle) clear.Style = clearStyle;
+        clear.Click += (_, _) => { _writeInk.Strokes.Clear(); _writeStatus!.Text = ""; UpdateWriteHint(); };
+        writeGrid.Children.Add(clear);
+        _writeStatus = new TextBlock { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 0), Foreground = Brushes.DimGray };
+        var writePanel = new StackPanel();
+        writePanel.Children.Add(new Border { BorderBrush = Brushes.Silver, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(4), Child = writeGrid, ClipToBounds = true });
+        writePanel.Children.Add(_writeStatus);
+        _writeArea = new Border { Child = writePanel, Margin = new Thickness(0, 8, 0, 0), Visibility = Visibility.Collapsed };
+        root.Children.Add(_writeArea);
+        _writeInk.StrokeCollected += (_, _) => { UpdateWriteHint(); RestartWriteTimer(); };
+        // mentre si scrive non si legge
+        _writeInk.PreviewMouseDown += (_, _) => _writeTimer.Stop();
+        _writeInk.PreviewStylusDown += (_, _) => _writeTimer.Stop();
+        _writeInk.PreviewTouchDown += (_, _) => _writeTimer.Stop();
+        _writeInk.StrokeErased += (_, _) => UpdateWriteHint();
+        _writeTimer.Tick += (_, _) => { _writeTimer.Stop(); RecognizeWriting(); };
+        Closed += (_, _) => _writeTimer.Stop();
 
         // simboli difficili da scrivere con la tastiera della LIM
         var keys = new WrapPanel { Margin = new Thickness(0, 10, 0, 0) };
@@ -84,6 +145,7 @@ public sealed class GraphFunctionsDialog : Window
         if (_list.Count == 0) AddRow(new GraphFunctionData { Text = "", Color = "" }, 0);
 
         Content = root;
+        if (startWriting && HandwritingMath.IsAvailable) ShowWriting(true);
         Loaded += (_, _) =>
         {
             // si continua a scrivere sulla prima riga vuota, o in fondo all'ultima
@@ -103,6 +165,8 @@ public sealed class GraphFunctionsDialog : Window
     Row AddRow(GraphFunctionData f, int index)
     {
         var grid = new Grid { Margin = new Thickness(0, 0, 0, 6) };
+        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -147,7 +211,14 @@ public sealed class GraphFunctionsDialog : Window
         Grid.SetColumn(remove, 3);
         grid.Children.Add(remove);
 
-        var row = new Row { Panel = grid, Visible = visible, Box = box, Color = f.Color };
+        // la formula come sarà scritta nella legenda; le formule lunghe si rimpiccioliscono
+        var preview = new FormulaView();
+        var previewBox = new Viewbox { Child = preview, Stretch = Stretch.Uniform, StretchDirection = StretchDirection.DownOnly, HorizontalAlignment = HorizontalAlignment.Left, MaxHeight = 80, Margin = new Thickness(8, 4, 0, 2) };
+        Grid.SetRow(previewBox, 1);
+        Grid.SetColumn(previewBox, 2);
+        grid.Children.Add(previewBox);
+
+        var row = new Row { Panel = grid, Visible = visible, Box = box, Preview = preview, Color = f.Color };
         _list.Insert(index, row);
         _rows.Children.Insert(index, grid);
 
@@ -254,12 +325,14 @@ public sealed class GraphFunctionsDialog : Window
             n++;
             var line = row.Box.Text.Trim();
             bool bad = false;
+            row.Preview.Box = null;
             if (line.Length > 0)
             {
                 written++;
                 try
                 {
-                    MathParser.ParseLine(MathText.Normalize(line));
+                    var curve = MathParser.ParseLine(MathText.Normalize(line));
+                    row.Preview.Box = MathLayout.Line(curve, 22, Foreground, VisualTreeHelper.GetDpi(this).PixelsPerDip);
                 }
                 catch (MathSyntaxException ex)
                 {
@@ -281,6 +354,98 @@ public sealed class GraphFunctionsDialog : Window
         }
         _check.Text = errors.Count == 0 ? (written == 0 ? "" : "✓ Tutto a posto") : string.Join("\n", errors);
         _check.Foreground = errors.Count == 0 ? new SolidColorBrush(Color.FromRgb(0x2E, 0x7D, 0x32)) : ErrorBrush;
+    }
+
+    // ── scrittura a mano ──
+
+    void ShowWriting(bool on)
+    {
+        _writeArea.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
+        if (!on) _writeTimer.Stop();
+    }
+
+    /// <summary>Tratti già pronti nella striscia, come se fossero scritti ora (per le istantanee di prova).</summary>
+    internal void AddWriting(StrokeCollection strokes)
+    {
+        ShowWriting(true);
+        _writeInk.Strokes.Add(strokes);
+        UpdateWriteHint();
+        RestartWriteTimer();
+    }
+
+    void UpdateWriteHint() => _writeHint.Visibility = _writeInk.Strokes.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+
+    void RestartWriteTimer()
+    {
+        _writeTimer.Stop();
+        _writeTimer.Start();
+    }
+
+    /// <summary>Legge i tratti della striscia; ogni riga riconosciuta va in una riga della finestrella.</summary>
+    async void RecognizeWriting()
+    {
+        if (_recognizing || _writeInk.Strokes.Count == 0) return;
+        _recognizing = true;
+        _writeStatus.Text = "Leggo…";
+        var taken = new StrokeCollection(_writeInk.Strokes);
+        bool unreadable = false;
+        try
+        {
+            var texts = (await HandwritingMath.RecognizeLinesAsync(taken, this)).Where(t => t.Length > 0).ToList();
+            if (texts.Count == 0)
+            {
+                unreadable = true;
+                _writeStatus.Text = "Non riesco a leggere: prova a scrivere più grande, oppure premi «Pulisci» e riscrivi.";
+                return;
+            }
+            foreach (var t in texts) PutRecognized(t);
+            _writeInk.Strokes.Remove(new StrokeCollection(taken.Where(_writeInk.Strokes.Contains)));
+            _writeStatus.Text = "Ho letto:  " + string.Join("    ", texts) + "\nSe non va bene, correggi la riga qui sopra o riscrivi.";
+        }
+        catch (Exception ex) when (ex is COMException or InvalidOperationException)
+        {
+            unreadable = true;
+            _writeStatus.Text = "Il riconoscimento della scrittura non funziona: " + ex.Message;
+        }
+        finally
+        {
+            _recognizing = false;
+            UpdateWriteHint();
+            // tratti scritti mentre leggevo: si leggono dopo
+            if (!unreadable && _writeInk.Strokes.Count > 0 && !_writeTimer.IsEnabled) RestartWriteTimer();
+        }
+    }
+
+    /// <summary>Il testo letto va nella riga vuota su cui si stava scrivendo, o nella prima vuota, o in una nuova.</summary>
+    void PutRecognized(string text)
+    {
+        var row = _list.FirstOrDefault(r => r.Box == _lastBox && r.Box.Text.Trim().Length == 0)
+                  ?? _list.FirstOrDefault(r => r.Box.Text.Trim().Length == 0)
+                  ?? AddRow(new GraphFunctionData { Text = "", Color = "" }, _list.Count);
+        row.Box.Text = text;
+        row.Box.CaretIndex = text.Length;
+    }
+
+    /// <summary>Una formula composta da <see cref="MathLayout"/>.</summary>
+    sealed class FormulaView : FrameworkElement
+    {
+        MathLayout.MathBox? _box;
+
+        public MathLayout.MathBox? Box
+        {
+            get => _box;
+            set
+            {
+                _box = value;
+                Visibility = value == null ? Visibility.Collapsed : Visibility.Visible;
+                InvalidateMeasure();
+                InvalidateVisual();
+            }
+        }
+
+        protected override Size MeasureOverride(Size available) => _box == null ? new Size() : new Size(_box.Width, _box.Height);
+
+        protected override void OnRender(DrawingContext dc) => _box?.Draw(dc, 0, _box.Ascent);
     }
 
     static readonly Brush ErrorBrush = new SolidColorBrush(Color.FromRgb(0xC6, 0x28, 0x28));

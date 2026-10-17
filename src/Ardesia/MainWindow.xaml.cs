@@ -1724,7 +1724,20 @@ public partial class MainWindow : Window
                 dlg.Show();
                 shot = dlg;
             }
-            await Task.Delay(600);
+            // --tab «Scrivi a mano»: la finestrella dopo una lettura dal foglio, con due funzioni scritte nella striscia
+            // e lette davvero dal riconoscimento di Windows
+            bool writing = tab != null && tab.StartsWith("Scrivi", StringComparison.OrdinalIgnoreCase);
+            if (writing)
+            {
+                var dlg = new Editor.Graph.GraphFunctionsDialog(new[] { new Editor.Graph.GraphFunctionData { Text = "y = x² − 4", Color = "" } },
+                    "Ho letto così quello che hai scritto: controlla, correggi se serve, poi «Disegna».") { Owner = this };
+                dlg.Show();
+                var ink = Ardesia.Editor.Graph.GraphSelfTest.StrokeFont.Fraction("y=", "x+1", "x-2", 34, 20, 40);
+                ink.Add(Ardesia.Editor.Graph.GraphSelfTest.StrokeFont.Write("y=sen x", 34, 20, 125));
+                dlg.AddWriting(ink);
+                shot = dlg;
+            }
+            await Task.Delay(writing ? 4000 : 600);
             var root = (FrameworkElement)shot.Content;
             var dpi = VisualTreeHelper.GetDpi(shot);
             // il margine del contenuto sposta il disegno: va contato, o si perde il bordo destro e il fondo

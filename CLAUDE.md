@@ -88,12 +88,15 @@ Alternativa leggera a GeoGebra, disegnata da Ardesia sul foglio: vettoriale, seg
 | `GraphMath.cs` | Campionamento che spezza la curva agli asintoti, zeri (anche doppi), estremi, derivata numerica, tacche 1-2-5 e in π, numeri all'italiana («(1,5; −2)») |
 | `GraphState.cs` | Stato salvato come JSON in `ElementData.Content` (tipo `"graph"`): funzioni con colore, vista, parametri, opzioni |
 | `FunctionGraph.cs` | L'elemento (`FrameworkElement`, `OnRender`): griglia, segno, assi con frecce, curve, derivata tratteggiata, punti notevoli con etichette che si evitano, legenda |
-| `GraphFunctionsDialog.cs` | Finestrella «Funzioni del grafico» (una per riga, tasti x² √ π \|x\| sen…, controllo degli errori) |
+| `GraphFunctionsDialog.cs` | Finestrella «Funzioni del grafico» (una per riga, tasti x² √ π \|x\| sen…, controllo degli errori, formula composta sotto ogni riga, striscia «✍ Scrivi a mano») |
 | `GraphSelfTest.cs` | Prove: `Ardesia.exe --prova-grafico [registro.txt]` (codice d'uscita 1 se qualcosa non va); salva anche `registro.png`, un grafico con formule difficili per controllare la legenda |
 | `MathLayout.cs` | Impaginatore di formule fatto in casa (stile LaTeX) per la legenda: frazioni, esponenti, radici, valore assoluto |
 | `GeoGebraExport.cs` | Funzioni → comandi GeoGebra: prima i cursori dei parametri (`Slider`, `SetValue`), poi le funzioni (sen → sin, log → lg) |
+| `HandwritingMath.cs` | Scrittura a mano: **Math Input Control** di Windows (`micaut.dll`, COM, niente librerie) tenuto **fuori schermo**; gli si caricano i tratti e si preme «Insert» con UI Automation → MathML. Un'espressione per volta: `SplitLines` divide le righe. `mraut.MathRecognizer` non si può usare (licenza) |
+| `MathMLText.cs` | MathML → testo delle funzioni, con le correzioni del riconoscitore inglese (s e π → sen, t₉ → tg) |
 
 - In `PageEditor`: `InsertGraph` (pulsante «Grafico»), `EditGraphFunctions` (doppio clic), `AddGraphMenuItems` (menu contestuale: caselle che lasciano il menu aperto, zoom, vista standard, «Apri in GeoGebra» = `OpenGraph(from:)`). `--snapshot --demo` mette un grafico di prova sulla prima pagina.
 - Tipi di elemento sconosciuti (da versioni più nuove) diventano `PreservedElement` e si riscrivono invariati. Le versioni ≤ 0.3.2 invece **cancellano** i grafici salvando: non aprire con quelle un file di prova con grafici.
 - **Comandi sul grafico solo con lo strumento «Seleziona»** (scelta dell'utente): trascinamento dentro il grafico selezionato = assi, bordo = sposta il grafico, rotellina = zoom degli assi, doppio clic = «Funzioni del grafico» (con la casella per nascondere ogni funzione), cursori dei parametri in fondo al grafico (anche col dito).
-- **Da fare**: barretta, min/max/passo dei cursori, gesti con dita e penna sulle LIM (anche il doppio tocco), scrittura a mano. Stato e dettagli in `docs/grafico-nativo.md`.
+- Scrittura a mano: tratti selezionati + «Grafico» (o menu contestuale) → `InsertGraphFromHandwriting` → finestrella con le righe lette da confermare → grafico accanto. Istantanea `--snapshot out.png --tab "Scrivi a mano"`. Il riconoscitore vuole lettere chiare: la «y» sintetica delle prove veniva letta «x» finché non le si è allungata la gamba.
+- **Da fare**: barretta, min/max/passo dei cursori, gesti con dita e penna sulle LIM (anche il doppio tocco), prova della scrittura a mano vera sulle LIM. Stato e dettagli in `docs/grafico-nativo.md`.

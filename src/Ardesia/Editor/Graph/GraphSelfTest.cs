@@ -8,7 +8,7 @@ using System.Windows.Media.Imaging;
 namespace Ardesia.Editor.Graph;
 
 /// <summary>Prova automatica di parser e calcoli (Ardesia.exe --prova-grafico [registro.txt]).</summary>
-public static class GraphSelfTest
+public static partial class GraphSelfTest
 {
     /// <summary>Esegue le prove e restituisce il registro; <paramref name="failures"/> conta quelle andate male.</summary>
     public static string Run(out int failures)
@@ -208,6 +208,9 @@ public static class GraphSelfTest
         var ggb = GeoGebraExport.Commands(new[] { "y = a·x² + b" }, new List<GraphParameter> { new() { Name = "a", Value = 2.5 } });
         Check(ggb.Count == 5 && ggb[0] == "a = Slider(-5, 5, 0.1)" && ggb[1] == "SetValue(a, 2.5)" && ggb[2].StartsWith("b = Slider") && ggb[4] == "a * x^(2) + b",
             "GeoGebra: prima i cursori, poi la funzione: " + string.Join(" | ", ggb));
+
+        // ── scrittura a mano ──
+        Handwriting(Check, log);
 
         log.AppendLine();
         log.AppendLine(fail == 0 ? "Tutte le prove sono andate bene." : $"{fail} prove non sono andate bene.");

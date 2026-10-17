@@ -826,7 +826,8 @@ public partial class PageEditor : UserControl
 
     /// <summary>
     /// Grafico di Ardesia: con un grafico selezionato apre le sue funzioni; altrimenti ne crea uno nuovo con le
-    /// funzioni della casella di testo selezionata (una per riga) e lo mette accanto, o chiede le funzioni.
+    /// funzioni della casella di testo selezionata (una per riga) o scritte a mano nei tratti selezionati, e lo
+    /// mette accanto, o chiede le funzioni.
     /// </summary>
     public void InsertGraph()
     {
@@ -839,6 +840,11 @@ public partial class PageEditor : UserControl
         }
 
         var source = SelectedTextBoxes().FirstOrDefault() ?? (HasActiveTextBox ? ActiveTextBox : null);
+        if (source == null && Ink.GetSelectedStrokes().Count > 0)
+        {
+            InsertGraphFromHandwriting(Ink.GetSelectedStrokes().Clone());
+            return;
+        }
         IReadOnlyList<string> lines = source == null
             ? Array.Empty<string>()
             : new TextRange(source.Document.ContentStart, source.Document.ContentEnd).Text
@@ -855,8 +861,6 @@ public partial class PageEditor : UserControl
         var state = new GraphState();
         if (functions != null) state.SetFunctions(functions);
         else state.SetFunctions(lines);
-        var graph = ElementFactory.CreateFunctionGraph(state, 600, 450);
-        graph.ResetView();
         var pos = VisibleOrigin();
         if (source != null && Ink.Children.Contains(source))
         {
@@ -866,6 +870,53 @@ public partial class PageEditor : UserControl
             double right = b.IsEmpty ? (double.IsNaN(sx) ? 0 : sx) + source.ActualWidth : b.Right;
             pos = new Point(right + 24, double.IsNaN(sy) ? 0 : sy);
         }
+        PlaceNewGraph(state, pos);
+    }
+
+    /// <summary>
+    /// Grafico dalle funzioni scritte a mano: il riconoscitore di Windows legge i tratti (una funzione per riga),
+    /// il docente controlla e corregge nella finestrella, e il grafico va accanto alla scrittura, che resta com'è.
+    /// </summary>
+    async void InsertGraphFromHandwriting(StrokeCollection strokes)
+    {
+        var owner = Window.GetWindow(this);
+        if (!HandwritingMath.IsAvailable)
+        {
+            MessageBox.Show(owner, HandwritingMath.NotAvailableMessage, "Ardesia", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+        IReadOnlyList<string> texts;
+        Mouse.OverrideCursor = Cursors.Wait;
+        try
+        {
+            texts = (await HandwritingMath.RecognizeLinesAsync(strokes, owner)).Where(t => t.Length > 0).ToList();
+        }
+        catch (Exception ex) when (ex is System.Runtime.InteropServices.COMException or InvalidOperationException)
+        {
+            texts = Array.Empty<string>();
+        }
+        finally
+        {
+            Mouse.OverrideCursor = null;
+        }
+
+        string note = texts.Count > 0
+            ? "Ho letto così quello che hai scritto: controlla, correggi se serve, poi «Disegna»."
+            : "Non sono riuscito a leggere la scrittura: scrivi la funzione qui sotto, oppure usa «Scrivi a mano».";
+        var dlg = new GraphFunctionsDialog(texts.Select(t => new GraphFunctionData { Text = t, Color = "" }), note) { Owner = owner };
+        if (dlg.ShowDialog() != true || dlg.Functions.Count == 0) return;
+
+        var state = new GraphState();
+        state.SetFunctions(dlg.Functions);
+        var b = strokes.GetBounds();
+        PlaceNewGraph(state, new Point(b.Right + 24, b.Top));
+    }
+
+    /// <summary>Mette sul foglio un grafico nuovo e lo seleziona.</summary>
+    void PlaceNewGraph(GraphState state, Point pos)
+    {
+        var graph = ElementFactory.CreateFunctionGraph(state, 600, 450);
+        graph.ResetView();
         InkCanvas.SetLeft(graph, pos.X);
         InkCanvas.SetTop(graph, pos.Y);
         AddElement(graph);
@@ -1352,6 +1403,12 @@ public partial class PageEditor : UserControl
             {
                 menu.Items.Add(MenuEntry("Disegna il grafico di questa funzione", "", InsertGraph));
                 menu.Items.Add(MenuEntry("Disegna il grafico con GeoGebra", "", () => OpenGraph()));
+                menu.Items.Add(new Separator());
+            }
+            else if (Ink.GetSelectedStrokes().Count > 0 && Ink.GetSelectedElements().Count == 0 && HandwritingMath.IsAvailable)
+            {
+                // tratti scritti a mano: si leggono come funzioni
+                menu.Items.Add(MenuEntry("Disegna il grafico della funzione scritta", "", InsertGraph));
                 menu.Items.Add(new Separator());
             }
             menu.Items.Add(MenuEntry("Taglia", "", () => Copy(cut: true), gesture: "Ctrl+X"));
