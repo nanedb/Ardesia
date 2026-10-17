@@ -49,7 +49,7 @@ dotnet run --project src/Ardesia
 
 Crea nella cartella `dist`:
 
-- **`ArdesiaSetup.exe`**: installazione per il solo utente corrente, quindi **senza credenziali di amministratore**. Installa in `%LocalAppData%\Programs\Ardesia`, crea le icone nel menu Start (compresa «Ardesia – Prova tocco LIM») e, se richiesto, sul desktop, e associa i file `.ardesia`. Si disinstalla da *Impostazioni → App*.
-- **`Ardesia-portatile.exe`**: un unico file che si avvia senza installazione, anche da una chiavetta USB.
+- **`ArdesiaSetup-X.Y.Z.exe`** (con il numero della versione): installazione per il solo utente corrente, quindi **senza credenziali di amministratore**. Installa in `%LocalAppData%\Programs\Ardesia`, crea le icone nel menu Start (compresa «Ardesia – Prova tocco LIM») e, se richiesto, sul desktop, e associa i file `.ardesia`. Si disinstalla da *Impostazioni → App*.
+- **`Ardesia-portatile-X.Y.Z.exe`**: un unico file che si avvia senza installazione, anche da una chiavetta USB.
 
 Entrambi includono .NET e non richiedono altro software. Servono Windows 10/11 a 64 bit: sulle LIM con Android integrato vanno usati sul PC Windows collegato alla lavagna o sul modulo OPS.

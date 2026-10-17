@@ -42,12 +42,12 @@ Blocco appunti per **LIM** (lavagne interattive) in stile OneNote, per una scuol
 ```powershell
 dotnet build                                   # se fallisce per file bloccato, Ardesia è aperta: non chiuderla senza chiedere,
                                                # compila altrove con -p:OutDir=<scratchpad>\build\
-.\build-release.ps1                            # publish single-file + Inno Setup → dist\ArdesiaSetup.exe, dist\Ardesia-portatile.exe
+.\build-release.ps1                            # publish single-file + Inno Setup → dist\ArdesiaSetup-X.Y.Z.exe, dist\Ardesia-portatile-X.Y.Z.exe
 ```
 
 - Versione in **due posti**: `<Version>` in `src/Ardesia/Ardesia.csproj` e `#define AppVersion` in `installer/Ardesia.iss`.
 - L'installer è **per utente, senza amministratore** (`PrivilegesRequired=lowest`). Inno Setup è in `%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe`.
-- Repository privato GitHub `nanedb/Ardesia` (gh già autenticato). Commit, push e release **solo su richiesta**; release con `gh release create vX.Y.Z dist\ArdesiaSetup.exe dist\Ardesia-portatile.exe --notes-file …`. Messaggi di commit in italiano con riga `Co-Authored-By`.
+- Repository privato GitHub `nanedb/Ardesia` (gh già autenticato). Commit, push e release **solo su richiesta**; release con `gh release create vX.Y.Z dist\ArdesiaSetup-X.Y.Z.exe dist\Ardesia-portatile-X.Y.Z.exe --notes-file …` (il numero di versione nel nome dei file l'ha chiesto l'utente; `build-release.ps1` si ferma se le due versioni sono diverse). Si compila nella cartella principale `Ardesia\`, così i file finiscono in `Ardesia\dist`, dove l'utente li cerca. Messaggi di commit in italiano con riga `Co-Authored-By`.
 - Su PowerShell: `R` è un alias di sistema (non usarlo come nome di funzione); il codice ha terminazioni di riga miste, quindi per sostituzioni multi-riga preferire lo strumento Edit; per i messaggi di commit usare `git commit -F file`.
 
 ### Prove automatiche
