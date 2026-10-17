@@ -45,6 +45,17 @@ public partial class App : Application
             return;
         }
 
+        // Prova di Google Drive: accesso, permessi e condivisione col progetto della scuola (docs/google-drive.md).
+        int pd = Array.IndexOf(e.Args, "--prova-google");
+        if (pd >= 0)
+        {
+            var client = pd + 1 < e.Args.Length && !e.Args[pd + 1].StartsWith("--") ? e.Args[pd + 1] : null;
+            var win = new GoogleTestWindow(client);
+            MainWindow = win;
+            win.Show();
+            return;
+        }
+
         // Prova del grafico di Ardesia: parser e calcoli, senza finestre; scrive il registro e esce.
         int pf = Array.IndexOf(e.Args, "--prova-grafico");
         if (pf >= 0)
