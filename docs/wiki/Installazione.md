@@ -1,0 +1,70 @@
+# Installazione
+
+Ardesia si distribuisce in due forme, con il numero della versione nel nome del file (qui **0.4.0**):
+
+| File | Che cos'è | Quando usarlo |
+|---|---|---|
+| `ArdesiaSetup-0.4.0.exe` | Programma di installazione | Sul proprio PC e sui PC delle LIM: crea le icone, associa i file `.ardesia`, si disinstalla come le altre app |
+| `Ardesia-portatile-0.4.0.exe` | Un unico file che si avvia senza installare nulla | Da una chiavetta USB, o su un PC dove non si vuole (o non si può) installare |
+
+Entrambe contengono già tutto quello che serve: **non bisogna installare .NET né altri programmi**. Serve Windows 10 o 11 a 64 bit.
+
+> ⚠ Da verificare: dove i colleghi trovano i file (cartella condivisa su Drive, chiavetta, sito…). Il repository GitHub di Ardesia è privato, quindi le pagine di rilascio non sono visibili a tutti.
+
+## Installare con `ArdesiaSetup`
+
+1. Fai doppio clic su `ArdesiaSetup-0.4.0.exe`.
+2. Se compare la finestra blu **«Windows ha protetto il PC»** vedi [più sotto](#lavviso-windows-ha-protetto-il-pc).
+3. **Non servono le credenziali di amministratore**: Ardesia si installa solo per l'utente con cui sei entrato in Windows. Se il programma chiede se installare *per tutti gli utenti* o *solo per me*, scegli **solo per me**.
+   > ⚠ Da verificare: il testo esatto della domanda (se compare) nella versione italiana dell'installazione.
+4. Puoi spuntare **«Crea un'icona sul desktop»**.
+5. Alla fine lascia spuntato **«Avvia Ardesia»** e premi *Fine*.
+
+Che cosa viene installato:
+
+- il programma in `%LocalAppData%\Programs\Ardesia` (nella cartella del tuo utente);
+- nel menu Start le voci **Ardesia** e **Ardesia – Prova tocco LIM** (la [prova del tocco](Uso-sulle-LIM#la-prova-del-tocco-della-lim));
+- l'icona sul desktop, se l'hai chiesta;
+- l'associazione dei file `.ardesia`: un doppio clic su un blocco appunti lo apre in Ardesia.
+
+**Sui PC delle LIM** ogni docente entra in Windows con il proprio utente, quindi **ognuno installa Ardesia per sé** (pochi secondi, senza amministratore).
+
+### Aggiornare a una versione nuova
+
+Scarica il nuovo `ArdesiaSetup-X.Y.Z.exe` ed eseguilo: sostituisce la versione precedente. I tuoi blocchi appunti e le tue impostazioni (penne, ultimo file aperto…) restano.
+
+> **Importante – aggiornate tutti i PC.** Le versioni **0.3.2 e precedenti** non conoscono il [grafico di funzione](Grafico-di-funzione): se aprono un blocco appunti che contiene grafici, **li cancellano al primo salvataggio**. Se usi i grafici, aggiorna Ardesia su **tutti** i PC dove apri quel blocco (casa, LIM delle varie aule, portatile). Per sapere la versione installata: *Impostazioni → App → App installate → Ardesia*.
+> ⚠ Da verificare: Ardesia non mostra il numero di versione al suo interno; valutare una voce «Informazioni» nel menu File.
+
+### Disinstallare
+
+*Impostazioni di Windows → App → App installate → Ardesia → Disinstalla*. I blocchi appunti (i file `.ardesia`) non vengono cancellati.
+
+## La versione portatile
+
+`Ardesia-portatile-0.4.0.exe` si avvia con un doppio clic, anche da una chiavetta USB. Differenze rispetto all'installazione:
+
+- non crea icone nel menu Start né sul desktop;
+- non associa i file `.ardesia` (per aprirli usa *File → Apri…* dentro Ardesia);
+- le impostazioni (penne, ultimo file…) si salvano comunque **sul PC** dove la usi, nel profilo del tuo utente Windows, non sulla chiavetta.
+
+Il primo avvio può richiedere qualche secondo in più.
+
+## L'avviso «Windows ha protetto il PC»
+
+Ardesia non è firmata digitalmente (la firma costa ed è pensata per i programmi in vendita), quindi la prima volta Windows SmartScreen può mostrare una finestra blu:
+
+> **Windows ha protetto il PC** – Microsoft Defender SmartScreen ha impedito l'avvio di un'app non riconosciuta…
+
+Per proseguire:
+
+1. clicca su **Ulteriori informazioni**;
+2. compare il nome del file e il pulsante **Esegui comunque**: cliccalo.
+
+L'avviso compare solo la prima volta per ogni file scaricato. Se il pulsante *Esegui comunque* non c'è, il PC è bloccato da criteri della scuola: chiedi al tecnico.
+
+> ⚠ Da verificare: comportamento sui PC della scuola gestiti centralmente (SmartScreen o antivirus potrebbero bloccare del tutto l'esecuzione).
+
+## GeoGebra e WebView2
+
+Il pulsante [GeoGebra](GeoGebra) usa **Microsoft Edge WebView2**, già presente in Windows 11 e in quasi tutti i Windows 10 aggiornati. Se manca, Ardesia lo dice nella finestra di GeoGebra: si scarica gratis dal sito Microsoft (cerca «WebView2 Runtime»). Tutto il resto di Ardesia funziona anche senza.
