@@ -124,7 +124,9 @@ public static class MathMLText
             }
             case "msup" when kids.Count == 2:
             {
-                string bas = Inner(kids[0]), exp = Inner(kids[1]);
+                string bas = Inner(kids[0]).Trim(), exp = Inner(kids[1]);
+                // sen² x, sin⁴(x): l'esponente sta sul nome della funzione e l'argomento viene dopo
+                if (bas.Length > 1 && MathFunctions.IsFunction(bas)) return bas + Power(exp) + " ";
                 return Wrap(bas, forPower: true) + Power(exp);
             }
             case "msub" when kids.Count == 2:
@@ -228,10 +230,11 @@ public static class MathMLText
     {
         s = s.Trim();
         // «sen» italiano: s·e·n, con la n spesso letta come π
-        s = Regex.Replace(s, @"(?<![A-Za-z])(arc)?se[nπη]\s*", m => (m.Groups[1].Value) + "sen ");
-        // spazio tra il nome della funzione e l'argomento senza parentesi: sen x, cos 2x
-        s = Regex.Replace(s, @"(arcsen|arcsin|arccos|arctg|arctan|sen|sin|cos|tg|tan|ln|log)\s*(?=[A-Za-z0-9π√|])", "$1 ");
-        s = Regex.Replace(s, @"(arcsen|arcsin|arccos|arctg|arctan|sen|sin|cos|tg|tan|ln|log)\s+(?=\()", "$1");
+        // (anche con l'esponente: sen⁴ x, scritto come s·e·π⁴)
+        s = Regex.Replace(s, @"(?<![A-Za-z])(arc)?se[nπη]([⁰¹²³⁴⁵⁶⁷⁸⁹]*)\s*", m => m.Groups[1].Value + "sen" + m.Groups[2].Value + " ");
+        // spazio tra il nome della funzione (con l'eventuale esponente) e l'argomento senza parentesi: sen x, cos² 2x
+        s = Regex.Replace(s, @"(arcsen|arcsin|arccos|arctg|arctan|sen|sin|cos|tg|tan|ln|log)([⁰¹²³⁴⁵⁶⁷⁸⁹]*)\s*(?=[A-Za-z0-9π√|])", "$1$2 ");
+        s = Regex.Replace(s, @"(arcsen|arcsin|arccos|arctg|arctan|sen|sin|cos|tg|tan|ln|log)([⁰¹²³⁴⁵⁶⁷⁸⁹]*)\s+(?=\()", "$1$2");
         // a inizio riga: Y = … → y = …, F(x) = … → f(x) = …
         s = Regex.Replace(s, @"^Y(?=\s*=)", "y");
         s = Regex.Replace(s, @"^([FGH])(?=\(x\)\s*=)", m => m.Value.ToLowerInvariant());

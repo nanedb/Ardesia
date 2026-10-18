@@ -27,6 +27,11 @@ public static partial class GraphSelfTest
             ("<m:mi>Y</m:mi><m:mo>=</m:mo><m:mo>-</m:mo><m:msup><m:mi>x</m:mi><m:mn>2</m:mn></m:msup>", "y = −x²"),
             ("<m:mi>y</m:mi><m:mo>=</m:mo><m:mn>3</m:mn><m:mfrac><m:mn>1</m:mn><m:mi>x</m:mi></m:mfrac>", "y = 3(1/x)"),
             ("<m:mi>y</m:mi><m:mo>=</m:mo><m:msup><m:mi>x</m:mi><m:mrow><m:mi>a</m:mi><m:mo>+</m:mo><m:mn>1</m:mn></m:mrow></m:msup>", "y = x^(a + 1)"),
+            // esponente sul nome della funzione (segnalato dall'utente il 18/10/2026: usciva «sin4(x)»)
+            ("<m:mi>y</m:mi><m:mo>=</m:mo><m:mrow><m:msup><m:mo mathvariant=\"normal\">sin</m:mo><m:mrow><m:mn>4</m:mn></m:mrow></m:msup><m:mo>⁡</m:mo><m:mrow><m:mfenced open=\"(\" close=\")\"><m:mrow><m:mi>x</m:mi></m:mrow></m:mfenced></m:mrow></m:mrow>", "y = sin⁴(x)"),
+            ("<m:mi>y</m:mi><m:mo>=</m:mo><m:mrow><m:msup><m:mo mathvariant=\"normal\">sin</m:mo><m:mrow><m:mn>2</m:mn></m:mrow></m:msup><m:mo>⁡</m:mo><m:mrow><m:mi>x</m:mi></m:mrow></m:mrow>", "y = sin² x"),
+            ("<m:mi>y</m:mi><m:mo>=</m:mo><m:mi>s</m:mi><m:mi>ⅇ</m:mi><m:msup><m:mi>Π</m:mi><m:mn>2</m:mn></m:msup><m:mi>x</m:mi>", "y = sen² x"),
+            ("<m:mi>y</m:mi><m:mo>=</m:mo><m:msup><m:mi>cos</m:mi><m:mn>3</m:mn></m:msup><m:mfenced><m:mrow><m:mn>2</m:mn><m:mi>x</m:mi></m:mrow></m:mfenced>", "y = cos³(2x)"),
             ("<m:mi>y</m:mi><m:mo>=</m:mo><m:msup><m:mfenced><m:mrow><m:mi>x</m:mi><m:mo>-</m:mo><m:mn>1</m:mn></m:mrow></m:mfenced><m:mn>2</m:mn></m:msup>", "y = (x − 1)²"),
         };
         foreach (var (xml, expected) in mathml)
@@ -38,6 +43,16 @@ public static partial class GraphSelfTest
             check(text == expected && parses, $"MathML → «{text}» (atteso «{expected}»){(parses ? "" : ", il parser non lo capisce")}");
         }
         check(MathMLText.ToText("non è MathML") == "", "MathML sbagliato → testo vuoto");
+        try
+        {
+            var c = MathParser.ParseLine(MathText.Normalize("y = sin⁴(x)"));
+            double v = c.Compile(c.Parameters)(Math.PI / 4, Array.Empty<double>());
+            check(Math.Abs(v - 0.25) < 1e-12, $"«y = sin⁴(x)» in π/4: {v} (atteso 0.25)");
+        }
+        catch (MathSyntaxException ex)
+        {
+            check(false, "«y = sin⁴(x)»: " + ex.Message);
+        }
 
         // ── righe ──
         var two = new StrokeCollection();
@@ -61,6 +76,7 @@ public static partial class GraphSelfTest
             (StrokeFont.Fraction("y=", "x+1", "x-2", 40, 0, 0), "y = (x + 1)/(x − 2)"),
             (StrokeFont.Sqrt("y=", "x", 40, 0, 0), "y = √(x)"),
             (StrokeFont.Write("y=sen x", 40, 0, 0), "y = sen x"),
+            (StrokeFont.Write("y=sin^4(x)", 40, 0, 0), "y = sin⁴(x)"),
         };
         HandwritingMath.Trace = m => log.AppendLine("nota    " + m);
         var watch = Stopwatch.StartNew();
@@ -127,6 +143,7 @@ public static partial class GraphSelfTest
             [')'] = G(0.25, Arc(-0.15, 0.5, 0.35, 0.55, -50, 50)),
             ['s'] = G(0.4, Cat(Arc(0.2, 0.62, 0.18, 0.12, -20, -270), Arc(0.2, 0.87, 0.2, 0.13, -90, 150))),
             ['e'] = G(0.45, Cat(L(0.02, 0.75, 0.43, 0.75), Arc(0.225, 0.75, 0.225, 0.25, 0, -320))),
+            ['i'] = G(0.1, L(0.05, 0.5, 0.05, 1), L(0.05, 0.3, 0.05, 0.34)),
             ['n'] = G(0.45, L(0.02, 0.5, 0.02, 1), Cat(Arc(0.235, 0.7, 0.215, 0.2, 180, 360), L(0.45, 0.7, 0.45, 1))),
         };
 
