@@ -43,11 +43,11 @@ Dal menu **File** (in alto a sinistra):
 | **Recenti** | Gli ultimi blocchi aperti |
 | **Salva** (Ctrl+S) | Salva subito |
 | **Salva con nome…** | Salva una copia con un altro nome o in un'altra cartella e continua a lavorare su quella |
-| **Esporta in PDF…** (Ctrl+P) | Vedi [PDF](PDF) |
-| **PDF per la classe…** | Vedi [PDF per la classe](PDF#il-pdf-per-la-classe) |
+| **Esporta in PDF…** (Ctrl+P) | Vedi [PDF](PDF.md) |
+| **PDF per la classe…** | Vedi [PDF per la classe](PDF.md#il-pdf-per-la-classe) |
 | **Apri la cartella del blocco appunti** | Apre in Esplora file la cartella che contiene il file |
-| **Prova del tocco della LIM…** | Vedi [Uso sulle LIM](Uso-sulle-LIM) |
-| **Impostazioni…** | Vedi [Impostazioni](Impostazioni) |
+| **Prova del tocco della LIM…** | Vedi [Uso sulle LIM](Uso-sulle-LIM.md) |
+| **Impostazioni…** | Vedi [Impostazioni](Impostazioni.md) |
 | **Esci** | Chiude Ardesia (salvando) |
 
 Si lavora su **un blocco appunti alla volta**: aprendone un altro, quello corrente viene salvato e chiuso.

@@ -46,4 +46,4 @@ Queste impostazioni sono salvate **nel blocco appunti**: valgono anche quando lo
 - Se all'uscita il PDF non si può scrivere (per esempio è aperto in un altro programma), Ardesia avvisa e chiede se **uscire lo stesso** o **restare** (poi *File → PDF per la classe… → Aggiorna ora*).
 - Il PDF si scrive prima in un file temporaneo: se qualcosa va storto, il PDF precedente resta intatto.
 
-> Con il [salvataggio su Google Drive](Google-Drive) (in arrivo) il PDF per la classe potrà essere caricato e condiviso direttamente da Ardesia, con un link fisso da mettere su Classroom.
+> Con il [salvataggio su Google Drive](Google-Drive.md) (in arrivo) il PDF per la classe potrà essere caricato e condiviso direttamente da Ardesia, con un link fisso da mettere su Classroom.

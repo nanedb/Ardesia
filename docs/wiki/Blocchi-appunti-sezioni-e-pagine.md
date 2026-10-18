@@ -60,4 +60,4 @@ Sezioni e pagine si possono anche **trascinare** con il mouse nell'elenco per ca
 
 ## Il salvataggio
 
-Non c'è nulla da salvare a mano: ogni cambiamento (anche un titolo o un colore) si salva da solo dopo un attimo. Vedi [Primo avvio → Il salvataggio automatico](Primo-avvio#il-salvataggio-automatico).
+Non c'è nulla da salvare a mano: ogni cambiamento (anche un titolo o un colore) si salva da solo dopo un attimo. Vedi [Primo avvio → Il salvataggio automatico](Primo-avvio.md#il-salvataggio-automatico).

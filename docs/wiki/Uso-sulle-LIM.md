@@ -26,7 +26,7 @@ Su Windows la lavagna compare come «Honghe IstE75».
 L'interruttore si trova in tre posti (è lo stesso):
 
 - *Visualizza → Lavagna → Il dito sposta la pagina*;
-- il pulsante con il dito nella [barra semplificata](La-finestra-e-le-barre#la-barra-semplificata);
+- il pulsante con il dito nella [barra semplificata](La-finestra-e-le-barre.md#la-barra-semplificata);
 - *File → Impostazioni… → Questo PC*.
 
 Quando è attivo:
@@ -34,7 +34,7 @@ Quando è attivo:
 - la **penna** scrive (o cancella, seleziona… secondo lo strumento);
 - un **dito** che trascina fa scorrere la pagina; **due dita** ingrandiscono o riducono;
 - un **tocco breve** col dito fa l'azione «a tocco» dello strumento: con *Seleziona* seleziona l'oggetto toccato, con *Testo* crea una casella;
-- la **pressione prolungata** col dito apre comunque il [menu contestuale](Testo-immagini-e-appunti#il-menu-contestuale).
+- la **pressione prolungata** col dito apre comunque il [menu contestuale](Testo-immagini-e-appunti.md#il-menu-contestuale).
 
 La scelta è **di quel PC** (ogni LIM ricorda la sua).
 
@@ -60,7 +60,7 @@ con la larghezza del contatto in millimetri, se la lavagna la comunica. In fondo
 - Nascondi le colonne di sezioni e pagine con ☰ quando scrivi, riaprile per cambiare pagina.
 - Per i menu col dito: **tieni premuto** finché compare il cerchietto, poi **alza il dito**: il menu si apre al rilascio.
 - Comandi del **grafico** (cursori, doppio clic per le funzioni): solo con lo strumento **Seleziona**; con la penna sul grafico si scrive.
-- Alla fine della lezione **chiudi Ardesia**: così il [PDF per la classe](PDF#il-pdf-per-la-classe) si aggiorna.
+- Alla fine della lezione **chiudi Ardesia**: così il [PDF per la classe](PDF.md#il-pdf-per-la-classe) si aggiorna.
 - Su un PC condiviso entra in Windows **con il tuo utente**: Ardesia riapre il tuo ultimo blocco e le tue penne.
 
-> ⚠ Da verificare sulle LIM: doppio tocco sul grafico, cursori del grafico col dito, scrittura a mano delle funzioni (vedi [Scrivere a mano le funzioni](Scrittura-a-mano-delle-funzioni#se-il-pulsante-è-spento)).
+> ⚠ Da verificare sulle LIM: doppio tocco sul grafico, cursori del grafico col dito, scrittura a mano delle funzioni (vedi [Scrivere a mano le funzioni](Scrittura-a-mano-delle-funzioni.md#se-il-pulsante-è-spento)).

@@ -8,7 +8,7 @@ Per scorrere:
 
 - con la **rotellina** del mouse (in verticale; con **Maiusc** in orizzontale) o con le barre di scorrimento;
 - con lo strumento **Sposta pagina** (la mano): trascina il foglio;
-- sulle LIM che distinguono la penna dal dito, attivando **[Il dito sposta la pagina](Uso-sulle-LIM#il-dito-sposta-la-pagina)**: il dito fa scorrere, la penna scrive.
+- sulle LIM che distinguono la penna dal dito, attivando **[Il dito sposta la pagina](Uso-sulle-LIM.md#il-dito-sposta-la-pagina)**: il dito fa scorrere, la penna scrive.
 
 ## Zoom
 

@@ -1,6 +1,6 @@
 # Scrivere e disegnare
 
-Gli strumenti sono nella scheda **Disegna** (o nella [barra semplificata](La-finestra-e-le-barre#la-barra-semplificata)). Si scrive con la penna della LIM, col dito, con una penna da tablet o col mouse.
+Gli strumenti sono nella scheda **Disegna** (o nella [barra semplificata](La-finestra-e-le-barre.md#la-barra-semplificata)). Si scrive con la penna della LIM, col dito, con una penna da tablet o col mouse.
 
 ![Scheda Disegna](immagini/barra-disegna.png)
 
@@ -41,7 +41,7 @@ La matita disegna un tratto **grigio con la grana della grafite**, come sulla ca
 | **Gomma** | **Tratti interi**: basta toccare un tratto per toglierlo tutto |
 | **Gomma precisa** | Solo **dove passa**, come una gomma vera. La freccetta sceglie la misura: **Piccola**, **Media**, **Grande**. Un cerchio mostra la zona cancellata |
 
-**Il palmo della mano come gomma.** Su alcune LIM (per esempio le **Promethean** della scuola) appoggiando il palmo e strofinando si cancella direttamente, **qualunque strumento sia attivo**: la gomma è grande quanto il contatto della mano. Lo stesso vale per il **retro della penna** sulle penne che hanno la gomma. Vedi [Uso sulle LIM](Uso-sulle-LIM).
+**Il palmo della mano come gomma.** Su alcune LIM (per esempio le **Promethean** della scuola) appoggiando il palmo e strofinando si cancella direttamente, **qualunque strumento sia attivo**: la gomma è grande quanto il contatto della mano. Lo stesso vale per il **retro della penna** sulle penne che hanno la gomma. Vedi [Uso sulle LIM](Uso-sulle-LIM.md).
 
 ## Linee dritte tenendo ferma la penna
 
@@ -66,7 +66,7 @@ Con la tastiera, tenendo premuto **Maiusc**:
 
 Dopo aver disegnato una forma lo strumento resta attivo, così se ne possono tracciare altre. Per tornare a scrivere premi **Esc** (si torna allo strumento usato prima) o scegli una penna.
 
-Per linee dritte appoggiate a un bordo c'è anche il [righello](Righello-goniometro-e-compasso).
+Per linee dritte appoggiate a un bordo c'è anche il [righello](Righello-goniometro-e-compasso.md).
 
 ## Seleziona: spostare, ingrandire, cambiare colore
 
@@ -77,13 +77,13 @@ Con lo strumento **Seleziona** (la freccia):
 - **trascina** la selezione per spostarla – la puoi afferrare in un punto qualsiasi al suo interno;
 - trascina le **maniglie** sul bordo per ingrandirla o rimpicciolirla;
 - clicca una **penna** per cambiarle colore e spessore;
-- **Canc** la elimina; **Ctrl+C / Ctrl+X / Ctrl+V** copiano, tagliano, incollano (vedi [Testo, immagini, copia e incolla](Testo-immagini-e-appunti));
-- tenendo premuto (o col clic destro) si apre il [menu contestuale](Testo-immagini-e-appunti#il-menu-contestuale), con Duplica, Porta in primo piano, Porta in fondo…
+- **Canc** la elimina; **Ctrl+C / Ctrl+X / Ctrl+V** copiano, tagliano, incollano (vedi [Testo, immagini, copia e incolla](Testo-immagini-e-appunti.md));
+- tenendo premuto (o col clic destro) si apre il [menu contestuale](Testo-immagini-e-appunti.md#il-menu-contestuale), con Duplica, Porta in primo piano, Porta in fondo…
 
 **Ctrl+A** (*Seleziona tutto*) seleziona tutto il contenuto della pagina.
 
-Con **Seleziona** si usano anche i comandi del [grafico di funzione](Grafico-di-funzione) (cursori, spostamento degli assi).
+Con **Seleziona** si usano anche i comandi del [grafico di funzione](Grafico-di-funzione.md) (cursori, spostamento degli assi).
 
 ## Sposta pagina
 
-Lo strumento **Sposta pagina** (la mano) fa scorrere il foglio trascinando; con **due dita** si fa lo zoom. Vedi [Zoom, foglio infinito e sfondi](Zoom-foglio-e-sfondi). Sulle LIM che distinguono penna e dito c'è un'opzione più comoda: [Il dito sposta la pagina](Uso-sulle-LIM#il-dito-sposta-la-pagina).
+Lo strumento **Sposta pagina** (la mano) fa scorrere il foglio trascinando; con **due dita** si fa lo zoom. Vedi [Zoom, foglio infinito e sfondi](Zoom-foglio-e-sfondi.md). Sulle LIM che distinguono penna e dito c'è un'opzione più comoda: [Il dito sposta la pagina](Uso-sulle-LIM.md#il-dito-sposta-la-pagina).

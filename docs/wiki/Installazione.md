@@ -23,7 +23,7 @@ Entrambe contengono già tutto quello che serve: **non bisogna installare .NET n
 Che cosa viene installato:
 
 - il programma in `%LocalAppData%\Programs\Ardesia` (nella cartella del tuo utente);
-- nel menu Start le voci **Ardesia** e **Ardesia – Prova tocco LIM** (la [prova del tocco](Uso-sulle-LIM#la-prova-del-tocco-della-lim));
+- nel menu Start le voci **Ardesia** e **Ardesia – Prova tocco LIM** (la [prova del tocco](Uso-sulle-LIM.md#la-prova-del-tocco-della-lim));
 - l'icona sul desktop, se l'hai chiesta;
 - l'associazione dei file `.ardesia`: un doppio clic su un blocco appunti lo apre in Ardesia.
 
@@ -33,7 +33,7 @@ Che cosa viene installato:
 
 Scarica il nuovo `ArdesiaSetup-X.Y.Z.exe` ed eseguilo: sostituisce la versione precedente. I tuoi blocchi appunti e le tue impostazioni (penne, ultimo file aperto…) restano.
 
-> **Importante – aggiornate tutti i PC.** Le versioni **0.3.2 e precedenti** non conoscono il [grafico di funzione](Grafico-di-funzione): se aprono un blocco appunti che contiene grafici, **li cancellano al primo salvataggio**. Se usi i grafici, aggiorna Ardesia su **tutti** i PC dove apri quel blocco (casa, LIM delle varie aule, portatile). Per sapere la versione installata: *Impostazioni → App → App installate → Ardesia*.
+> **Importante – aggiornate tutti i PC.** Le versioni **0.3.2 e precedenti** non conoscono il [grafico di funzione](Grafico-di-funzione.md): se aprono un blocco appunti che contiene grafici, **li cancellano al primo salvataggio**. Se usi i grafici, aggiorna Ardesia su **tutti** i PC dove apri quel blocco (casa, LIM delle varie aule, portatile). Per sapere la versione installata: *Impostazioni → App → App installate → Ardesia*.
 > ⚠ Da verificare: Ardesia non mostra il numero di versione al suo interno; valutare una voce «Informazioni» nel menu File.
 
 ### Disinstallare
@@ -67,4 +67,4 @@ L'avviso compare solo la prima volta per ogni file scaricato. Se il pulsante *Es
 
 ## GeoGebra e WebView2
 
-Il pulsante [GeoGebra](GeoGebra) usa **Microsoft Edge WebView2**, già presente in Windows 11 e in quasi tutti i Windows 10 aggiornati. Se manca, Ardesia lo dice nella finestra di GeoGebra: si scarica gratis dal sito Microsoft (cerca «WebView2 Runtime»). Tutto il resto di Ardesia funziona anche senza.
+Il pulsante [GeoGebra](GeoGebra.md) usa **Microsoft Edge WebView2**, già presente in Windows 11 e in quasi tutti i Windows 10 aggiornati. Se manca, Ardesia lo dice nella finestra di GeoGebra: si scarica gratis dal sito Microsoft (cerca «WebView2 Runtime»). Tutto il resto di Ardesia funziona anche senza.

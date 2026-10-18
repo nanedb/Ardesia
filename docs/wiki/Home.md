@@ -25,23 +25,23 @@ Questa guida è per i **colleghi docenti**: spiega come si usa Ardesia, non come
 
 ## Indice della guida
 
-1. [Installazione](Installazione)
-2. [Primo avvio e schermata iniziale](Primo-avvio)
-3. [Blocchi appunti, sezioni e pagine](Blocchi-appunti-sezioni-e-pagine)
-4. [La finestra e le barre degli strumenti](La-finestra-e-le-barre)
-5. [Scrivere e disegnare](Scrivere-e-disegnare) – penne, evidenziatore, matita, gomme, linee dritte, forme, selezione
-6. [Righello, goniometro e compasso](Righello-goniometro-e-compasso)
-7. [Testo, immagini, copia e incolla](Testo-immagini-e-appunti) – menu contestuale e pressione prolungata
-8. [Zoom, foglio infinito e sfondi](Zoom-foglio-e-sfondi)
-9. [Il grafico di funzione di Ardesia](Grafico-di-funzione)
-10. [Scrivere a mano le funzioni](Scrittura-a-mano-delle-funzioni)
-11. [GeoGebra](GeoGebra)
-12. [PDF: esportazione e PDF per la classe](PDF)
-13. [Impostazioni](Impostazioni)
-14. [Ardesia sulle LIM della scuola](Uso-sulle-LIM) – Promethean e Newline
-15. [Google Drive (in arrivo)](Google-Drive)
-16. [Scorciatoie da tastiera](Scorciatoie-da-tastiera)
-17. [Domande frequenti](Domande-frequenti)
+1. [Installazione](Installazione.md)
+2. [Primo avvio e schermata iniziale](Primo-avvio.md)
+3. [Blocchi appunti, sezioni e pagine](Blocchi-appunti-sezioni-e-pagine.md)
+4. [La finestra e le barre degli strumenti](La-finestra-e-le-barre.md)
+5. [Scrivere e disegnare](Scrivere-e-disegnare.md) – penne, evidenziatore, matita, gomme, linee dritte, forme, selezione
+6. [Righello, goniometro e compasso](Righello-goniometro-e-compasso.md)
+7. [Testo, immagini, copia e incolla](Testo-immagini-e-appunti.md) – menu contestuale e pressione prolungata
+8. [Zoom, foglio infinito e sfondi](Zoom-foglio-e-sfondi.md)
+9. [Il grafico di funzione di Ardesia](Grafico-di-funzione.md)
+10. [Scrivere a mano le funzioni](Scrittura-a-mano-delle-funzioni.md)
+11. [GeoGebra](GeoGebra.md)
+12. [PDF: esportazione e PDF per la classe](PDF.md)
+13. [Impostazioni](Impostazioni.md)
+14. [Ardesia sulle LIM della scuola](Uso-sulle-LIM.md) – Promethean e Newline
+15. [Google Drive (in arrivo)](Google-Drive.md)
+16. [Scorciatoie da tastiera](Scorciatoie-da-tastiera.md)
+17. [Domande frequenti](Domande-frequenti.md)
 
 ## Che cosa serve
 

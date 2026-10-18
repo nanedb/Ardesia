@@ -2,7 +2,7 @@
 
 Per la **geometria**, le costruzioni e i casi più avanzati Ardesia apre **GeoGebra Classic** (vista Algebra + Grafici) in una finestra a parte. Il risultato entra nella pagina come immagine e **si può riaprire e modificare** quando si vuole.
 
-**Serve la connessione a internet**: GeoGebra viene caricato dal sito geogebra.org ogni volta. Per i grafici di funzione senza internet c'è il [grafico di Ardesia](Grafico-di-funzione).
+**Serve la connessione a internet**: GeoGebra viene caricato dal sito geogebra.org ogni volta. Per i grafici di funzione senza internet c'è il [grafico di Ardesia](Grafico-di-funzione.md).
 
 ## Aprire GeoGebra
 

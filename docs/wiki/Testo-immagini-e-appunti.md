@@ -14,7 +14,7 @@ Il formato si cambia dalla scheda **Home**, gruppo *Testo*: tipo di carattere, d
 - Per **spostarlo**, con lo strumento **Seleziona** tocca il testo (o circondalo) e trascinalo.
 - Un testo incollato dagli appunti (Ctrl+V) diventa una casella di testo.
 
-Una casella di testo con delle funzioni, una per riga (per esempio `y = x² − 4`), si trasforma in grafico con **Grafico** o **GeoGebra**: vedi [Grafico di funzione](Grafico-di-funzione).
+Una casella di testo con delle funzioni, una per riga (per esempio `y = x² − 4`), si trasforma in grafico con **Grafico** o **GeoGebra**: vedi [Grafico di funzione](Grafico-di-funzione.md).
 
 ## Immagini
 
@@ -64,8 +64,8 @@ e in più, a seconda dell'oggetto:
 | Oggetto | Voci in più |
 |---|---|
 | Casella di testo | **Disegna il grafico di questa funzione** · **Disegna il grafico con GeoGebra** |
-| Tratti scritti a mano | **Disegna il grafico della funzione scritta** (vedi [Scrivere a mano le funzioni](Scrittura-a-mano-delle-funzioni)) |
-| Grafico di Ardesia | Funzioni del grafico…, le opzioni da spuntare, zoom, Vista standard, Apri in GeoGebra (vedi [Grafico di funzione](Grafico-di-funzione#il-menu-del-grafico)) |
+| Tratti scritti a mano | **Disegna il grafico della funzione scritta** (vedi [Scrivere a mano le funzioni](Scrittura-a-mano-delle-funzioni.md)) |
+| Grafico di Ardesia | Funzioni del grafico…, le opzioni da spuntare, zoom, Vista standard, Apri in GeoGebra (vedi [Grafico di funzione](Grafico-di-funzione.md#il-menu-del-grafico)) |
 | Grafico GeoGebra | **Modifica il grafico in GeoGebra** |
 
 > Per **eliminare** un oggetto col dito: tienilo premuto e scegli *Elimina*.

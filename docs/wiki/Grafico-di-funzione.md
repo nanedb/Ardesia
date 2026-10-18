@@ -11,9 +11,9 @@ Perché usarlo invece di GeoGebra:
 - mostra su richiesta **zeri, intersezioni, massimi e minimi, derivata, segno**, con le coordinate scritte all'italiana: `(1,5; −2)`;
 - le lettere diverse da `x` diventano **parametri con un cursore** da trascinare.
 
-Per la geometria, le costruzioni e i casi più avanzati resta [GeoGebra](GeoGebra).
+Per la geometria, le costruzioni e i casi più avanzati resta [GeoGebra](GeoGebra.md).
 
-> **Attenzione ai PC con Ardesia vecchia.** Le versioni **0.3.2 e precedenti** cancellano i grafici quando salvano il blocco appunti. Aggiorna Ardesia su tutti i PC dove apri i blocchi con i grafici (vedi [Installazione](Installazione#aggiornare-a-una-versione-nuova)).
+> **Attenzione ai PC con Ardesia vecchia.** Le versioni **0.3.2 e precedenti** cancellano i grafici quando salvano il blocco appunti. Aggiorna Ardesia su tutti i PC dove apri i blocchi con i grafici (vedi [Installazione](Installazione.md#aggiornare-a-una-versione-nuova)).
 
 ## Creare un grafico
 
@@ -21,15 +21,15 @@ Ci sono tre modi.
 
 **1. Da una casella di testo** (il più comodo con la tastiera)
 
-1. Scrivi le funzioni in una [casella di testo](Testo-immagini-e-appunti#caselle-di-testo), **una per riga**.
+1. Scrivi le funzioni in una [casella di testo](Testo-immagini-e-appunti.md#caselle-di-testo), **una per riga**.
 2. Seleziona la casella (strumento **Seleziona**, tocca il testo) o lascia il cursore dentro la casella.
 3. Premi **Grafico** (scheda *Inserisci* o barra semplificata), oppure dal menu contestuale della casella **Disegna il grafico di questa funzione**.
 
 Il grafico compare **accanto al testo**, che resta com'è.
 
-**2. Scrivendo a mano sul foglio** – scrivi la funzione con la penna, prendila col lazo e premi **Grafico**. Vedi [Scrivere a mano le funzioni](Scrittura-a-mano-delle-funzioni).
+**2. Scrivendo a mano sul foglio** – scrivi la funzione con la penna, prendila col lazo e premi **Grafico**. Vedi [Scrivere a mano le funzioni](Scrittura-a-mano-delle-funzioni.md).
 
-**3. Senza niente di selezionato** – premi **Grafico**: si apre la finestrella **Funzioni del grafico** dove scrivere le funzioni (anche [a mano](Scrittura-a-mano-delle-funzioni#nella-finestrella-scrivi-a-mano)). Premi **Disegna**.
+**3. Senza niente di selezionato** – premi **Grafico**: si apre la finestrella **Funzioni del grafico** dove scrivere le funzioni (anche [a mano](Scrittura-a-mano-delle-funzioni.md#nella-finestrella--scrivi-a-mano)). Premi **Disegna**.
 
 Il grafico nuovo compare già selezionato, con lo strumento **Seleziona** attivo.
 
@@ -69,7 +69,7 @@ Si apre con un **doppio clic** sul grafico, con lo strumento **Seleziona**, oppu
 - Sotto ogni riga compare la **formula composta** (frazioni, esponenti, radici), per controllare di aver scritto giusto.
 - **+ Aggiungi una funzione** aggiunge una riga; anche **Invio** alla fine di una riga ne crea una nuova. Incollando un testo di più righe, ogni riga diventa una funzione.
 - I **tasti** `x²` `x³` `^` `√` `π` `|x|` `·` `( )` `sen` `cos` `ln` scrivono i simboli più scomodi da trovare sulla tastiera della LIM.
-- **✍ Scrivi a mano** apre una striscia dove scrivere la funzione con la penna: vedi [Scrivere a mano le funzioni](Scrittura-a-mano-delle-funzioni).
+- **✍ Scrivi a mano** apre una striscia dove scrivere la funzione con la penna: vedi [Scrivere a mano le funzioni](Scrittura-a-mano-delle-funzioni.md).
 - In fondo: «✓ Tutto a posto» oppure l'elenco degli errori; **Disegna** applica, **Annulla** lascia tutto com'era.
 
 Una funzione **nascosta** non si disegna e non compare nella legenda, ma resta nella finestrella (e i suoi parametri restano).
@@ -138,7 +138,7 @@ Clic destro o pressione prolungata sul grafico:
 
 ## Apri in GeoGebra
 
-Per andare oltre (geometria, calcolo simbolico, studio di funzione completo) **Apri in GeoGebra** porta le funzioni in [GeoGebra](GeoGebra), con i parametri già trasformati in cursori di GeoGebra con lo stesso valore. Il grafico che fai lì diventa un **grafico GeoGebra a parte** sulla pagina; quello di Ardesia resta com'è. Serve internet.
+Per andare oltre (geometria, calcolo simbolico, studio di funzione completo) **Apri in GeoGebra** porta le funzioni in [GeoGebra](GeoGebra.md), con i parametri già trasformati in cursori di GeoGebra con lo stesso valore. Il grafico che fai lì diventa un **grafico GeoGebra a parte** sulla pagina; quello di Ardesia resta com'è. Serve internet.
 
 ## Nel PDF e sulla lavagna scura
 

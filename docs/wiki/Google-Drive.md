@@ -8,7 +8,7 @@ Già adesso si può lavorare con Google Drive **attraverso il programma «Google
 
 - crea o salva il blocco appunti in una cartella di `G:` (per esempio la cartella condivisa con la classe);
 - Ardesia lo salva come un file qualsiasi e Drive lo carica in rete;
-- il [PDF per la classe](PDF#il-pdf-per-la-classe) finisce accanto, nella stessa cartella, e gli alunni lo vedono.
+- il [PDF per la classe](PDF.md#il-pdf-per-la-classe) finisce accanto, nella stessa cartella, e gli alunni lo vedono.
 
 Il limite: sui **PC delle LIM**, usati da tanti docenti, Drive per desktop spesso non c'è o non è configurato per il proprio account. Se all'avvio Drive non è partito, Ardesia non trova l'ultimo blocco appunti («controlla che Google Drive per desktop sia avviato»).
 

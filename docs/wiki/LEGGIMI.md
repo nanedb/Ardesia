@@ -10,7 +10,7 @@ Le note «⚠ Da verificare» segnano i punti da controllare prima di pubblicare
 
 ## Pubblicare sulla wiki (quando la bozza è approvata)
 
-La wiki è un repository git a parte (`https://github.com/nanedb/Ardesia.wiki.git`, da creare aprendo la prima pagina dal sito). Basta copiarci le pagine `.md` (tranne questo `LEGGIMI.md`) e la cartella `immagini/`, poi fare commit e push. I collegamenti fra le pagine usano i nomi dei file senza `.md` (per esempio `[Installazione](Installazione)`).
+La wiki è un repository git a parte (`https://github.com/nanedb/Ardesia.wiki.git`, da creare aprendo la prima pagina dal sito). Basta copiarci le pagine `.md` (tranne questo `LEGGIMI.md`) e la cartella `immagini/`, poi fare commit e push. I collegamenti fra le pagine usano i nomi dei file con `.md` (per esempio `[Installazione](Installazione.md)`), così funzionano anche aprendo la cartella `docs/wiki` su GitHub. Copiandole nella wiki, se un collegamento non trova la pagina, togliere `.md` dai collegamenti fra le pagine.
 
 Attenzione: il repository è **privato**, quindi anche la wiki lo è; per i colleghi probabilmente basta il PDF (o la wiki va resa leggibile in altro modo).
 

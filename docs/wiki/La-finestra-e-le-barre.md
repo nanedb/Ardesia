@@ -18,14 +18,14 @@ Ha quattro schede. All'avvio è aperta **Disegna**.
 ![Scheda Home](immagini/barra-home.png)
 
 - **Appunti**: Incolla, Taglia, Copia, Seleziona tutto.
-- **Testo**: tipo e dimensione del carattere, Grassetto, Corsivo, Sottolineato, Colore del testo (per le [caselle di testo](Testo-immagini-e-appunti)).
+- **Testo**: tipo e dimensione del carattere, Grassetto, Corsivo, Sottolineato, Colore del testo (per le [caselle di testo](Testo-immagini-e-appunti.md)).
 - **Modifica**: Annulla, Ripeti, Elimina.
 
 ### Inserisci
 
 ![Scheda Inserisci](immagini/barra-inserisci.png)
 
-- **Contenuti**: Casella di testo, Immagine, **Grafico** (il [grafico di funzione di Ardesia](Grafico-di-funzione)), **GeoGebra** ([GeoGebra](GeoGebra)).
+- **Contenuti**: Casella di testo, Immagine, **Grafico** (il [grafico di funzione di Ardesia](Grafico-di-funzione.md)), **GeoGebra** ([GeoGebra](GeoGebra.md)).
 - **Pagine**: Nuova pagina, Nuova sottopagina, Duplica pagina.
 - **Sezioni**: Nuova sezione, Nuova sottosezione.
 - **Condividi**: Esporta PDF.
@@ -35,7 +35,7 @@ Ha quattro schede. All'avvio è aperta **Disegna**.
 ![Scheda Disegna](immagini/barra-disegna.png)
 
 - **Strumenti**: Seleziona, Testo, Sposta pagina, Gomma, Gomma precisa.
-- **Penne**: le tue penne, evidenziatori e matite, più il pulsante **+** per aggiungerne. Vedi [Scrivere e disegnare](Scrivere-e-disegnare).
+- **Penne**: le tue penne, evidenziatori e matite, più il pulsante **+** per aggiungerne. Vedi [Scrivere e disegnare](Scrivere-e-disegnare.md).
 - **Forme**: linea, freccia, rettangolo, ellisse, triangolo.
 - **Geometria**: Righello, Goniometro, Compasso.
 
@@ -48,7 +48,7 @@ Ha quattro schede. All'avvio è aperta **Disegna**.
 - **Applica**: «A tutta la sezione» (stesso sfondo per tutte le pagine della sezione).
 - **Zoom**: Ingrandisci, Riduci, 100%.
 - **Finestra**: Navigazione (mostra/nasconde sezioni e pagine), Schermo intero.
-- **Lavagna**: **Il dito sposta la pagina** e **Prova tocco LIM** (vedi [Uso sulle LIM](Uso-sulle-LIM)).
+- **Lavagna**: **Il dito sposta la pagina** e **Prova tocco LIM** (vedi [Uso sulle LIM](Uso-sulle-LIM.md)).
 
 ## La barra semplificata
 
@@ -60,7 +60,7 @@ Il pulsante **Barra completa** (a destra) riporta le schede. La scelta resta mem
 
 > ⚠ Da verificare: aggiungere un'istantanea della barra semplificata.
 
-Nella barra semplificata non ci sono GeoGebra, gli sfondi e i comandi del testo: per quelli si torna alla barra completa (GeoGebra si apre anche dal [menu contestuale](Testo-immagini-e-appunti#il-menu-contestuale) di una casella di testo).
+Nella barra semplificata non ci sono GeoGebra, gli sfondi e i comandi del testo: per quelli si torna alla barra completa (GeoGebra si apre anche dal [menu contestuale](Testo-immagini-e-appunti.md#il-menu-contestuale) di una casella di testo).
 
 ## Schermo intero
 
