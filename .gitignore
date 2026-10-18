@@ -4,3 +4,8 @@ publish/
 .vs/
 *.user
 dist/
+
+# Credenziali Google (client OAuth): mai nel repository
+client_secret_*.json
+google-client.json
+ID client OAuth*.png
