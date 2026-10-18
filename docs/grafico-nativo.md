@@ -157,7 +157,7 @@ ha prove sue, indipendenti da Windows.
 - Segnalato dall'utente sul laptop Samsung con penna: il **pizzico** sul grafico selezionato zoomava tutta la pagina.
   Primo pezzo della fase 5: con «Il dito sposta la pagina» attivo e lo strumento «Seleziona», un gesto che comincia
   dentro il grafico selezionato (non sul bordo) muove gli assi: un dito li sposta, due dita li zoomano
-  (`FingerGraphGesture`, un solo «Annulla»). Il tocco breve resta un tocco. **Da provare a mano**; con
+  (`FingerGraphGesture`, un solo «Annulla»). Il tocco breve resta un tocco. Provato dall'utente sul laptop: funziona; con
   «Il dito sposta la pagina» spento (Promethean) il tocco sul grafico non muove ancora gli assi.
 
 Un elemento «grafico» disegnato da Ardesia direttamente sul foglio, vettoriale, che segue lo zoom
