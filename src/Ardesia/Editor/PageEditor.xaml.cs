@@ -2028,6 +2028,9 @@ public partial class PageEditor : UserControl
     readonly Dictionary<int, Point> _fingers = new(); // posizione di ogni dito, in coordinate della finestra
     Point _fingerDownView;
     bool _fingerMoved;
+    // gesto cominciato dentro il grafico selezionato (strumento «Seleziona»): muove gli assi, non la pagina
+    FunctionGraph? _fingerGraph;
+    bool _fingerGraphMoved;
 
     bool IsFingerPan(StylusEventArgs e) =>
         FingerPans && _node != null && !e.StylusDevice.Inverted &&
@@ -2047,6 +2050,8 @@ public partial class PageEditor : UserControl
             {
                 _fingerDownView = v;
                 _fingerMoved = false;
+                _fingerGraph = SelectedGraphAt(e.GetPosition(Ink), out bool onEdge) is { } graph && !onEdge ? graph : null;
+                _fingerGraphMoved = false;
             }
             else
             {
@@ -2061,6 +2066,14 @@ public partial class PageEditor : UserControl
             int id = e.StylusDevice.Id;
             if (!_fingers.TryGetValue(id, out var old)) return;
             var v = e.GetPosition(Scroller);
+            if (_fingerGraph != null)
+            {
+                if (_fingers.Count > 1 || (v - _fingerDownView).Length > 10) _fingerMoved = true;
+                if (_fingerMoved) FingerGraphGesture(id, old, v);
+                _fingers[id] = v;
+                e.Handled = true;
+                return;
+            }
             if (_fingers.Count == 1)
             {
                 if ((v - _fingerDownView).Length > 10) _fingerMoved = true;
@@ -2086,8 +2099,41 @@ public partial class PageEditor : UserControl
             if (!_fingers.Remove(e.StylusDevice.Id)) return;
             e.StylusDevice.Capture(null);
             if (_fingers.Count == 0 && !_fingerMoved && !_holdFired) FingerTap(e.GetPosition(Ink));
+            if (_fingers.Count == 0 && _fingerGraph != null)
+            {
+                // un solo passo di «Annulla» per tutto il gesto
+                if (_fingerGraphMoved) GraphChanged();
+                _fingerGraph = null;
+            }
             e.Handled = true;
         };
+    }
+
+    /// <summary>
+    /// Dita sul grafico selezionato: un dito sposta gli assi, due dita li ingrandiscono o rimpiccioliscono
+    /// (pizzico) e li spostano col punto medio. <paramref name="old"/> e <paramref name="now"/> sono la posizione
+    /// del dito <paramref name="id"/> prima e dopo, in coordinate della finestra.
+    /// </summary>
+    void FingerGraphGesture(int id, Point old, Point now)
+    {
+        if (_fingerGraph == null) return;
+        Point ToInk(Point v) => Scroller.TranslatePoint(v, Ink);
+        Point oldInk = ToInk(old), nowInk = ToInk(now);
+        if (_fingers.Count == 1)
+        {
+            _fingerGraph.Pan(nowInk - oldInk);
+        }
+        else
+        {
+            var other = ToInk(_fingers.First(f => f.Key != id).Value);
+            var oldMid = new Point((oldInk.X + other.X) / 2, (oldInk.Y + other.Y) / 2);
+            var newMid = new Point((nowInk.X + other.X) / 2, (nowInk.Y + other.Y) / 2);
+            double oldDist = (oldInk - other).Length, newDist = (nowInk - other).Length;
+            // dita che si allontanano = ingrandire: la finestra degli assi si restringe
+            if (oldDist * _zoom > 20 && newDist * _zoom > 20) _fingerGraph.ZoomAt(oldDist / newDist, GraphLocal(_fingerGraph, newMid));
+            _fingerGraph.Pan(newMid - oldMid);
+        }
+        _fingerGraphMoved = true;
     }
 
     /// <summary>Tocco breve col dito (senza trascinare): fa l'azione «a tocco» dello strumento attivo.</summary>
