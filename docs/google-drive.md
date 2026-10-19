@@ -50,6 +50,7 @@ crea/elenca/aggiorna/scarica un file col tipo di Ardesia, condivisione col domin
 | 10 | Aprire `.ardesia` di colleghi / caricati a mano | **No** (niente selettore di Google) |
 | 11 | Dove va un blocco nuovo su Drive (19/10/2026) | `Ardesia/{classe}/{materia}/`: Ardesia chiede **classe** (scritta a mano, niente elenco fisso) e **materia**, crea lei le cartelle e propone il nome «2BO Fisica 26-27», modificabile (§2.1) |
 | 12 | Materie (e classi) già usate | Ardesia le **ricorda per l'utente**, non per il PC (§2.1) |
+| 13 | Eliminare un blocco da Ardesia | Chiede se eliminare anche il **PDF per la classe**; poi le **cartelle rimaste vuote**, con domande di sicurezza. Dal sito di Drive il docente può sempre cancellare tutto (§2.2) |
 
 Conseguenze principali: la modalità «PC condiviso» (§5) non serve più come requisito, diventa al massimo
 un'opzione futura; niente «Sposta su Drive» né selettore di Google; il PDF si condivide da sé col dominio (§6).
@@ -149,6 +150,31 @@ Senza rete si usa l'ultimo elenco letto, tenuto in cache nella cartella dell'acc
 
 Da decidere più avanti: caratteri non ammessi nei nomi (`/` diventa `-`), e se proporre nella classe solo le
 cartelle dell'anno in corso.
+
+### 2.2 Eliminare un blocco (scelta dell'utente, 19/10/2026)
+
+Il docente può sempre cancellare file e cartelle **dal sito di Drive**: Ardesia se ne accorge (404 o file nel
+cestino), toglie il blocco dai recenti e dall'elenco e, se c'erano modifiche non caricate, avvisa e offre di
+salvarne una copia sul computer.
+
+**Da Ardesia** («Elimina il blocco appunti…» nell'elenco dei blocchi su Drive e nel menu File):
+1. «Eliminare il blocco appunti «2BO Fisica 26-27»? Va nel cestino di Google Drive: lo puoi recuperare da lì per
+   30 giorni.»  [Elimina] [Annulla]
+2. Se il blocco ha un **PDF per la classe** su Drive: «Eliminare anche il PDF per la classe? Gli alunni che hanno il
+   link non potranno più aprirlo.»  [Elimina anche il PDF] [Tieni il PDF]
+3. Se la cartella della **materia** (`Ardesia/2BO/Fisica`) è rimasta vuota: «La cartella «2BO › Fisica» è rimasta
+   vuota. Eliminarla?»  [Elimina la cartella] [Tienila]. Poi, allo stesso modo, la cartella della **classe**
+   (`Ardesia/2BO`) se è rimasta vuota anche lei. La cartella «Ardesia» non si elimina mai.
+   «Vuota» si controlla su Drive al momento (`files.list` con `'{id}' in parents and trashed=false`).
+   **Limite di `drive.file`**: Ardesia vede solo i file creati da lei, quindi non vede quelli che il docente ha
+   messo nella cartella dal sito di Drive; cestinando la cartella finirebbero nel cestino anche loro. Per questo la
+   domanda lo dice: «Se ci hai messo altri file dal sito di Drive, finiscono anche loro nel cestino (recuperabili
+   per 30 giorni).»
+- Tutto va nel **cestino** di Drive (`files.update` con `trashed=true`), mai cancellato per sempre: un errore si
+  rimedia dal cestino. Ardesia può cestinare solo ciò che ha creato lei, cioè proprio questi file e cartelle.
+- Il pulsante predefinito di ogni domanda è quello **che non cancella** (Annulla / Tieni), contro i tocchi per
+  sbaglio sulla LIM. Il blocco aperto si chiude prima dell'eliminazione; si cancella anche la sua copia in cache.
+- Senza rete non si elimina (messaggio chiaro): niente eliminazioni «in coda».
 
 **Elencare i propri blocchi** (`files.list`):
 ```
