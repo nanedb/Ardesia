@@ -150,8 +150,9 @@ Ardesia vede le cartelle che ha creato lei, quindi classi e materie già usate s
 classe = materie), su qualunque PC e con qualunque utente Windows. Ordine: prima le usate più di recente.
 Senza rete si usa l'ultimo elenco letto, tenuto in cache nella cartella dell'account (§4.1).
 
-Da decidere più avanti: caratteri non ammessi nei nomi (`/` diventa `-`), e se proporre nella classe solo le
-cartelle dell'anno in corso.
+**Caratteri non ammessi** nei nomi di file e cartelle (`\ / : * ? " < > |`, scelta dell'utente 19/10/2026):
+diventano `-` (es. «1BE/CE» → «1BE-CE»). Da decidere più avanti: se proporre nella classe solo le cartelle
+dell'anno in corso.
 
 ### 2.2 Eliminare un blocco (scelta dell'utente, 19/10/2026)
 
