@@ -48,6 +48,8 @@ crea/elenca/aggiorna/scarica un file col tipo di Ardesia, condivisione col domin
 | 8 | PDF per la classe su Drive con link fisso | **Sì**, e la condivisione la fa **Ardesia** |
 | 9 | Spostare i blocchi già su `G:\` | **No**: restano dove sono, invariati |
 | 10 | Aprire `.ardesia` di colleghi / caricati a mano | **No** (niente selettore di Google) |
+| 11 | Dove va un blocco nuovo su Drive (19/10/2026) | `Ardesia/{classe}/{materia}/`: Ardesia chiede **classe** (scritta a mano, niente elenco fisso) e **materia**, crea lei le cartelle e propone il nome «2BO Fisica 26-27», modificabile (§2.1) |
+| 12 | Materie (e classi) già usate | Ardesia le **ricorda per l'utente**, non per il PC (§2.1) |
 
 Conseguenze principali: la modalità «PC condiviso» (§5) non serve più come requisito, diventa al massimo
 un'opzione futura; niente «Sposta su Drive» né selettore di Google; il PDF si condivide da sé col dominio (§6).
@@ -120,8 +122,33 @@ Conseguenze (vanno capite bene):
 
 **Cartella «Ardesia»** in «Il mio Drive»: creata da Ardesia al primo uso (`files.create` con
 `mimeType=application/vnd.google-apps.folder`); il suo ID si ricorda nelle impostazioni dell'account e, se
-sparisce (cestinata), si ricrea. I blocchi nuovi finiscono lì. Il docente può spostarli in sottocartelle dal sito
-di Drive: Ardesia continua a vederli, perché li riconosce dall'ID, non dalla posizione.
+sparisce (cestinata), si ricrea. I blocchi nuovi finiscono in sottocartelle per classe e materia (§2.1). Il docente
+può spostarli dal sito di Drive: Ardesia continua a vederli, perché li riconosce dall'ID, non dalla posizione.
+
+### 2.1 Nuovo blocco: classe, materia, nome (scelta dell'utente, 19/10/2026)
+
+Struttura su Drive: `Il mio Drive/Ardesia/{classe}/{materia}/{nome}.ardesia`, per esempio
+`Ardesia/2BO/Fisica/2BO Fisica 26-27.ardesia`. Le cartelle le crea **Ardesia**, al momento della creazione del file.
+
+**Primo avvio su un PC nuovo**: Ardesia installata → «Accedi con Google» → nessun blocco su Drive → finestra
+«Nuovo blocco appunti»:
+1. **Classe** (es. «2BO», «1BE-CE»): scritta a mano dal docente (un elenco fisso sarebbe troppo lungo); sotto, le
+   classi già usate come pulsanti da toccare.
+2. **Materia** (es. «Fisica»): scritta a mano, con le materie già usate proposte allo stesso modo.
+3. **Nome**: proposto «{classe} {materia} {anno}» → «2BO Fisica 26-27», modificabile. L'anno scolastico si calcola
+   dalla data e cambia a **settembre** (settembre 2026 – agosto 2027 = «26-27»).
+4. Ardesia crea `Ardesia/2BO/Fisica/` se manca (riusa le cartelle esistenti, senza distinguere maiuscole) e il blocco.
+
+**Su un PC già usato e collegato**: File › Nuovo → classe → materia → nome proposto, come sopra.
+
+**Ricordare classi e materie per l'utente, non per il PC**: non serve salvare nulla di più. Con `drive.file`
+Ardesia vede le cartelle che ha creato lei, quindi classi e materie già usate si **leggono da Drive**
+(`files.list` con `mimeType='application/vnd.google-apps.folder'`: figlie di «Ardesia» = classi, figlie di una
+classe = materie), su qualunque PC e con qualunque utente Windows. Ordine: prima le usate più di recente.
+Senza rete si usa l'ultimo elenco letto, tenuto in cache nella cartella dell'account (§4.1).
+
+Da decidere più avanti: caratteri non ammessi nei nomi (`/` diventa `-`), e se proporre nella classe solo le
+cartelle dell'anno in corso.
 
 **Elencare i propri blocchi** (`files.list`):
 ```
@@ -277,8 +304,8 @@ Oggi il PDF va accanto al file; se il file è su Drive per desktop, Drive lo car
 **Schermata iniziale (`StartWindow`)**: accanto a «Nuovo» e «Apri» una sezione **Google Drive**:
 - non collegati: pulsante «Accedi con Google»;
 - collegati: elenco dei propri blocchi su Drive (nome, data di modifica, «aperto su LIM-AULA12» se è il caso);
-- «Nuovo» da collegati crea il blocco **su Drive**, nella cartella «Ardesia» (scelta dell'utente): si chiede solo
-  il nome. Per un blocco sul computer resta «Nuovo blocco sul computer…» (finestra di salvataggio di oggi);
+- «Nuovo» da collegati crea il blocco **su Drive**, in `Ardesia/{classe}/{materia}` (scelta dell'utente): si
+  chiedono classe, materia e nome proposto (§2.1). Per un blocco sul computer resta «Nuovo blocco sul computer…» (finestra di salvataggio di oggi);
 - i recenti mostrano un'icona a nuvola per quelli su Drive.
 
 **Menu File**: «Nuovo» (su Drive se collegati), «Nuovo sul computer…», «Apri da Drive…» (stessa lista in una
@@ -325,7 +352,8 @@ blocchi su Drive diventerà «Accedi a Google per riaprire …». `DriveLocator`
    client e secret.
 1. **Accesso** (*scritta il 19/10/2026*): login col browser, token cifrato, «Esci», account nelle impostazioni;
    prova `--prova-accesso` (apre il browser, stampa e-mail e scadenza).
-2. **Drive di base**: cartella «Ardesia», nuovo blocco su Drive (default da collegati), elenco e apertura, cache,
+2. **Drive di base**: cartella «Ardesia» con sottocartelle classe/materia, nuovo blocco su Drive con classe,
+   materia e nome proposto (§2.1, default da collegati), elenco e apertura, cache,
    coda di caricamento, download all'apertura, recenti, stato nella barra, `--prova-drive`.
 3. **Robustezza**: senza rete, conflitti («tieni entrambi»), lucchetto morbido, chiusura con coda.
    *Prima di usarlo in classe servono le fasi 1–3 insieme.*
