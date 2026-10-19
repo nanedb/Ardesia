@@ -93,6 +93,19 @@
                         <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,18"
                                    Text="Queste impostazioni valgono solo per questo computer (o questa LIM), per tutti i blocchi appunti." />
 
+                        <TextBlock Style="{StaticResource GroupTitle}" Text="Google Drive" />
+                        <DockPanel>
+                            <Button x:Name="GoogleButton" DockPanel.Dock="Right" Style="{StaticResource BigPlain}"
+                                    VerticalAlignment="Center" Click="Google_Click" />
+                            <StackPanel VerticalAlignment="Center" Margin="0,0,14,0">
+                                <TextBlock x:Name="GoogleStatus" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                <TextBlock x:Name="GoogleDetail" Style="{StaticResource Hint}" Margin="0,4,0,0" />
+                            </StackPanel>
+                        </DockPanel>
+                        <TextBlock x:Name="GoogleMessage" Style="{StaticResource Hint}" Margin="0,10,0,0" Visibility="Collapsed" />
+
+                        <Border Height="1" Background="{StaticResource LineBrush}" Margin="0,24,0,20" />
+
                         <TextBlock Style="{StaticResource GroupTitle}" Text="Tocco e LIM" />
                         <CheckBox x:Name="FingerPansBox" Content="Il dito sposta la pagina" FontWeight="SemiBold" HorizontalAlignment="Left" />
                         <TextBlock Style="{StaticResource Hint}" Margin="0,6,0,0"

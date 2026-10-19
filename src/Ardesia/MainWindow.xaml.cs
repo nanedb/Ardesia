@@ -12,6 +12,7 @@ using System.Windows.Threading;
 using Ardesia.Editor;
 using Ardesia.Models;
 using Ardesia.Services;
+using Ardesia.Services.Google;
 using Microsoft.Win32;
 
 namespace Ardesia;
@@ -76,6 +77,14 @@ public partial class MainWindow : Window
         Closing += Window_Closing;
 
         _autosaveTimer.Tick += (_, _) => AutoSave();
+
+        if (_settings.Persist) // nelle prove automatiche niente account
+        {
+            EventHandler onAccount = (_, _) => Dispatcher.BeginInvoke(UpdateAccountButton);
+            GoogleAccountService.Current.Changed += onAccount;
+            Closed += (_, _) => GoogleAccountService.Current.Changed -= onAccount;
+            UpdateAccountButton();
+        }
 
         Loaded += (_, _) =>
         {
@@ -1529,6 +1538,32 @@ public partial class MainWindow : Window
         popup.IsOpen = true;
     }
     // ═══════════════════════════ Menu File ═══════════════════════════
+
+    // ═══════════════════════════ Account Google ═══════════════════════════
+
+    /// <summary>Nome di chi è collegato a Google nella barra in alto; nascosto se nessuno è collegato.</summary>
+    void UpdateAccountButton()
+    {
+        var g = GoogleAccountService.Current;
+        AccountButton.Visibility = g.IsSignedIn ? Visibility.Visible : Visibility.Collapsed;
+        AccountName.Text = g.DisplayName ?? "";
+        AccountButton.ToolTip = g.IsSignedIn ? $"Collegato a Google come {g.Email}" : null;
+    }
+
+    void AccountButton_Click(object sender, RoutedEventArgs e)
+    {
+        var g = GoogleAccountService.Current;
+        var menu = new ContextMenu { PlacementTarget = AccountButton, Placement = PlacementMode.Bottom, FontSize = 14 };
+        menu.Items.Add(new MenuItem { Header = $"Collegato a Google come {g.Email}", IsEnabled = false });
+        menu.Items.Add(new Separator());
+        menu.Items.Add(Item("Esci da Google", async () =>
+        {
+            var warning = await g.SignOutAsync(CancellationToken.None);
+            if (warning != null) MessageBox.Show(this, warning, "Ardesia", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }));
+        menu.Items.Add(Item("Impostazioni…", () => OpenSettings()));
+        menu.IsOpen = true;
+    }
 
     void FileButton_Click(object sender, RoutedEventArgs e)
     {

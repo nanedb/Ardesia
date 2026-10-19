@@ -1,7 +1,8 @@
 # Blocchi appunti su Google Drive (senza Drive per desktop) – piano
 
-Stato: **in pausa (17/10/2026)** finché gli alunni non avranno l'account `@liceofoscarini.it` (l'amministratore
-li sta creando). Domande aperte risolte.
+Stato: **fase 1 (accesso) fatta il 19/10/2026**; per le fasi seguenti si aspettano gli account
+`@liceofoscarini.it` degli alunni (l'amministratore li sta creando), che servono solo per il PDF condiviso (fase 4).
+Domande aperte risolte.
 
 **Fase 0 fatta (17/10/2026)**: progetto `ardesia-511918`, client desktop
 `774277790696-1g2mib0ps95832gutce7c931t5alb5fr.apps.googleusercontent.com` (il JSON col secret è fuori dal
@@ -10,6 +11,28 @@ app non bloccata dall'amministratore, account `@liceofoscarini.it`, `drive.file`
 crea/elenca/aggiorna/scarica un file col tipo di Ardesia, condivisione col dominio permessa.
 **Non serve l'amministratore.** Già scritti e riusabili per la fase 1: `Services/Google/GoogleClientConfig.cs`,
 `GoogleAuth.cs` (PKCE + loopback con `TcpListener`), `DriveApi.cs`.
+
+**Fase 1 (accesso) scritta (19/10/2026)**, ripresa perché non dipende dagli account degli alunni:
+- `Services/Google/TokenStore.cs`: account (refresh token, e-mail, nome, dominio, permessi, data) in JSON cifrato
+  con DPAPI via P/Invoke a `crypt32` (`CryptProtectData`, utente corrente + entropia fissa), in
+  `%LocalAppData%\Ardesia\google-account.bin`, scrittura atomica.
+- `Services/Google/GoogleAccountService.cs` (`GoogleAccountService.Current`): `SignInAsync` (controlla dominio
+  `@liceofoscarini.it`, permesso `drive.file` concesso e refresh token, altrimenti revoca e spiega),
+  `GetAccessTokenAsync` (rinnovo a un minuto dalla scadenza; `invalid_grant` → account dimenticato),
+  `SendAsync` (richiesta autenticata, con 401 rinnova e riprova una volta), `SignOutAsync` (revoca + cancella il
+  file; senza rete dimentica lo stesso e avvisa), evento `Changed`. L'access token resta solo in memoria.
+- Client: `GoogleClientConfig.Load` cerca `google-client.json` / `client_secret_*.json` accanto all'exe e in
+  `%AppData%\Ardesia` (per le prove: `%AppData%\Ardesia\google-client.json`), altrimenti usa `GoogleConfig.cs`
+  (**scelta dell'utente: secret incorporato nel codice**; da completare: `ClientSecret` è ancora vuoto).
+- Interfaccia: Impostazioni › Questo PC › «Google Drive» (stato, «Accedi con Google» / «Annulla» / «Esci»;
+  valgono subito, anche con Annulla); nella barra in alto il nome di chi è collegato, con menu «Esci da Google».
+- Prova `Ardesia.exe --prova-accesso [registro.txt]` (`AccessTestWindow`): primo avvio → browser, accesso, file
+  cifrato, rilettura dal disco; avvii seguenti → account ricordato e rinnovo senza browser; poi userinfo, rinnovo
+  dopo un 401 finto, pulsante «Esci da Google (revoca)» che verifica cancellazione e rifiuto del vecchio gettone.
+- **Provata il 19/10/2026** con `giovanni.dalbo@liceofoscarini.it`: `--prova-accesso` tutta OK (accesso, file
+  cifrato, riavvio senza browser, rinnovo dopo 401, «Esci» con vecchio gettone rifiutato); nell'app vera accesso da
+  Impostazioni, nome nella barra, ancora collegato dopo chiusura e riapertura, «Esci da Google» dalla barra.
+- Non fatto in fase 1: «Esci» non carica code (non ci sono ancora), «Svuota la cache di Drive» (fase 2).
 
 ### Scelte dell'utente (17/10/2026)
 
@@ -300,8 +323,8 @@ blocchi su Drive diventerà «Accedi a Google per riaprire …». `DriveLocator`
 
 0. **Preparazione (utente)**: progetto Google Cloud, client desktop, app attendibile se serve (§3); mandarmi ID
    client e secret.
-1. **Accesso**: login col browser, token cifrato, «Esci», account nelle impostazioni; prova `--prova-accesso`
-   (apre il browser, stampa e-mail e scadenza).
+1. **Accesso** (*scritta il 19/10/2026*): login col browser, token cifrato, «Esci», account nelle impostazioni;
+   prova `--prova-accesso` (apre il browser, stampa e-mail e scadenza).
 2. **Drive di base**: cartella «Ardesia», nuovo blocco su Drive (default da collegati), elenco e apertura, cache,
    coda di caricamento, download all'apertura, recenti, stato nella barra, `--prova-drive`.
 3. **Robustezza**: senza rete, conflitti («tieni entrambi»), lucchetto morbido, chiusura con coda.

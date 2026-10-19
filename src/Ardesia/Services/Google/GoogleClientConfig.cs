@@ -19,10 +19,22 @@ public sealed class GoogleClientConfig
     public string? ProjectId { get; init; }
     public required string SourceFile { get; init; }
 
-    /// <summary>Legge il file indicato, o lo cerca accanto all'eseguibile e in %AppData%\Ardesia.</summary>
+    /// <summary>
+    /// Legge il file indicato, o lo cerca accanto all'eseguibile e in %AppData%\Ardesia (utile per altre scuole);
+    /// se non c'è, usa il client di Ardesia incorporato (GoogleConfig).
+    /// </summary>
     public static GoogleClientConfig Load(string? path = null)
     {
-        path ??= Find() ?? throw new FileNotFoundException(
+        path ??= Find();
+        if (path == null && GoogleConfig.ClientSecret.Length > 0)
+            return new GoogleClientConfig
+            {
+                ClientId = GoogleConfig.ClientId,
+                ClientSecret = GoogleConfig.ClientSecret,
+                ProjectId = GoogleConfig.ProjectId,
+                SourceFile = "(incorporato in Ardesia)",
+            };
+        if (path == null) throw new FileNotFoundException(
             "Non trovo il file del client Google (google-client.json o client_secret_….json) " +
             "né accanto ad Ardesia né in " + AppSettings.Folder + ".");
         using var doc = JsonDocument.Parse(File.ReadAllText(path));

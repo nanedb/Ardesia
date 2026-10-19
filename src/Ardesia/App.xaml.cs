@@ -56,6 +56,17 @@ public partial class App : Application
             return;
         }
 
+        // Prova dell'accesso a Google (fase 1): accesso, account ricordato al riavvio, rinnovo, uscita.
+        int pa = Array.IndexOf(e.Args, "--prova-accesso");
+        if (pa >= 0)
+        {
+            var log = pa + 1 < e.Args.Length && !e.Args[pa + 1].StartsWith("--") ? e.Args[pa + 1] : null;
+            var win = new AccessTestWindow(log);
+            MainWindow = win;
+            win.Show();
+            return;
+        }
+
         // Prova del grafico di Ardesia: parser e calcoli, senza finestre; scrive il registro e esce.
         int pf = Array.IndexOf(e.Args, "--prova-grafico");
         if (pf >= 0)

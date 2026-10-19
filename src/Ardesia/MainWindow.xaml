@@ -25,6 +25,17 @@
 
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                     <TextBlock x:Name="StatusText" Foreground="#E0FFFFFF" FontSize="12" VerticalAlignment="Center" Margin="0,0,12,0" />
+                    <!-- Chi è collegato a Google (visibile solo da collegati): clic → account ed «Esci» -->
+                    <Button x:Name="AccountButton" Style="{StaticResource HeaderButton}" Padding="10,0" Visibility="Collapsed"
+                            Click="AccountButton_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource HeaderGlyph}" Text="&#xE77B;" Margin="0,0,7,0" />
+                            <TextBlock x:Name="AccountName" Foreground="White" FontSize="13" VerticalAlignment="Center"
+                                       MaxWidth="200" TextTrimming="CharacterEllipsis" />
+                            <TextBlock FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Text="&#xE70D;" FontSize="9"
+                                       Foreground="White" VerticalAlignment="Center" Margin="6,2,0,0" />
+                        </StackPanel>
+                    </Button>
                     <Button Style="{StaticResource HeaderButton}" Click="Save_Click" ToolTip="Salva (Ctrl+S)">
                         <TextBlock Style="{StaticResource HeaderGlyph}" Text="&#xE74E;" />
                     </Button>

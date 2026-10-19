@@ -1,8 +1,10 @@
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using Ardesia.Models;
 using Ardesia.Services;
+using Ardesia.Services.Google;
 
 namespace Ardesia;
 
@@ -33,6 +35,8 @@ public partial class SettingsWindow : Window
         _recent = settings.RecentFiles.ToList();
         FingerPansBox.IsChecked = settings.FingerPans;
         FillRecent();
+        UpdateGoogle();
+        Closing += (_, _) => _googleCts?.Cancel();
 
         if (notebookPath != null)
         {
@@ -102,6 +106,91 @@ public partial class SettingsWindow : Window
         RecentEmpty.Visibility = empty ? Visibility.Visible : Visibility.Collapsed;
         ((Border)RecentList.Parent).Visibility = empty ? Visibility.Collapsed : Visibility.Visible;
         ClearRecentButton.IsEnabled = !empty;
+    }
+
+    // ───────────── Google Drive (accesso e uscita valgono subito, anche se poi si preme Annulla) ─────────────
+
+    CancellationTokenSource? _googleCts;
+
+    void UpdateGoogle()
+    {
+        var g = GoogleAccountService.Current;
+        if (_googleCts != null)
+        {
+            GoogleStatus.Text = "Accesso in corso…";
+            GoogleDetail.Text = "Completa l'accesso nella pagina di Google che si è aperta nel browser.";
+            GoogleButton.Content = "Annulla";
+            GoogleButton.Style = (Style)FindResource("BigPlain");
+            GoogleButton.IsEnabled = true;
+        }
+        else if (g.IsSignedIn)
+        {
+            GoogleStatus.Text = g.DisplayName == g.Email ? $"Collegato come {g.Email}" : $"Collegato come {g.DisplayName} ({g.Email})";
+            GoogleDetail.Text = $"Accesso fatto il {g.SignedInAt:d MMMM yyyy}. Ardesia lo ricorda su questo PC per il tuo utente di Windows; " +
+                                "vede su Drive solo i file che crea lei.";
+            GoogleButton.Content = "Esci";
+            GoogleButton.Style = (Style)FindResource("BigPlain");
+            GoogleButton.IsEnabled = true;
+        }
+        else
+        {
+            GoogleStatus.Text = "Non collegato";
+            GoogleDetail.Text = g.IsConfigured
+                ? $"Accedi con l'account @{GoogleClientConfig.SchoolDomain}: si apre il browser. Il salvataggio dei blocchi appunti su Drive arriverà presto."
+                : g.ConfigError ?? "";
+            GoogleButton.Content = "Accedi con Google";
+            GoogleButton.Style = (Style)FindResource("BigAccent");
+            GoogleButton.IsEnabled = g.IsConfigured;
+        }
+    }
+
+    void ShowGoogleMessage(string? text, bool error)
+    {
+        GoogleMessage.Text = text ?? "";
+        GoogleMessage.Visibility = string.IsNullOrEmpty(text) ? Visibility.Collapsed : Visibility.Visible;
+        GoogleMessage.Foreground = error ? new SolidColorBrush(Color.FromRgb(0xC6, 0x28, 0x28)) : (Brush)FindResource("SubtleTextBrush");
+    }
+
+    async void Google_Click(object sender, RoutedEventArgs e)
+    {
+        var g = GoogleAccountService.Current;
+        if (_googleCts != null)
+        {
+            _googleCts.Cancel();
+            return;
+        }
+        ShowGoogleMessage(null, false);
+        if (g.IsSignedIn)
+        {
+            GoogleButton.IsEnabled = false;
+            var warning = await g.SignOutAsync(CancellationToken.None);
+            ShowGoogleMessage(warning ?? "Sei uscito da Google: Ardesia non può più accedere al tuo Drive.", warning != null);
+            UpdateGoogle();
+            return;
+        }
+
+        _googleCts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+        UpdateGoogle();
+        try
+        {
+            await g.SignInAsync(_googleCts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            ShowGoogleMessage("Accesso annullato.", false);
+        }
+        catch (Exception ex)
+        {
+            ShowGoogleMessage(ex.Message, true);
+        }
+        finally
+        {
+            _googleCts.Dispose();
+            _googleCts = null;
+        }
+        if (!IsLoaded) return; // finestra chiusa durante l'accesso
+        UpdateGoogle();
+        Activate(); // il browser era davanti
     }
 
     void ClearRecent_Click(object sender, RoutedEventArgs e)
