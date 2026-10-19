@@ -51,6 +51,8 @@ crea/elenca/aggiorna/scarica un file col tipo di Ardesia, condivisione col domin
 | 11 | Dove va un blocco nuovo su Drive (19/10/2026) | `Ardesia/{classe}/{materia}/`: Ardesia chiede **classe** (scritta a mano, niente elenco fisso) e **materia**, crea lei le cartelle e propone il nome «2BO Fisica 26-27», modificabile (§2.1) |
 | 12 | Materie (e classi) già usate | Ardesia le **ricorda per l'utente**, non per il PC (§2.1) |
 | 13 | Eliminare un blocco da Ardesia | Chiede se eliminare anche il **PDF per la classe**. Le **cartelle** Ardesia non le elimina mai (per sicurezza): il docente le cancella dal sito di Drive, dove può sempre cancellare tutto (§2.2) |
+| 14 | PDF per la classe di un blocco su Drive | **Accanto al blocco**, nella stessa cartella; si rinomina col blocco (§6). Serve agli alunni **a casa**, dai loro dispositivi (Windows, Mac, Linux, Android): in aula si usa Ardesia. Quindi un blocco su Drive senza PDF su Drive non serve agli alunni → la fase 4 esce **insieme** alle fasi 2–3 (§9) |
+| 15 | Prove a mano | Con la cartella **«Ardesia» vera** nel Drive dell'utente (blocchi di prova, es. classe «PROVA», cancellati poi da lui dal sito di Drive) |
 
 Conseguenze principali: la modalità «PC condiviso» (§5) non serve più come requisito, diventa al massimo
 un'opzione futura; niente «Sposta su Drive» né selettore di Google; il PDF si condivide da sé col dominio (§6).
@@ -310,8 +312,10 @@ Oggi il PDF va accanto al file; se il file è su Drive per desktop, Drive lo car
 - il PDF si crea in locale come ora (`PdfExporter`, alla chiusura, solo se ci sono modifiche) e si **carica su
   Drive** nella stessa coda, **aggiornando sempre lo stesso file** (stesso ID): così il **link per gli alunni
   non cambia mai** e la condivisione resta.
-- Posizione: cartella «Ardesia/PDF per la classe», creata da Ardesia (con `drive.file` Ardesia può scrivere solo
-  in cartelle create da lei). Nome del PDF = nome del blocco.
+- Posizione (scelta dell'utente, 19/10/2026): **accanto al blocco**, nella stessa cartella
+  (`Ardesia/2BO/Fisica/2BO Fisica 26-27.pdf`), come oggi per i file sul computer. Nome del PDF = nome del blocco.
+- **Rinomina** (scelta dell'utente): se il docente cambia il nome del blocco nella barra in alto, Ardesia rinomina
+  su Drive sia il blocco sia il PDF (`files.update` con `name`); ID, cartella e link per gli alunni restano.
 - **Condivisione automatica** al primo caricamento: `permissions.create` con `type=domain`,
   `domain=liceofoscarini.it`, `role=reader`, `allowFileDiscovery=false` → lo apre chiunque della scuola **abbia il
   link** (il PDF non compare nelle ricerche degli altri). Gli alunni devono avere account `@liceofoscarini.it`
@@ -368,7 +372,7 @@ blocchi su Drive diventerà «Accedi a Google per riaprire …». `DriveLocator`
 
 `DriveSync` lavora su un'interfaccia `IDriveClient`, così le prove automatiche usano un **Drive finto in memoria**:
 `Ardesia.exe --prova-drive [registro.txt]` simula caricamenti, rete assente, conflitti, PDF per la classe
-(codice d'uscita 1 se qualcosa non va), come `--prova-grafico`. La prova con un account vero si fa a mano.
+(codice d'uscita 1 se qualcosa non va), come `--prova-grafico`. La prova con un account vero si fa a mano, nella cartella «Ardesia» vera (scelta 15).
 
 ## 9. Fasi
 
@@ -380,8 +384,9 @@ blocchi su Drive diventerà «Accedi a Google per riaprire …». `DriveLocator`
    materia e nome proposto (§2.1, default da collegati), elenco e apertura, cache,
    coda di caricamento, download all'apertura, recenti, stato nella barra, `--prova-drive`.
 3. **Robustezza**: senza rete, conflitti («tieni entrambi»), lucchetto morbido, chiusura con coda.
-   *Prima di usarlo in classe servono le fasi 1–3 insieme.*
-4. **PDF per la classe su Drive**, condivisione automatica col dominio, «Copia il link».
+   *Prima di usarlo con le classi servono le fasi 1–4 insieme* (il PDF su Drive è ciò che leggono gli alunni a casa).
+4. **PDF per la classe su Drive**, accanto al blocco, condivisione automatica col dominio, «Copia il link»,
+   rinomina insieme al blocco.
 5. **In seguito, se servirà**: unione per pagina nei conflitti, «versioni precedenti» dalle revisioni di Drive,
    modalità «PC condiviso», configurazione per altre scuole.
 
