@@ -10,6 +10,6 @@ static class GoogleConfig
     public const string ClientId = "774277790696-1g2mib0ps95832gutce7c931t5alb5fr.apps.googleusercontent.com";
     public const string ProjectId = "ardesia-511918";
 
-    /// <summary>Da copiare dal file client_secret_….json («client_secret»). Vuoto = serve il file.</summary>
-    public const string ClientSecret = "";
+    /// <summary>Dal file client_secret_….json scaricato dalla console («client_secret»).</summary>
+    public const string ClientSecret = "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";
 }

@@ -23,7 +23,7 @@ crea/elenca/aggiorna/scarica un file col tipo di Ardesia, condivisione col domin
   file; senza rete dimentica lo stesso e avvisa), evento `Changed`. L'access token resta solo in memoria.
 - Client: `GoogleClientConfig.Load` cerca `google-client.json` / `client_secret_*.json` accanto all'exe e in
   `%AppData%\Ardesia` (per le prove: `%AppData%\Ardesia\google-client.json`), altrimenti usa `GoogleConfig.cs`
-  (**scelta dell'utente: secret incorporato nel codice**; da completare: `ClientSecret` è ancora vuoto).
+  (**scelta dell'utente: ID client e secret incorporati nel codice**, così sulle LIM non serve copiare file).
 - Interfaccia: Impostazioni › Questo PC › «Google Drive» (stato, «Accedi con Google» / «Annulla» / «Esci»;
   valgono subito, anche con Annulla); nella barra in alto il nome di chi è collegato, con menu «Esci da Google».
 - Prova `Ardesia.exe --prova-accesso [registro.txt]` (`AccessTestWindow`): primo avvio → browser, accesso, file
