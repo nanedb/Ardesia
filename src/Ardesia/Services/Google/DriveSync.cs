@@ -35,14 +35,44 @@ public sealed class DriveSyncEntry
     public DateTime? LastUpload { get; set; }
     public string? LastError { get; set; }
     public DateTime? ModifiedTime { get; set; }
+
+    // ── PDF per la classe su Drive (§6): sempre lo stesso file, quindi il link per gli alunni non cambia mai ──
+
+    /// <summary>ID del PDF per la classe su Drive, o null se non c'è ancora.</summary>
+    public string? ClassPdfId { get; set; }
+
+    /// <summary>Nome attuale del PDF su Drive (segue il titolo del blocco).</summary>
+    public string? ClassPdfName { get; set; }
+
+    /// <summary>Il blocco su Drive sa del suo PDF (appProperty «pdfClasse»): così lo ritrovano anche gli altri PC.</summary>
+    public bool ClassPdfLinked { get; set; }
+
+    /// <summary>Condiviso con il dominio della scuola (chi ha il link lo legge).</summary>
+    public bool ClassPdfShared { get; set; }
+
+    /// <summary>Condivisione automatica rifiutata da Google (impostazioni dell'amministratore): si condivide a mano.</summary>
+    public string? ClassPdfShareError { get; set; }
+
+    /// <summary>Il PDF rifatto su questo PC ({fileId}.pdf nella cache) è da caricare.</summary>
+    public bool ClassPdfPending { get; set; }
+
+    public DateTime? ClassPdfUpload { get; set; }
+    public string? ClassPdfError { get; set; }
+
+    /// <summary>Copia nata da un conflitto (§4.4): ID del blocco originale, a cui resta legato il PDF per la classe.</summary>
+    public string? ConflictCopyOf { get; set; }
 }
+
+/// <summary>Stato del PDF per la classe di un blocco su Drive, per le impostazioni del blocco.</summary>
+public sealed record DriveClassPdfInfo(string? Id, string? Link, bool Pending, bool Uploading, DateTime? Uploaded, string? Error,
+    string? ShareError);
 
 /// <summary>Una cartella creata da Ardesia su Drive.</summary>
 public sealed record DriveFolder(string Id, string Name, string? ParentId, DateTime? ModifiedTime);
 
 /// <summary>Un blocco appunti nell'elenco di Drive.</summary>
 public sealed record DriveNotebook(string Id, string Title, string? Class, string? Subject, DateTime? Modified, long? Size,
-    string? OpenOn = null)
+    string? OpenOn = null, string? ClassPdfId = null)
 {
     public string Folder => Class != null && Subject != null ? $"{Class} / {Subject}" : Class ?? "";
 }
@@ -87,6 +117,20 @@ public sealed class DriveSync : IDisposable
 
     /// <summary>Chiavi delle appProperties del «lucchetto morbido» (§4.4).</summary>
     public const string LockPcKey = "apertoSu", LockTimeKey = "apertoAlle";
+
+    /// <summary>
+    /// appProperties del PDF per la classe (§6): sul blocco l'ID del suo PDF, sul PDF l'ID del blocco; sulla copia di un
+    /// conflitto l'ID del blocco originale (il PDF resta a quello).
+    /// </summary>
+    public const string ClassPdfKey = "pdfClasse", ClassPdfOfKey = "pdfDi", CopyOfKey = "copiaDi";
+
+    public const string PdfMime = "application/pdf";
+
+    /// <summary>
+    /// Google non ha permesso di condividere il PDF per la classe col dominio (fileId del blocco, messaggio per il
+    /// docente). Arriva una volta sola, sul thread della UI.
+    /// </summary>
+    public static event Action<string, string>? ClassPdfShareRefused;
 
     /// <summary>Cambia lo stato di un blocco (fileId). Arriva sul thread della UI.</summary>
     public static event Action<string>? StatusChanged;
@@ -189,6 +233,31 @@ public sealed class DriveSync : IDisposable
         SaveData(folder, data);
     }
 
+    /// <summary>
+    /// Il PDF per la classe è stato rifatto accanto alla copia in cache ({fileId}.pdf): va su Drive nella stessa coda,
+    /// dopo il blocco. Come <see cref="NotifySaved"/>, senza l'account collegato lo scrive solo nel suo sync.json.
+    /// </summary>
+    public static void NotifyClassPdf(string path)
+    {
+        if (!TryParseCachePath(path, out var key, out var id)) return;
+        if (Current is { } s && s.AccountKeyValue == key)
+        {
+            s.ClassPdfChanged(id);
+            return;
+        }
+        var folder = Path.Combine(RootFolder, key);
+        var data = LoadData(folder);
+        if (!data.Files.TryGetValue(id, out var e)) data.Files[id] = e = new DriveSyncEntry();
+        e.ClassPdfPending = true;
+        SaveData(folder, data);
+    }
+
+    /// <summary>Il PDF per la classe in cache, accanto al blocco: «…\{fileId}.pdf».</summary>
+    public static string ClassPdfFileFor(string cachePath) => Path.ChangeExtension(cachePath, ".pdf");
+
+    /// <summary>Link per gli alunni (non cambia mai: il PDF si aggiorna sempre nello stesso file).</summary>
+    public static string ClassPdfLinkOf(string pdfId) => $"https://drive.google.com/file/d/{pdfId}/view";
+
     /// <summary>Nome valido per file e cartelle: i caratteri non ammessi diventano «-» (scelta dell'utente).</summary>
     public static string SafeName(string s)
     {
@@ -230,6 +299,11 @@ public sealed class DriveSync : IDisposable
 
         /// <summary>Spiegazione del conflitto (copia nuova), finché il blocco resta aperto.</summary>
         public string? ConflictMessage;
+
+        /// <summary>PDF per la classe: tentativi, prossimo tentativo, errore definitivo, caricamento in corso.</summary>
+        public int PdfFailures;
+        public DateTime PdfNextTry = DateTime.MinValue;
+        public bool PdfBlocked, PdfUploading;
     }
 
     /// <summary>Avanzamento che passa subito il valore (senza passare dal contesto di sincronizzazione).</summary>
@@ -326,18 +400,56 @@ public sealed class DriveSync : IDisposable
 
     public string? RootFolderId => _data.RootFolderId;
 
-    /// <summary>Vero se ci sono modifiche da caricare (anche ferme per un errore).</summary>
-    public bool HasPending => _data.Files.Values.Any(e => e.Pending);
+    /// <summary>Vero se ci sono modifiche da caricare, blocchi o PDF per la classe (anche ferme per un errore).</summary>
+    public bool HasPending => _data.Files.Values.Any(e => e.Pending || e.ClassPdfPending);
 
-    /// <summary>Vero se alla chiusura c'è ancora qualcosa da fare su Drive: modifiche da caricare o lucchetti da togliere.</summary>
-    public bool HasWork => HasPending || _release.Any(_data.Files.ContainsKey);
+    /// <summary>
+    /// Vero se alla chiusura c'è ancora qualcosa da fare su Drive: modifiche da caricare, PDF da caricare o rinominare,
+    /// lucchetti da togliere.
+    /// </summary>
+    public bool HasWork => HasPending || _data.Files.Any(f => PdfWork(f.Value) && RuntimeOf(f.Key) is { PdfBlocked: false })
+                                      || _release.Any(_data.Files.ContainsKey);
 
     /// <summary>Byte da caricare (per «Carico su Google Drive… (2,1 MB)»).</summary>
-    public long PendingBytes() => _data.Files.Where(f => f.Value.Pending).Sum(f =>
+    public long PendingBytes() => _data.Files.Sum(f =>
     {
-        try { return new FileInfo(CachePath(f.Key)).Length; }
-        catch { return 0L; }
+        long n = 0;
+        try
+        {
+            if (f.Value.Pending) n += new FileInfo(CachePath(f.Key)).Length;
+            if (f.Value.ClassPdfPending) n += new FileInfo(ClassPdfCachePath(f.Key)).Length;
+        }
+        catch
+        {
+            // file sparito: non conta
+        }
+        return n;
     });
+
+    /// <summary>Il PDF per la classe rifatto su questo PC, accanto alla copia in cache del blocco.</summary>
+    public string ClassPdfCachePath(string id) => ClassPdfFileFor(CachePath(id));
+
+    /// <summary>Lo stato del PDF per la classe di un blocco (impostazioni del blocco).</summary>
+    public DriveClassPdfInfo ClassPdfStatus(string id)
+    {
+        var e = Entry(id);
+        var rt = _rt.GetValueOrDefault(id);
+        return new DriveClassPdfInfo(e?.ClassPdfId, e?.ClassPdfId is { } pdf ? ClassPdfLinkOf(pdf) : null, e?.ClassPdfPending == true,
+            rt?.PdfUploading == true, e?.ClassPdfUpload, e?.ClassPdfError, e?.ClassPdfShareError);
+    }
+
+    /// <summary>
+    /// C'è lavoro su Drive per il PDF per la classe: caricarlo, legarlo al blocco, rinominarlo col blocco, condividerlo.
+    /// </summary>
+    static bool PdfWork(DriveSyncEntry e) =>
+        e.ClassPdfPending || (e.ClassPdfId != null && (!e.ClassPdfLinked || e.ClassPdfName != ClassPdfNameOf(e)
+                                                       || (!e.ClassPdfShared && e.ClassPdfShareError == null)));
+
+    /// <summary>Nome del PDF su Drive: quello del blocco (§6).</summary>
+    static string ClassPdfNameOf(DriveSyncEntry e) => SafeName(e.Title) + ".pdf";
+
+    /// <summary>Dominio con cui si condivide il PDF per la classe (sola lettura, per chi ha il link).</summary>
+    public string ShareDomain { get; set; } = GoogleClientConfig.SchoolDomain;
 
     /// <summary>Il blocco aperto in Ardesia (porta il lucchetto), o null.</summary>
     public string? OpenId => _openId;
@@ -481,6 +593,11 @@ public sealed class DriveSync : IDisposable
                 rt.LockFailures = 0;
                 rt.LockNextTry = DateTime.MinValue;
             }
+            if (rt.PdfFailures > 0)
+            {
+                rt.PdfFailures = 0;
+                rt.PdfNextTry = DateTime.MinValue;
+            }
         }
         Pump();
     }
@@ -506,6 +623,24 @@ public sealed class DriveSync : IDisposable
         if (rt.State is null or DriveSyncState.Synced) SetState(id, DriveSyncState.Pending);
     }
 
+    /// <summary>
+    /// Il PDF per la classe è stato rifatto ({fileId}.pdf in cache): si carica appena il blocco è su Drive, sempre nello
+    /// stesso file (§6). Si fa alla chiusura o con «Aggiorna ora», mai a ogni salvataggio.
+    /// </summary>
+    public void ClassPdfChanged(string id)
+    {
+        if (_disposed) return;
+        if (!_data.Files.TryGetValue(id, out var e)) _data.Files[id] = e = new DriveSyncEntry();
+        e.ClassPdfPending = true;
+        e.ClassPdfError = null;
+        var rt = RuntimeOf(id);
+        rt.PdfNextTry = DateTime.MinValue;
+        rt.PdfBlocked = false;
+        SaveData(_folder, _data);
+        StatusChanged?.Invoke(id);
+        Pump();
+    }
+
     /// <summary>Carica appena possibile (cambio di blocco, uscita).</summary>
     public void UploadSoon(string id)
     {
@@ -524,6 +659,7 @@ public sealed class DriveSync : IDisposable
     public async Task<bool> FlushAsync(TimeSpan timeout, CancellationToken ct = default, IProgress<double>? progress = null)
     {
         foreach (var id in _data.Files.Where(f => f.Value.Pending).Select(f => f.Key).ToList()) UploadSoon(id);
+        foreach (var id in _data.Files.Where(f => PdfWork(f.Value)).Select(f => f.Key)) RuntimeOf(id).PdfNextTry = DateTime.MinValue;
         foreach (var id in _release)
         {
             var rt = RuntimeOf(id);
@@ -539,15 +675,16 @@ public sealed class DriveSync : IDisposable
             var end = DateTime.Now + timeout;
             while (DateTime.Now < end && !ct.IsCancellationRequested)
             {
-                var pending = _data.Files.Where(f => f.Value.Pending).Select(f => f.Key).ToList();
+                // blocchi da caricare e PDF per la classe da caricare, legare, rinominare o condividere
+                var pending = _data.Files.Where(f => f.Value.Pending || (PdfWork(f.Value) && !RuntimeOf(f.Key).PdfBlocked))
+                    .Select(f => f.Key).ToList();
                 // un lucchetto che non si riesce a togliere non vale l'attesa: scade da solo
                 bool releases = _release.Any(id => _data.Files.ContainsKey(id) && RuntimeOf(id).LockFailures == 0);
                 if (pending.Count == 0 && !releases) return true;
                 // con un errore definitivo, senza accesso o senza rete, inutile aspettare
                 bool offline = !NetworkAvailable();
-                if (!_busy && (!releases || offline) && pending.All(id => _rt.GetValueOrDefault(id) is { } rt
-                        && (rt.Blocked || rt.State == DriveSyncState.SignedOut || rt.Failures >= 2 || (offline && rt.Failures >= 1))))
-                    return pending.Count == 0;
+                if (!_busy && (!releases || offline) && pending.All(id => Stuck(id, offline)))
+                    return !HasPending;
                 try { await Task.Delay(150, ct); } catch (OperationCanceledException) { break; }
             }
             return !HasPending;
@@ -559,6 +696,16 @@ public sealed class DriveSync : IDisposable
     }
 
     Runtime RuntimeOf(string id) => _rt.TryGetValue(id, out var rt) ? rt : _rt[id] = new Runtime();
+
+    /// <summary>Alla chiusura: per questo blocco non vale la pena aspettare (errore definitivo, niente accesso o rete).</summary>
+    bool Stuck(string id, bool offline)
+    {
+        var rt = RuntimeOf(id);
+        if (rt.State == DriveSyncState.SignedOut) return true;
+        // finché il blocco è da caricare il PDF aspetta: conta il blocco
+        if (_data.Files[id].Pending) return rt.Blocked || rt.Failures >= 2 || (offline && rt.Failures >= 1);
+        return rt.PdfBlocked || rt.PdfFailures >= 2 || (offline && rt.PdfFailures >= 1);
+    }
 
     void SetState(string id, DriveSyncState state)
     {
@@ -588,6 +735,16 @@ public sealed class DriveSync : IDisposable
         if (next != null)
         {
             _ = UploadAsync(next);
+            return;
+        }
+
+        // PDF per la classe: dopo il blocco (così è fatto con la versione caricata), uno alla volta.
+        foreach (var (id, e) in _data.Files)
+        {
+            if (e.Pending || !PdfWork(e)) continue;
+            var rt = RuntimeOf(id);
+            if (rt.PdfBlocked || rt.PdfNextTry > now) continue;
+            _ = ClassPdfAsync(id);
             return;
         }
 
@@ -648,9 +805,15 @@ public sealed class DriveSync : IDisposable
                 return;
             }
 
+            AdoptLinks(e, meta);
+
             // lucchetto: si rinnova col caricamento se il blocco è aperto, si toglie (se è nostro) se è stato chiuso
             bool hold = id == _openId;
-            var props = hold || LockIsMine(meta) ? LockProps(hold) : null;
+            bool lockProps = hold || LockIsMine(meta);
+            var props = lockProps ? LockProps(hold) : null;
+            // il legame col PDF per la classe viaggia anche col contenuto (che ne porta l'ID in ClassPdfDriveId)
+            if (e is { ClassPdfId: { } pdfId, ClassPdfLinked: true } && meta.AppProperties?.GetValueOrDefault(ClassPdfKey) != pdfId)
+                (props ??= new Dictionary<string, string?>())[ClassPdfKey] = pdfId;
             var wanted = SafeName(e.Title) + NotebookStore.Extension;
             long size = data.Length;
             var progress = _flushProgress == null ? null : new Relay(p =>
@@ -658,7 +821,7 @@ public sealed class DriveSync : IDisposable
             var f = await _client.UpdateContentAsync(id, MimeType, data, _cts.Token, props,
                 e.Title.Length > 0 && wanted != e.DriveName ? wanted : null, progress);
             if (_disposed) return;
-            if (props != null)
+            if (lockProps)
             {
                 rt.LockHeld = hold;
                 if (hold) rt.LockWritten = DateTime.Now;
@@ -717,6 +880,184 @@ public sealed class DriveSync : IDisposable
     }
 
     /// <summary>
+    /// Dai metadati del blocco su Drive: il suo PDF per la classe (creato magari da un altro PC) e, per la copia di un
+    /// conflitto, il blocco originale.
+    /// </summary>
+    static void AdoptLinks(DriveSyncEntry e, DriveFile meta)
+    {
+        if (meta.AppProperties?.GetValueOrDefault(ClassPdfKey) is { Length: > 0 } pdf && pdf != e.ClassPdfId)
+        {
+            e.ClassPdfId = pdf;
+            e.ClassPdfLinked = true;
+            e.ClassPdfShared = true; // lo ha condiviso il PC che l'ha creato
+            e.ClassPdfShareError = null;
+            e.ClassPdfName = null; // si controlla il nome alla prossima occasione
+        }
+        if (meta.AppProperties?.GetValueOrDefault(CopyOfKey) is { Length: > 0 } of) e.ConflictCopyOf = of;
+    }
+
+    /// <summary>
+    /// PDF per la classe su Drive (§6), dopo il blocco: la prima volta si crea accanto al blocco, con lo stesso nome, si
+    /// lega al blocco (appProperty «pdfClasse») e si condivide col dominio della scuola; poi si aggiorna sempre lo stesso
+    /// file (stesso ID, stesso link per gli alunni) e si rinomina col blocco. Se il docente l'ha cestinato dal sito di
+    /// Drive se ne crea uno nuovo (con un link nuovo).
+    /// </summary>
+    async Task ClassPdfAsync(string id)
+    {
+        var e = _data.Files[id];
+        var rt = RuntimeOf(id);
+        var ct = _cts.Token;
+        byte[]? data = null;
+        if (e.ClassPdfPending)
+        {
+            try
+            {
+                data = File.ReadAllBytes(ClassPdfCachePath(id));
+            }
+            catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
+            {
+                e.ClassPdfPending = false; // il PDF in cache non c'è più: niente da caricare
+                SaveData(_folder, _data);
+            }
+            catch (IOException)
+            {
+                rt.PdfNextTry = DateTime.Now.AddSeconds(2);
+                return;
+            }
+        }
+        if (!PdfWork(e)) return;
+        long size = data?.Length ?? 0;
+        _busy = rt.PdfUploading = true;
+        StatusChanged?.Invoke(id);
+        try
+        {
+            var name = ClassPdfNameOf(e);
+            bool created = false;
+            if (e.ClassPdfId == null)
+            {
+                // un altro PC può averlo già creato: lo dice il blocco su Drive
+                var meta = await _client.GetAsync(id, ct);
+                if (meta.Trashed) throw new DriveException(404, "trashed", "Il blocco appunti è nel cestino di Google Drive.");
+                AdoptLinks(e, meta);
+                if (e.ClassPdfId == null)
+                {
+                    if (data == null) return; // niente PDF da creare
+                    var f = await _client.CreateFileAsync(name, PdfMime, meta.Parents?.FirstOrDefault() ?? e.ParentId, data, ct,
+                        new Dictionary<string, string> { [ClassPdfOfKey] = id });
+                    if (_disposed) return;
+                    e.ClassPdfId = f.Id;
+                    e.ClassPdfName = name;
+                    e.ClassPdfLinked = e.ClassPdfShared = false;
+                    e.ClassPdfShareError = null;
+                    e.ClassPdfUpload = DateTime.Now;
+                    e.ClassPdfPending = false;
+                    created = true;
+                    SaveData(_folder, _data);
+                }
+            }
+            var pdfId = e.ClassPdfId!;
+            if (!created && (data != null || e.ClassPdfName != name))
+            {
+                DriveFile f;
+                try
+                {
+                    var progress = data == null || _flushProgress == null ? null : new Relay(p =>
+                        _flushProgress?.Report(_flushTotal > 0 ? Math.Min(1, (_flushDone + p * size) / _flushTotal) : 0));
+                    f = data != null
+                        ? await _client.UpdateContentAsync(pdfId, PdfMime, data, ct, null, e.ClassPdfName != name ? name : null, progress)
+                        : await _client.RenameAsync(pdfId, name, ct);
+                }
+                catch (DriveException ex) when (ex.Status is 403 or 404)
+                {
+                    f = new DriveFile(pdfId, "", PdfMime, null, null, null, Trashed: true); // non più accessibile: come cestinato
+                }
+                if (_disposed) return;
+                if (f.Trashed)
+                {
+                    // cestinato o cancellato dal sito di Drive: si dimentica; se c'è un PDF da caricare se ne crea uno nuovo
+                    e.ClassPdfId = null;
+                    e.ClassPdfName = null;
+                    e.ClassPdfLinked = e.ClassPdfShared = false;
+                    e.ClassPdfShareError = null;
+                    await _client.UpdateMetadataAsync(id, new Dictionary<string, string?> { [ClassPdfKey] = null }, ct);
+                    SaveData(_folder, _data);
+                    return;
+                }
+                e.ClassPdfName = name;
+                if (data != null)
+                {
+                    _flushDone += size;
+                    e.ClassPdfUpload = DateTime.Now;
+                    e.ClassPdfPending = false;
+                }
+                SaveData(_folder, _data);
+            }
+            if (!e.ClassPdfLinked)
+            {
+                await _client.UpdateMetadataAsync(id, new Dictionary<string, string?> { [ClassPdfKey] = pdfId }, ct);
+                e.ClassPdfLinked = true;
+                SaveData(_folder, _data);
+            }
+            if (!e.ClassPdfShared && e.ClassPdfShareError == null)
+            {
+                try
+                {
+                    await _client.ShareWithDomainAsync(pdfId, ShareDomain, ct);
+                    e.ClassPdfShared = true;
+                }
+                catch (DriveException ex) when (!DriveApi.IsTransient(ex) && ex.Status != 401)
+                {
+                    // l'amministratore non permette di condividere col dominio: si avvisa una volta, il docente condivide a mano
+                    e.ClassPdfShareError = ex.Message;
+                    ClassPdfShareRefused?.Invoke(id,
+                        $"Il PDF per la classe di «{e.Title}» è su Google Drive, ma Google non ha permesso ad Ardesia di condividerlo " +
+                        $"con la scuola ({ex.Message}).\n\nPuoi condividerlo a mano: File › Impostazioni › Questo blocco appunti › " +
+                        $"«Apri il PDF su Drive», poi «Condividi» e, in «Accesso generale», «{ShareDomain}» (chiunque abbia il link). " +
+                        "Il link per gli alunni resta lo stesso.");
+                }
+                SaveData(_folder, _data);
+            }
+            e.ClassPdfError = null;
+            rt.PdfFailures = 0;
+            SaveData(_folder, _data);
+        }
+        catch (OperationCanceledException) when (_cts.IsCancellationRequested)
+        {
+            // sync fermata: quel che resta da fare è in sync.json
+        }
+        catch (GoogleAuthException ex)
+        {
+            e.ClassPdfError = ex.Message;
+            rt.PdfNextTry = DateTime.Now.AddMinutes(5);
+            SetState(id, DriveSyncState.SignedOut);
+        }
+        catch (Exception ex) when (DriveApi.IsTransient(ex))
+        {
+            rt.PdfFailures++;
+            rt.PdfNextTry = DateTime.Now + RetryDelays[Math.Min(rt.PdfFailures, RetryDelays.Length) - 1];
+            e.ClassPdfError = ex.Message;
+        }
+        catch (DriveException ex) when (ex.Status is 403 or 404)
+        {
+            // il blocco non è più accessibile: lo dice il caricamento del blocco; niente più tentativi per il PDF
+            rt.PdfBlocked = true;
+            e.ClassPdfError = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            rt.PdfFailures++;
+            rt.PdfNextTry = DateTime.Now + RetryDelays[^1];
+            e.ClassPdfError = ex.Message;
+        }
+        finally
+        {
+            _busy = rt.PdfUploading = false;
+            if (!_disposed) StatusChanged?.Invoke(id);
+        }
+        if (!_disposed) Pump();
+    }
+
+    /// <summary>
     /// «Tieni entrambi» (§4.4, scelta dell'utente: senza domande): <paramref name="data"/> (le modifiche di questo PC)
     /// va in un file nuovo «{titolo} (modifiche da {PC}, dd-MM HH.mm).ardesia» nella stessa cartella; la versione
     /// dell'altro PC resta com'è. La copia in cache passa al nuovo ID. Restituisce il nuovo ID.
@@ -728,7 +1069,8 @@ public sealed class DriveSync : IDisposable
         var title = $"{oldTitle} (modifiche da {MachineName}, {DateTime.Now:dd-MM HH.mm})";
         var parent = meta.Parents?.FirstOrDefault() ?? e.ParentId;
         bool open = id == _openId;
-        var props = new Dictionary<string, string>();
+        // la copia sa di chi è copia; il PDF per la classe («pdfClasse») resta al blocco originale
+        var props = new Dictionary<string, string> { [CopyOfKey] = id };
         if (meta.AppProperties?.GetValueOrDefault("ardesiaFormato") is { } format) props["ardesiaFormato"] = format;
         if (open)
             foreach (var (k, v) in LockProps(true)) props[k] = v!;
@@ -746,13 +1088,17 @@ public sealed class DriveSync : IDisposable
             File.WriteAllBytes(CachePath(f.Id), data); // la copia caricata
         }
         var rt = RuntimeOf(id);
+        AdoptLinks(e, meta);
         var message =
             $"«{oldTitle}» su Google Drive era stato modificato anche {(other != null ? $"sul PC {other}" : "su un altro PC")} " +
             "mentre qui c'erano modifiche non ancora caricate. Le modifiche fatte in due posti non si uniscono.\n\n" +
             "Per non perdere niente Ardesia ha tenuto tutte e due le versioni, nella stessa cartella di Google Drive:\n" +
             $"•  «{oldTitle}»: la versione dell'altro PC;\n" +
             $"•  «{title}»: le modifiche fatte su questo PC. Ardesia continua a lavorare su questa.\n\n" +
-            "Se serve, copia le pagine che ti interessano da un blocco all'altro ed elimina quello che non ti serve più.";
+            "Se serve, copia le pagine che ti interessano da un blocco all'altro ed elimina quello che non ti serve più." +
+            (e.ClassPdfId != null
+                ? $"\n\nIl PDF per la classe (quello del link che hanno gli alunni) resta legato a «{oldTitle}»; per la copia è spento."
+                : "");
         var ne = new DriveSyncEntry
         {
             Title = title,
@@ -763,7 +1109,14 @@ public sealed class DriveSync : IDisposable
             ModifiedTime = f.ModifiedTime ?? DateTime.Now,
             LastUpload = DateTime.Now,
             Pending = rt.Serial != serial, // salvato di nuovo durante il caricamento: si ricarica sul file nuovo
+            ConflictCopyOf = id,
         };
+        // Un PDF rifatto con le modifiche di questo PC non va sul PDF del blocco originale, che ora è dell'altro PC.
+        if (e.ClassPdfPending)
+        {
+            e.ClassPdfPending = false;
+            try { File.Delete(ClassPdfCachePath(id)); } catch { /* resta: non si carica comunque */ }
+        }
         _data.Files[f.Id] = ne;
         var nrt = RuntimeOf(f.Id);
         nrt.ConflictMessage = message;
@@ -886,6 +1239,7 @@ public sealed class DriveSync : IDisposable
         foreach (var f in files)
         {
             if (!_data.Files.TryGetValue(f.Id, out var e)) continue;
+            AdoptLinks(e, f);
             e.DriveName = f.Name;
             e.ParentId = f.Parents?.FirstOrDefault();
             e.ModifiedTime = f.ModifiedTime;
@@ -904,7 +1258,7 @@ public sealed class DriveSync : IDisposable
             var (c, s) = Locate(f.Parents?.FirstOrDefault());
             var pending = _data.Files.GetValueOrDefault(f.Id);
             return new DriveNotebook(f.Id, pending?.Pending == true ? pending.Title : TitleOf(f.Name), c, s, f.ModifiedTime, f.Size,
-                LockOf(f)?.Pc);
+                LockOf(f)?.Pc, f.AppProperties?.GetValueOrDefault(ClassPdfKey) ?? pending?.ClassPdfId);
         }).OrderByDescending(n => n.Modified ?? DateTime.MinValue).ToList();
 
         // Classi = figlie di «Ardesia», materie = figlie di una classe; prima le usate più di recente.
@@ -999,6 +1353,7 @@ public sealed class DriveSync : IDisposable
         if (confirmOpenElsewhere != null && LockOf(meta) is { } lk && !confirmOpenElsewhere(lk)) throw new OperationCanceledException();
 
         if (e == null) _data.Files[id] = e = new DriveSyncEntry();
+        AdoptLinks(e, meta);
         e.DriveName = meta.Name;
         e.ParentId = meta.Parents?.FirstOrDefault();
         e.ModifiedTime = meta.ModifiedTime;
@@ -1040,12 +1395,27 @@ public sealed class DriveSync : IDisposable
         $"«{e?.Title ?? "Il blocco appunti"}» non c'è più su Google Drive: è stato eliminato o spostato nel cestino.",
         hasCache && e?.Pending == true);
 
-    /// <summary>Nel cestino di Drive (le cartelle no: §2.2), poi via dalla cache. Senza rete non si elimina.</summary>
-    public async Task TrashAsync(string id, CancellationToken ct)
+    /// <summary>
+    /// Nel cestino di Drive (le cartelle no: §2.2), poi via dalla cache. Con <paramref name="classPdfId"/> anche il PDF
+    /// per la classe (se il docente l'ha chiesto); altrimenti il PDF resta, col suo link. Senza rete non si elimina.
+    /// </summary>
+    public async Task TrashAsync(string id, CancellationToken ct, string? classPdfId = null)
     {
-        RuntimeOf(id).Blocked = true; // niente caricamenti nel frattempo
+        var rt = RuntimeOf(id);
+        rt.Blocked = rt.PdfBlocked = true; // niente caricamenti nel frattempo
         try
         {
+            if (classPdfId != null)
+            {
+                try
+                {
+                    await _client.TrashAsync(classPdfId, ct);
+                }
+                catch (DriveException ex) when (ex.Status == 404)
+                {
+                    // già sparito
+                }
+            }
             await _client.TrashAsync(id, ct);
         }
         catch (DriveException ex) when (ex.Status == 404)
@@ -1054,7 +1424,7 @@ public sealed class DriveSync : IDisposable
         }
         catch
         {
-            RuntimeOf(id).Blocked = false;
+            rt.Blocked = rt.PdfBlocked = false;
             throw;
         }
         Forget(id);
@@ -1068,6 +1438,7 @@ public sealed class DriveSync : IDisposable
         _release.Remove(id);
         if (_openId == id) _openId = null;
         try { File.Delete(CachePath(id)); } catch { /* resta: nessuno la usa più */ }
+        try { File.Delete(ClassPdfCachePath(id)); } catch { /* idem */ }
         SaveData(_folder, _data);
     }
 
@@ -1078,10 +1449,11 @@ public sealed class DriveSync : IDisposable
     public long ClearCache(string? keepId)
     {
         long freed = 0;
-        foreach (var file in Directory.EnumerateFiles(_folder, "*" + NotebookStore.Extension))
+        foreach (var file in CacheFiles())
         {
             var id = Path.GetFileNameWithoutExtension(file);
-            if (id == keepId || Entry(id)?.Pending == true) continue;
+            if (id == keepId || (file.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) ? Entry(id)?.ClassPdfPending : Entry(id)?.Pending) == true)
+                continue;
             try
             {
                 var len = new FileInfo(file).Length;
@@ -1097,14 +1469,17 @@ public sealed class DriveSync : IDisposable
     }
 
     /// <summary>Byte occupati dalla cache di questo account.</summary>
-    public long CacheSize() =>
-        Directory.EnumerateFiles(_folder, "*" + NotebookStore.Extension).Sum(f => new FileInfo(f).Length);
+    public long CacheSize() => CacheFiles().Sum(f => new FileInfo(f).Length);
 
-    /// <summary>Dopo «Esci»: cancella la cartella dell'account se non ci sono modifiche da caricare.</summary>
+    /// <summary>Copie in cache dei blocchi e dei loro PDF per la classe.</summary>
+    List<string> CacheFiles() =>
+        Directory.EnumerateFiles(_folder, "*" + NotebookStore.Extension).Concat(Directory.EnumerateFiles(_folder, "*.pdf")).ToList();
+
+    /// <summary>Dopo «Esci»: cancella la cartella dell'account se non ci sono modifiche (o PDF) da caricare.</summary>
     public static void DeleteAccountCache(string email)
     {
         var folder = AccountFolder(email);
-        if (!Directory.Exists(folder) || LoadData(folder).Files.Values.Any(e => e.Pending)) return;
+        if (!Directory.Exists(folder) || LoadData(folder).Files.Values.Any(e => e.Pending || e.ClassPdfPending)) return;
         try { Directory.Delete(folder, recursive: true); } catch { /* file in uso: resta */ }
     }
 

@@ -47,6 +47,12 @@ public interface IDriveClient
     Task<List<DriveFile>> ListAsync(string q, CancellationToken ct);
 
     Task<DriveFile> TrashAsync(string id, CancellationToken ct);
+
+    /// <summary>Solo il nome (il PDF per la classe segue il blocco): ID, cartella e link restano.</summary>
+    Task<DriveFile> RenameAsync(string id, string name, CancellationToken ct);
+
+    /// <summary>Lettura per chi, nel dominio, ha il link (il file non compare nelle ricerche degli altri).</summary>
+    Task ShareWithDomainAsync(string id, string domain, CancellationToken ct);
 }
 
 /// <summary>Chiamate essenziali alle API di Drive v3 con HttpClient (niente librerie esterne).</summary>
@@ -154,6 +160,21 @@ public sealed class DriveApi : IDriveClient
         var body = new JsonObject { ["type"] = "domain", ["domain"] = domain, ["role"] = "reader", ["allowFileDiscovery"] = false };
         using var _ = await SendAsync(HttpMethod.Post, $"{Api}/{id}/permissions?sendNotificationEmail=false", () => Json(body), ct);
     }
+
+    /// <summary>Le condivisioni di un file (per le prove): tipo, dominio, ruolo, «si trova cercando».</summary>
+    public async Task<List<(string Type, string? Domain, string Role, bool? Discoverable)>> PermissionsAsync(string id, CancellationToken ct)
+    {
+        using var r = await SendAsync(HttpMethod.Get,
+            $"{Api}/{id}/permissions?fields={Uri.EscapeDataString("permissions(type,domain,role,allowFileDiscovery)")}", null, ct);
+        var json = JsonNode.Parse(await r.Content.ReadAsStringAsync(ct));
+        return json?["permissions"] is JsonArray list
+            ? list.Select(p => (p!["type"]?.GetValue<string>() ?? "", p["domain"]?.GetValue<string>(), p["role"]?.GetValue<string>() ?? "",
+                p["allowFileDiscovery"]?.GetValue<bool>())).ToList()
+            : new();
+    }
+
+    public Task<DriveFile> RenameAsync(string id, string name, CancellationToken ct) =>
+        SendFileAsync(HttpMethod.Patch, $"{Api}/{id}?fields={Fields}", () => Json(new JsonObject { ["name"] = name }), ct);
 
     /// <summary>Nel cestino (non cancellato: si recupera da Drive per 30 giorni).</summary>
     public Task<DriveFile> TrashAsync(string id, CancellationToken ct) =>

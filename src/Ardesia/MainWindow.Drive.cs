@@ -29,15 +29,20 @@ public partial class MainWindow
     {
         Action<string> onStatus = id =>
         {
-            if (id == _driveId) UpdateDriveStatus();
+            if (id != _driveId) return;
+            UpdateDriveStatus();
+            SyncClassPdfId(); // il PDF per la classe può essere appena nato su Drive
         };
         DriveSync.StatusChanged += onStatus;
         Action<DriveFork> onForked = OnDriveForked;
         DriveSync.Forked += onForked;
+        Action<string, string> onShareRefused = OnClassPdfShareRefused;
+        DriveSync.ClassPdfShareRefused += onShareRefused;
         Closed += (_, _) =>
         {
             DriveSync.StatusChanged -= onStatus;
             DriveSync.Forked -= onForked;
+            DriveSync.ClassPdfShareRefused -= onShareRefused;
         };
         // «Conflitto: salvata una copia» nella barra: clic → spiegazione
         StatusText.MouseLeftButtonUp += (_, _) =>
@@ -71,6 +76,7 @@ public partial class MainWindow
             _settings.Save();
             UpdateTitle();
             UpdateDriveStatus();
+            SyncClassPdfId();
         }
         if (_exitingDrive) _exitDriveNotes.Add(f.Message);
         else
@@ -146,6 +152,7 @@ public partial class MainWindow
     {
         if (_driveId == null || DriveSync.Current?.Entry(_driveId) is not { } e) return;
         if (!e.Pending && e.Title.Length > 0 && DriveSync.SafeName(_nb.Title) != e.Title) _nb.Title = e.Title;
+        SyncClassPdfId();
         UpdateDriveStatus();
         if (r?.Warning != null)
         {
@@ -180,11 +187,63 @@ public partial class MainWindow
             flushed = false;
         }
         foreach (var note in _exitDriveNotes)
-            MessageBox.Show(this, note, "Ardesia – Conflitto su Google Drive", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show(this, note, "Ardesia – Google Drive", MessageBoxButton.OK, MessageBoxImage.Information);
         if (!flushed && sync.HasPending)
             MessageBox.Show(this,
                 "Le ultime modifiche sono salvate su questo PC ma non ancora su Google Drive. Verranno caricate la prossima " +
                 "volta che apri Ardesia su questo PC.", "Ardesia", MessageBoxButton.OK, MessageBoxImage.Warning);
+    }
+
+    // ───────────── PDF per la classe su Drive (fase 4, §6) ─────────────
+
+    /// <summary>Il PDF per la classe di un blocco su Drive si fa in cache, accanto alla copia del blocco; null se è spento.</summary>
+    string? DriveClassPdfFile() => _nb.ClassPdfDisabled || _path == null ? null : DriveSync.ClassPdfFileFor(_path);
+
+    /// <summary>Vero se il blocco su Drive ha già il suo PDF su Drive (allora senza modifiche non si rifà).</summary>
+    bool DriveClassPdfExists() => _driveId != null && DriveSync.Current?.Entry(_driveId)?.ClassPdfId != null;
+
+    /// <summary>PDF rifatto: va su Drive nella coda, dopo il blocco, sempre nello stesso file (il link non cambia).</summary>
+    void DriveClassPdfWritten()
+    {
+        if (_path == null) return;
+        if (_driveId != null) DriveSync.Current?.UploadSoon(_driveId); // prima il blocco, poi il PDF
+        DriveSync.NotifyClassPdf(_path);
+        StatusText.Text = $"PDF per la classe rifatto alle {DateTime.Now:HH:mm}: va su Google Drive";
+        StatusText.ToolTip = "Ardesia lo carica su Google Drive accanto al blocco appunti, sempre nello stesso file: il link per gli alunni non cambia.";
+    }
+
+    /// <summary>
+    /// Nel blocco si tiene l'ID del suo PDF su Drive (<see cref="Models.Notebook.ClassPdfDriveId"/>), preso da quello
+    /// che sa Drive. La copia nata da un conflitto porta l'ID del PDF del blocco originale: il PDF resta a quello
+    /// (docs/google-drive.md §6), quindi per la copia si spegne (il docente può riaccenderlo: avrà un PDF suo).
+    /// </summary>
+    void SyncClassPdfId()
+    {
+        if (_exitingDrive || _driveId == null || DriveSync.Current?.Entry(_driveId) is not { } e) return;
+        if (e.ClassPdfId == null && e.ConflictCopyOf != null && _nb.ClassPdfDriveId != null)
+        {
+            _nb.ClassPdfDriveId = null;
+            _nb.ClassPdfDisabled = true;
+        }
+        else if (e.ClassPdfId != null && _nb.ClassPdfDriveId != e.ClassPdfId)
+            _nb.ClassPdfDriveId = e.ClassPdfId;
+        else
+            return;
+        // si salva col blocco, ma il contenuto non è cambiato: il PDF non va rifatto per questo
+        var stale = _classPdfStale;
+        SetDirty();
+        _classPdfStale = stale;
+    }
+
+    /// <summary>Condivisione col dominio rifiutata (impostazioni dell'amministratore): avviso chiaro, una volta.</summary>
+    void OnClassPdfShareRefused(string id, string message)
+    {
+        if (_exitingDrive) _exitDriveNotes.Add(message);
+        else
+            Dispatcher.BeginInvoke(() =>
+            {
+                if (IsVisible) MessageBox.Show(this, message, "Ardesia – PDF per la classe", MessageBoxButton.OK, MessageBoxImage.Warning);
+            });
     }
 
     /// <summary>Dopo ogni salvataggio della copia in cache: il blocco va in coda per Drive.</summary>
@@ -229,7 +288,11 @@ public partial class MainWindow
     {
         if (DriveSync.Current is not { } sync) return;
         string? startMessage = null;
-        var dlg = new DriveBrowserWindow(sync, _driveId) { Owner = this, Delete = n => DeleteDriveNotebook(n.Id, n.Title, m => startMessage = m) };
+        var dlg = new DriveBrowserWindow(sync, _driveId)
+        {
+            Owner = this,
+            Delete = n => DeleteDriveNotebook(n.Id, n.Title, m => startMessage = m, n.ClassPdfId),
+        };
         if (dlg.ShowDialog() != true)
         {
             // eliminato il blocco aperto: la schermata iniziale solo ora che l'elenco è chiuso
@@ -248,8 +311,9 @@ public partial class MainWindow
     /// <summary>
     /// «Elimina il blocco appunti…» (§2.2). Se è quello aperto, si chiude: dopo l'eliminazione si torna alla schermata
     /// iniziale (subito, oppure la mostra <paramref name="showStartLater"/> quando la finestra che ha chiesto è chiusa).
+    /// Se c'è un PDF per la classe si chiede anche di quello.
     /// </summary>
-    bool DeleteDriveNotebook(string id, string title, Action<string>? showStartLater = null)
+    bool DeleteDriveNotebook(string id, string title, Action<string>? showStartLater = null, string? classPdfId = null)
     {
         if (DriveSync.Current is not { } sync) return false;
         bool isOpen = id == _driveId;
@@ -258,7 +322,7 @@ public partial class MainWindow
             Editor.Flush();
             if (_dirty) Save(quiet: true);
         }
-        if (!DriveUi.ConfirmAndTrash(this, sync, id, title)) return false;
+        if (!DriveUi.ConfirmAndTrash(this, sync, id, title, classPdfId ?? (isOpen ? _nb.ClassPdfDriveId : null))) return false;
         _settings.RecentFiles.RemoveAll(p => DriveIdOf(p) == id);
         if (_settings.LastFile is { } last && DriveIdOf(last) == id) _settings.LastFile = null;
         _settings.Save();

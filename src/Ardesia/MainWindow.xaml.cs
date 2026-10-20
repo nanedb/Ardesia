@@ -304,9 +304,9 @@ public partial class MainWindow : Window
     /// </summary>
     string? UpdateClassPdf(bool force = false)
     {
-        if (_driveId != null) return null; // per i blocchi su Drive il PDF per la classe arriva con la fase 4
-        if (_nb.ClassPdfFile(_path) is not { } pdf) return null;
-        if (!force && !_classPdfStale && File.Exists(pdf)) return null;
+        // blocco su Drive: il PDF si fa accanto alla copia in cache e va su Drive nella coda (§6)
+        if ((_driveId != null ? DriveClassPdfFile() : _nb.ClassPdfFile(_path)) is not { } pdf) return null;
+        if (!force && !_classPdfStale && (File.Exists(pdf) || DriveClassPdfExists())) return null;
         var dir = Path.GetDirectoryName(pdf);
         if (dir == null || !Directory.Exists(dir))
         {
@@ -327,6 +327,7 @@ public partial class MainWindow : Window
             _classPdfStale = false;
             StatusText.Text = $"PDF per la classe aggiornato alle {DateTime.Now:HH:mm}";
             StatusText.ToolTip = pdf;
+            if (_driveId != null) DriveClassPdfWritten();
             return null;
         }
         catch (Exception ex)
@@ -343,12 +344,6 @@ public partial class MainWindow : Window
 
     void ClassPdfSettings()
     {
-        if (_driveId != null)
-        {
-            MessageBox.Show(this, "Per i blocchi appunti su Google Drive il PDF per la classe arriverà con un prossimo aggiornamento di Ardesia.",
-                "Ardesia", MessageBoxButton.OK, MessageBoxImage.Information);
-            return;
-        }
         if (_path == null)
         {
             MessageBox.Show(this, "Salva prima il blocco appunti.", "Ardesia", MessageBoxButton.OK, MessageBoxImage.Information);

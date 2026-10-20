@@ -179,7 +179,7 @@ public sealed class DriveBrowserWindow : Window
     void DeleteSelected()
     {
         if (Selected is not { } n) return;
-        if (!(Delete ?? (x => DriveUi.ConfirmAndTrash(this, _sync, x.Id, x.Title)))(n)) return;
+        if (!(Delete ?? (x => DriveUi.ConfirmAndTrash(this, _sync, x.Id, x.Title, x.ClassPdfId)))(n)) return;
         if (n.Id == _openId)
         {
             // eliminato il blocco aperto: l'elenco si chiude, poi chi l'ha aperto mostra la schermata iniziale
@@ -207,21 +207,27 @@ public static class DriveUi
         bytes < 1024 * 1024 ? $"{Math.Max(1, bytes / 1024)} kB" : $"{bytes / (1024.0 * 1024):0.0} MB";
 
     /// <summary>
-    /// Eliminare un blocco (§2.2): va nel cestino di Drive, le cartelle restano. Il pulsante predefinito è quello che
-    /// non cancella. Senza rete non si elimina. Vero se è andato nel cestino.
+    /// Eliminare un blocco (§2.2): va nel cestino di Drive, le cartelle restano. Se ha un PDF per la classe si chiede se
+    /// eliminare anche quello. Il pulsante predefinito è quello che non cancella. Senza rete non si elimina. Vero se è
+    /// andato nel cestino.
     /// </summary>
-    public static bool ConfirmAndTrash(Window owner, DriveSync sync, string id, string title)
+    public static bool ConfirmAndTrash(Window owner, DriveSync sync, string id, string title, string? classPdfId = null)
     {
         if (MessageBox.Show(owner,
                 $"Eliminare il blocco appunti «{title}»?\n\nVa nel cestino di Google Drive: lo puoi recuperare da lì per 30 giorni. " +
                 "Le cartelle di classe e materia restano.\n\nSì = elimina    No = annulla",
                 "Ardesia – Elimina", MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No) != MessageBoxResult.Yes)
             return false;
+        classPdfId = sync.Entry(id)?.ClassPdfId ?? classPdfId;
+        bool withPdf = classPdfId != null && MessageBox.Show(owner,
+            "Eliminare anche il PDF per la classe? Gli alunni che hanno il link non potranno più aprirlo.\n\n" +
+            "Sì = elimina anche il PDF    No = tieni il PDF",
+            "Ardesia – PDF per la classe", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) == MessageBoxResult.Yes;
         try
         {
             BusyDialog.Run(owner, $"Sposto «{title}» nel cestino di Google Drive…", async (_, ct) =>
             {
-                await sync.TrashAsync(id, ct);
+                await sync.TrashAsync(id, ct, withPdf ? classPdfId : null);
                 return true;
             });
             return true;

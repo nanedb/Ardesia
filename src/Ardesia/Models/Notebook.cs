@@ -47,6 +47,12 @@ public class Notebook : ObservableObject
     public string? ClassPdfFile(string? notebookPath) =>
         ClassPdfDisabled ? null : ClassPdfPath ?? (notebookPath != null ? Path.ChangeExtension(notebookPath, ".pdf") : null);
 
+    /// <summary>
+    /// Blocco su Google Drive: ID del suo PDF per la classe su Drive (§6 di docs/google-drive.md), sempre lo stesso, così
+    /// il link per gli alunni non cambia. Lo tiene aggiornato Ardesia da quello che sa Drive.
+    /// </summary>
+    public string? ClassPdfDriveId { get; set; }
+
     /// <summary>Sezioni escluse dal PDF per la classe (con le loro sottosezioni), es. le verifiche.</summary>
     public List<Guid> ClassPdfExcluded { get; set; } = new();
 

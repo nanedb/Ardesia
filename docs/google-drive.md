@@ -1,7 +1,8 @@
 # Blocchi appunti su Google Drive (senza Drive per desktop) – piano
 
 Stato: **fase 1 (accesso) fatta il 19/10/2026, rilasciata nella 0.6.0 (20/10/2026)**; **fase 2 (Drive di base) scritta e
-provata il 20/10/2026**; **fase 3 (robustezza) scritta il 20/10/2026**; da rilasciare insieme alla fase 4. Per il PDF condiviso (fase 4) si aspettano gli account
+provata il 20/10/2026**; **fase 3 (robustezza) scritta il 20/10/2026**; **fase 4 (PDF per la classe su Drive) scritta il
+20/10/2026**; le fasi 2–4 escono insieme. Per provare il link del PDF con un alunno vero si aspettano gli account
 `@liceofoscarini.it` degli alunni (l'amministratore li sta creando).
 Domande aperte risolte.
 
@@ -52,7 +53,7 @@ crea/elenca/aggiorna/scarica un file col tipo di Ardesia, condivisione col domin
   Blocco nel cestino / 404 → `DriveGoneException` (via da recenti e cache; con modifiche non caricate si offre una
   copia sul computer). **Rinomina** (scelta dell'utente 20/10/2026): il nome nuovo va su Drive col caricamento.
   **Eliminare** (scelta dell'utente 20/10/2026, già in fase 2): cestino di Drive, cartelle mai; la domanda sul PDF
-  arriva con la fase 4.
+  è arrivata con la fase 4.
 - Interfaccia: `NewDriveNotebookDialog` (classe e materia scritte a mano, quelle già usate come pulsanti, nome proposto
   modificabile, percorso su Drive mostrato sotto, «Crea invece sul computer…»), `DriveBrowserWindow` («Apri da
   Drive…»: cerca, Apri, Elimina…, Nuovo…, con la frase sui blocchi di `G:`), `Controls/BusyDialog` (attesa con
@@ -67,8 +68,8 @@ crea/elenca/aggiorna/scarica un file col tipo di Ardesia, condivisione col domin
   se serve); se non si è collegati la schermata iniziale dice di accedere.
 - Il codice di `MainWindow` per Drive è in `MainWindow.Drive.cs`; in `MainWindow.xaml.cs` solo agganci piccoli
   (`_path` resta la copia in cache, quindi salvataggio automatico, di emergenza e `NotebookStore` non cambiano).
-- **PDF per la classe**: per i blocchi su Drive non si crea fino alla fase 4 (scelta dell'utente 20/10/2026); le
-  impostazioni del blocco lo dicono.
+- **PDF per la classe**: per i blocchi su Drive non si creava fino alla fase 4 (scelta dell'utente 20/10/2026); fatto
+  nella fase 4 (sotto).
 - «Esci da Google» (barra e Impostazioni): salva, carica la coda con l'attesa e «Esci senza aspettare» (se resta
   qualcosa chiede conferma: resta su questo PC e si carica quando si rientra), revoca, chiude il blocco su Drive
   aperto, cancella la cache dell'account se non restano modifiche.
@@ -136,6 +137,49 @@ crea/elenca/aggiorna/scarica un file col tipo di Ardesia, condivisione col domin
   finte). Blocchi di prova cestinati; restano le cartelle `Ardesia/PROVA/…` e il blocco «prova Prova-2 26-27».
 - Corretto (difetto della fase 2 visto nelle prove): eliminando il blocco aperto da «Apri da Drive…», l'elenco si
   chiude e solo dopo compare la schermata iniziale (prima compariva sopra l'elenco ancora aperto). Provato dal vivo.
+
+**Fase 4 (PDF per la classe su Drive) scritta il 20/10/2026** (ramo `claude/google-drive-fase-4-fb0f18`, parte dalla fase 3):
+- Il PDF si fa come prima (`PdfExporter`, in `ConfirmClose`, solo se ci sono modifiche, o con «Aggiorna ora»), ma per un
+  blocco su Drive va in cache accanto alla copia del blocco (`…\Drive\{account}\{fileId}.pdf`) e `DriveSync.NotifyClassPdf`
+  lo mette nella **stessa coda**, **dopo** il blocco (così è fatto con la versione caricata). Senza modifiche e con il PDF
+  già su Drive non si rifà. Mai a ogni salvataggio automatico.
+- `DriveSync.ClassPdfAsync`: la prima volta crea `{nome del blocco}.pdf` nella cartella del blocco (appProperty `pdfDi` =
+  ID del blocco), lo **lega al blocco** (appProperty `pdfClasse` = ID del PDF, sul file del blocco: così un altro PC lo
+  ritrova invece di crearne un altro) e lo **condivide** (`permissions.create`: dominio `liceofoscarini.it`, lettura,
+  `allowFileDiscovery=false`). Poi aggiorna **sempre lo stesso file** (stesso ID, stesso link). In `sync.json` per ogni
+  blocco: `ClassPdfId`, nome, legato, condiviso, errore di condivisione, «da caricare», ultimo caricamento, errore.
+  Nel blocco (`notebook.json`) c'è `ClassPdfDriveId`, tenuto uguale a quello che sa Drive (`MainWindow.SyncClassPdfId`).
+- **Condivisione rifiutata** (amministratore): il PDF resta caricato, evento `DriveSync.ClassPdfShareRefused` → un avviso
+  una volta («condividilo a mano: Apri il PDF su Drive › Condividi › Accesso generale › liceofoscarini.it»), lo stesso
+  scritto in rosso nelle impostazioni del blocco; niente nuovi tentativi automatici.
+- **Rinomina**: cambiato il nome del blocco, dopo il caricamento del blocco si rinomina anche il PDF (`RenameAsync`, solo
+  metadati); ID, cartella e link restano. Anche col PDF spento.
+- **PDF cestinato o cancellato dal sito di Drive**: al prossimo aggiornamento se ne crea uno nuovo (link nuovo) e si
+  rilega al blocco.
+- **Spento** per un blocco (Impostazioni › Questo blocco appunti): non si aggiorna più, ma il PDF su Drive resta.
+- **Impostazioni › Questo blocco appunti › PDF per la classe** (`Controls/ClassPdfPanel`, anche in «PDF per la classe…»)
+  per un blocco su Drive: niente percorso del file; stato («Su Google Drive, aggiornato oggi alle 10:32», «da caricare»,
+  «non c'è ancora»…), «**Copia il link per gli alunni**» (`https://drive.google.com/file/d/{id}/view`), «**Apri il PDF su
+  Drive**», nota sul link fisso o sulla condivisione rifiutata. Si aggiorna da sé mentre è aperta. Tolti i messaggi
+  «arriverà con un prossimo aggiornamento».
+- **Eliminare** (§2.2): dopo la prima domanda, se il blocco ha un PDF (da `sync.json`, dall'elenco di Drive o dal blocco
+  aperto): «Eliminare anche il PDF per la classe? Gli alunni che hanno il link non potranno più aprirlo.» Sì = elimina
+  anche il PDF, No = tieni il PDF (**predefinito**). Il PDF va nel cestino prima del blocco; le cartelle mai.
+- **Conflitti** (scelta mia, ragionevole; da confermare con l'utente): il PDF **resta legato al blocco originale**. La
+  copia «(modifiche da …)» nasce senza `pdfClasse` e con `copiaDi` = ID dell'originale; un PDF rifatto qui con le
+  modifiche della copia **non** si carica sul PDF dell'originale (si scarta), perché ormai l'originale è la versione
+  dell'altro PC, che aggiornerà il PDF quando chiude. Aprendo la copia, il suo `ClassPdfDriveId` (ereditato) si toglie e
+  **il PDF per la copia si spegne**, una volta sola: il docente può riaccenderlo (avrà un PDF suo, con un link nuovo).
+  Il messaggio del conflitto lo dice. Motivo: gli alunni hanno il link dell'originale; un secondo PDF condiviso per la
+  copia, con un link che nessuno ha, sarebbe solo confusione.
+- Alla chiusura (`FinishDriveOnExit`) la coda carica anche il PDF (`HasWork`, byte nel «Carico su Google Drive… (…)»);
+  «Esci da Google» e «Svuota la cache» tengono i PDF da caricare.
+- Prove: `--prova-drive --finto` ora 49 prove (fase 4: creato accanto al blocco e legato, condiviso col dominio, link,
+  aggiornato nello stesso file dopo il blocco, rinomina, un altro PC lo ritrova e lo aggiorna, l'elenco sa del PDF,
+  condivisione rifiutata con un solo avviso, PDF cestinato dal sito → nuovo, conflitto, eliminazione tenendo o eliminando
+  il PDF). La parte vera crea un PDF vero (`PdfExporter`), controlla nome, cartella, legame e condivisione
+  (`DriveApi.PermissionsAsync`), lo aggiorna (stesso ID, revisione nuova), lo rinomina col blocco, controlla che nel
+  conflitto resti all'originale e alla fine cestina blocco e PDF.
 
 ### Scelte dell'utente (17/10/2026)
 
@@ -430,6 +474,7 @@ Oggi il PDF va accanto al file; se il file è su Drive per desktop, Drive lo car
   gli alunni**» (da incollare su Classroom), «Apri il PDF su Drive», stato dell'ultimo aggiornamento.
 - Nel blocco si salva l'ID del PDF su Drive (`ClassPdfDriveId`), come oggi `ClassPdfPath`.
 - Per i blocchi locali non cambia nulla.
+- Fatto nella fase 4 (vedi in cima, anche per i conflitti: il PDF resta al blocco originale).
 
 ## 7. Interfaccia
 
@@ -492,8 +537,8 @@ quella finta. `DriveBrowserWindow` e `NewDriveNotebookDialog` sono scritte in co
    coda di caricamento, download all'apertura, recenti, stato nella barra, `--prova-drive`.
 3. **Robustezza** (*scritta il 20/10/2026*, vedi in cima): senza rete, conflitti («tieni entrambi»), lucchetto morbido, chiusura con coda.
    *Prima di usarlo con le classi servono le fasi 1–4 insieme* (il PDF su Drive è ciò che leggono gli alunni a casa).
-4. **PDF per la classe su Drive**, accanto al blocco, condivisione automatica col dominio, «Copia il link»,
-   rinomina insieme al blocco.
+4. **PDF per la classe su Drive** (*scritta il 20/10/2026*, vedi in cima), accanto al blocco, condivisione automatica col
+   dominio, «Copia il link», rinomina insieme al blocco.
 5. **In seguito, se servirà**: unione per pagina nei conflitti, «versioni precedenti» dalle revisioni di Drive,
    modalità «PC condiviso», configurazione per altre scuole.
 

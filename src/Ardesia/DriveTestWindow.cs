@@ -15,7 +15,8 @@ namespace Ardesia;
 /// memoria (DriveSelfTest), poi con l'account vero nella cartella «Ardesia» vera (scelta dell'utente): crea un blocco
 /// in Ardesia/PROVA/Prova, lo carica, lo rinomina, lo riscarica, prova il caricamento riprendibile, lo trova
 /// nell'elenco; fase 3: lucchetto scritto e tolto, conflitto con un «altro PC» simulato caricando direttamente con
-/// DriveApi (copia «modifiche da …» nella stessa cartella). Alla fine blocco e copia vanno nel cestino (le cartelle restano). Se non si è collegati si apre il browser.
+/// DriveApi (copia «modifiche da …» nella stessa cartella); fase 4: PDF per la classe accanto al blocco, condiviso
+/// col dominio, aggiornato nello stesso file e rinominato col blocco. Alla fine blocco, PDF e copia vanno nel cestino (le cartelle restano). Se non si è collegati si apre il browser.
 /// La cache della prova è in una cartella temporanea, non in quella vera. Codice d'uscita 1 se qualcosa non va.
 /// </summary>
 public sealed class DriveTestWindow : Window
@@ -44,7 +45,7 @@ public sealed class DriveTestWindow : Window
         head.Children.Add(new TextBlock { Text = "Prova di Google Drive", FontSize = 22, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 6) });
         head.Children.Add(new TextBlock
         {
-            Text = "Prima con un Drive finto, poi con il tuo account: un blocco di prova in Ardesia › PROVA › Prova, che alla fine va nel " +
+            Text = "Prima con un Drive finto, poi con il tuo account: un blocco di prova (col suo PDF per la classe) in Ardesia › PROVA › Prova, che alla fine va nel " +
                    "cestino di Drive. Le cartelle PROVA e Prova restano: cancellale dal sito di Drive quando vuoi.",
             TextWrapping = TextWrapping.Wrap,
             Foreground = Brushes.DimGray,
@@ -125,7 +126,7 @@ public sealed class DriveTestWindow : Window
         Log(null, "Seconda parte: il tuo Google Drive");
         var folder = Path.Combine(Path.GetTempPath(), "ardesia-prova-drive-vera-" + Guid.NewGuid().ToString("N")[..8]);
         DriveSync? sync = null;
-        string? id = null, copyId = null;
+        string? id = null, copyId = null, pdfId = null;
         try
         {
             var g = GoogleAccountService.Current;
@@ -169,6 +170,40 @@ public sealed class DriveTestWindow : Window
             await sync.FlushAsync(TimeSpan.FromSeconds(60));
             after = await api.GetAsync(id, CancellationToken.None);
             Log(after.Name == renamed + NotebookStore.Extension, "Rinomina su Drive col caricamento", after.Name);
+
+            // ── fase 4: PDF per la classe accanto al blocco, condiviso col dominio, aggiornato nello stesso file ──
+            static async Task MakePdfAsync(DriveSync s, string nb)
+            {
+                var book = NotebookStore.Load(s.CachePath(nb));
+                PdfExporter.Export(book, book.ClassPdfPages().ToList(), s.ClassPdfCachePath(nb), book.Title);
+                s.ClassPdfChanged(nb);
+                await s.FlushAsync(TimeSpan.FromSeconds(60));
+            }
+            await MakePdfAsync(sync, id);
+            pdfId = sync.Entry(id)!.ClassPdfId;
+            if (pdfId == null) throw new Exception("Il PDF per la classe non è stato creato: " + sync.Entry(id)!.ClassPdfError);
+            var pdfMeta = await api.GetAsync(pdfId, CancellationToken.None);
+            var nbMeta = await api.GetAsync(id, CancellationToken.None);
+            Log(pdfMeta.Name == renamed + ".pdf" && pdfMeta.MimeType == DriveSync.PdfMime && pdfMeta.Parents?[0] == meta.Parents[0]
+                && nbMeta.AppProperties?.GetValueOrDefault(DriveSync.ClassPdfKey) == pdfId,
+                "PDF per la classe caricato accanto al blocco, con lo stesso nome", $"{pdfMeta.Name} ({DriveUi.Size(pdfMeta.Size ?? 0)})");
+            var perms = await api.PermissionsAsync(pdfId, CancellationToken.None);
+            Log(perms.Any(p => p is { Type: "domain", Domain: GoogleClientConfig.SchoolDomain, Role: "reader", Discoverable: false }),
+                $"Condiviso con {GoogleClientConfig.SchoolDomain} (lettura, solo con il link)",
+                string.Join("; ", perms.Select(p => $"{p.Type} {p.Domain} {p.Role}{(p.Discoverable == false ? ", non cercabile" : "")}"))
+                + (sync.Entry(id)!.ClassPdfShareError is { } shareError ? $" – rifiutata: {shareError}" : ""));
+            DriveSelfTest.Modify(sync.CachePath(id), "Lezione per il PDF");
+            sync.Changed(id, renamed);
+            await sync.FlushAsync(TimeSpan.FromSeconds(60));
+            await MakePdfAsync(sync, id);
+            var pdfAgain = await api.GetAsync(pdfId, CancellationToken.None);
+            Log(sync.Entry(id)!.ClassPdfId == pdfId && pdfAgain.HeadRevisionId != pdfMeta.HeadRevisionId && !pdfAgain.Trashed,
+                "PDF aggiornato nello stesso file (stesso link)", DriveSync.ClassPdfLinkOf(pdfId));
+            renamed = title + " rinominato due volte";
+            sync.Changed(id, renamed);
+            await sync.FlushAsync(TimeSpan.FromSeconds(60));
+            pdfAgain = await api.GetAsync(pdfId, CancellationToken.None);
+            Log(pdfAgain.Name == renamed + ".pdf", "Rinomina del blocco: rinominato anche il PDF", pdfAgain.Name);
 
             File.Delete(sync.CachePath(id));
             var opened = await sync.OpenAsync(id, null, CancellationToken.None);
@@ -229,6 +264,9 @@ public sealed class DriveTestWindow : Window
                     && origMeta.AppProperties?.GetValueOrDefault(DriveSync.LockPcKey) == "ALTRO-PC-PROVA"
                     && sync.Status(copyId).State == DriveSyncState.Conflict,
                     "Si continua sulla copia (col lucchetto); stato «Conflitto: salvata una copia»", sync.Status(copyId).Text);
+                Log(copyMeta.AppProperties?.ContainsKey(DriveSync.ClassPdfKey) != true && copyMeta.AppProperties?.GetValueOrDefault(DriveSync.CopyOfKey) == id
+                    && origMeta.AppProperties?.GetValueOrDefault(DriveSync.ClassPdfKey) == pdfId,
+                    "Il PDF per la classe resta legato al blocco originale, non alla copia");
 
                 listing = await sync.ListAsync(none);
                 DriveLock? asked = null;
@@ -268,13 +306,15 @@ public sealed class DriveTestWindow : Window
             Log(found is { Class: "PROVA", Subject: "Prova" } && listing.Classes.Contains("PROVA"),
                 "Il blocco è nell'elenco, con classe e materia", found != null ? $"{found.Title} – {found.Folder}" : "non trovato");
 
-            await sync.TrashAsync(id, CancellationToken.None);
+            await sync.TrashAsync(id, CancellationToken.None, pdfId); // «Elimina anche il PDF»
             var trashed = await api.GetAsync(id, CancellationToken.None);
+            var trashedPdf = await api.GetAsync(pdfId, CancellationToken.None);
             bool gone = false;
             try { await sync.OpenAsync(id, null, CancellationToken.None); }
             catch (DriveGoneException) { gone = true; }
-            Log(trashed.Trashed && gone, "Blocco di prova nel cestino di Drive", "Le cartelle PROVA e Prova restano (Ardesia non elimina cartelle).");
-            id = null;
+            Log(trashed.Trashed && trashedPdf.Trashed && gone, "Blocco di prova e PDF per la classe nel cestino di Drive",
+                "Le cartelle PROVA e Prova restano (Ardesia non elimina cartelle).");
+            id = pdfId = null;
         }
         catch (Exception ex)
         {
@@ -282,7 +322,7 @@ public sealed class DriveTestWindow : Window
         }
         finally
         {
-            foreach (var leftover in new[] { id, copyId })
+            foreach (var leftover in new[] { id, copyId, pdfId })
                 if (leftover != null && sync != null)
                 {
                     try { await sync.TrashAsync(leftover, CancellationToken.None); } catch { /* resta: si cancella dal sito di Drive */ }

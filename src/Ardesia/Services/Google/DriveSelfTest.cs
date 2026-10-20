@@ -318,6 +318,9 @@ public static class DriveSelfTest
             sync.RetryDelays = retry;
             sync.NetworkAvailable = () => true;
 
+            // ── fase 4: PDF per la classe su Drive ──
+            await ClassPdfTestsAsync(drive, sync, folder, Check);
+
             // ── eliminare: cestino, le cartelle restano ──
             await sync.TrashAsync(id, CancellationToken.None);
             Check(drive.Items[id].Trashed && !File.Exists(sync.CachePath(id)) && sync.Entry(id) == null
@@ -339,6 +342,147 @@ public static class DriveSelfTest
             try { Directory.Delete(folder, recursive: true); } catch { /* cartella temporanea */ }
         }
         return failures;
+    }
+
+    /// <summary>
+    /// Fase 4 (§6): PDF creato una volta accanto al blocco e poi aggiornato nello stesso file, condiviso col dominio,
+    /// rinominato col blocco, ritrovato da un altro PC, condivisione rifiutata, PDF cestinato dal sito, conflitto (il PDF
+    /// resta al blocco originale), eliminazione con e senza PDF.
+    /// </summary>
+    static async Task ClassPdfTestsAsync(FakeDrive drive, DriveSync sync, string folder, Action<bool, string, string> report)
+    {
+        void check(bool ok, string title, string detail = "") => report(ok, title, detail);
+        var none = CancellationToken.None;
+        static byte[] Pdf(string s) => System.Text.Encoding.ASCII.GetBytes("%PDF-1.4 prova " + s);
+        List<FakeDrive.Item> Pdfs() => drive.Items.Values.Where(i => i.Mime == DriveSync.PdfMime).ToList();
+        async Task NewPdf(string nb, string s)
+        {
+            File.WriteAllBytes(sync.ClassPdfCachePath(nb), Pdf(s));
+            sync.ClassPdfChanged(nb);
+            await sync.FlushAsync(TimeSpan.FromSeconds(3));
+        }
+
+        var id = await sync.CreateNotebookAsync("2BO", "Fisica", "2BO Fisica PDF", NewNotebook(), none);
+        int pdfsBefore = Pdfs().Count;
+        await NewPdf(id, "uno");
+        var pdf = Pdfs().Skip(pdfsBefore).FirstOrDefault();
+        var e = sync.Entry(id)!;
+        check(pdf != null && pdf.Name == "2BO Fisica PDF.pdf" && pdf.Parent == drive.Items[id].Parent && e.ClassPdfId == pdf.Id
+              && pdf.Data.SequenceEqual(Pdf("uno")) && drive.Items[id].Props.GetValueOrDefault(DriveSync.ClassPdfKey) == pdf.Id
+              && pdf.Props.GetValueOrDefault(DriveSync.ClassPdfOfKey) == id && !sync.HasWork,
+            "PDF per la classe creato accanto al blocco, con lo stesso nome, e legato al blocco",
+            pdf != null ? $"{pdf.Name}, pdfClasse={drive.Items[id].Props.GetValueOrDefault(DriveSync.ClassPdfKey)}" : "nessun PDF");
+        if (pdf == null) return;
+        check(pdf.Shares.SequenceEqual(new[] { "liceofoscarini.it" }) && e.ClassPdfShared,
+            "Condiviso col dominio della scuola al primo caricamento", string.Join(", ", pdf.Shares));
+        check(sync.ClassPdfStatus(id).Link == $"https://drive.google.com/file/d/{pdf.Id}/view", "Link per gli alunni", sync.ClassPdfStatus(id).Link ?? "");
+
+        // aggiornato: stesso file (stesso ID e link), dopo il blocco; niente seconda condivisione
+        Modify(sync.CachePath(id), "Lezione 2");
+        sync.Changed(id, "2BO Fisica PDF");
+        drive.Ops.Clear();
+        int rev = pdf.Rev;
+        await NewPdf(id, "due");
+        int nbUpload = drive.Ops.IndexOf("contenuto " + id), pdfUpload = drive.Ops.IndexOf("contenuto " + pdf.Id);
+        check(Pdfs().Count == pdfsBefore + 1 && pdf.Data.SequenceEqual(Pdf("due")) && pdf.Rev == rev + 1 && sync.Entry(id)!.ClassPdfId == pdf.Id
+              && pdf.Shares.Count == 1 && nbUpload >= 0 && pdfUpload > nbUpload && !sync.HasWork,
+            "PDF aggiornato nello stesso file (stesso link), dopo il blocco", string.Join(" → ", drive.Ops));
+
+        // rinomina del blocco: anche il PDF
+        sync.Changed(id, "2BO Fisica PDF / rinominato");
+        await sync.FlushAsync(TimeSpan.FromSeconds(3));
+        check(drive.Items[id].Name == "2BO Fisica PDF - rinominato.ardesia" && pdf.Name == "2BO Fisica PDF - rinominato.pdf" && !sync.HasWork,
+            "Rinomina del blocco: Drive rinomina anche il PDF (stesso ID)", pdf.Name);
+
+        // un altro PC ritrova lo stesso PDF dal blocco su Drive e lo aggiorna (non ne crea un altro)
+        var folder2 = folder + "-altro-pc";
+        var other = NewSync(drive, folder2);
+        other.MachineName = "PC-ALTRO";
+        try
+        {
+            await other.OpenAsync(id, null, none);
+            File.WriteAllBytes(other.ClassPdfCachePath(id), Pdf("tre"));
+            other.ClassPdfChanged(id);
+            await other.FlushAsync(TimeSpan.FromSeconds(3));
+            check(other.Entry(id)!.ClassPdfId == pdf.Id && Pdfs().Count == pdfsBefore + 1 && pdf.Data.SequenceEqual(Pdf("tre")) && pdf.Shares.Count == 1,
+                "Un altro PC ritrova il PDF dal blocco su Drive e aggiorna lo stesso file");
+        }
+        finally
+        {
+            other.Dispose();
+            try { Directory.Delete(folder2, recursive: true); } catch { /* cartella temporanea */ }
+        }
+        var listing = await sync.ListAsync(none);
+        check(listing.Notebooks.FirstOrDefault(n => n.Id == id)?.ClassPdfId == pdf.Id, "Nell'elenco il blocco sa del suo PDF (per eliminarlo)");
+
+        // condivisione rifiutata dall'amministratore: avviso una volta, il PDF c'è lo stesso, niente tentativi infiniti
+        var id2 = await sync.CreateNotebookAsync("2BO", "Fisica", "Senza condivisione", NewNotebook(), none);
+        var refused = new List<string>();
+        Action<string, string> onRefused = (nb, m) => refused.Add(m);
+        DriveSync.ClassPdfShareRefused += onRefused;
+        try
+        {
+            drive.ShareFailures.Enqueue(new DriveException(403, "publishOutNotPermitted", "Condivisione non permessa (finta)"));
+            await NewPdf(id2, "uno");
+            await NewPdf(id2, "due");
+        }
+        finally
+        {
+            DriveSync.ClassPdfShareRefused -= onRefused;
+        }
+        var e2 = sync.Entry(id2)!;
+        var pdf2 = e2.ClassPdfId != null ? drive.Items.GetValueOrDefault(e2.ClassPdfId) : null;
+        check(pdf2 != null && pdf2.Data.SequenceEqual(Pdf("due")) && pdf2.Shares.Count == 0 && refused.Count == 1
+              && refused[0].Contains("a mano") && e2.ClassPdfShareError != null && !sync.HasWork
+              && sync.ClassPdfStatus(id2).ShareError != null,
+            "Condivisione rifiutata: avviso chiaro una volta, PDF caricato, si condivide a mano", refused.FirstOrDefault() ?? "nessun avviso");
+
+        // PDF cestinato dal sito di Drive: al prossimo aggiornamento se ne crea uno nuovo, legato al blocco
+        pdf2!.Trashed = true;
+        await NewPdf(id2, "tre");
+        var e2b = sync.Entry(id2)!;
+        check(e2b.ClassPdfId != null && e2b.ClassPdfId != pdf2.Id && drive.Items[e2b.ClassPdfId].Data.SequenceEqual(Pdf("tre"))
+              && drive.Items[id2].Props.GetValueOrDefault(DriveSync.ClassPdfKey) == e2b.ClassPdfId && !sync.HasWork,
+            "PDF cestinato dal sito di Drive: se ne crea uno nuovo", e2b.ClassPdfId ?? "");
+
+        // conflitto: la copia non si porta via il PDF, che resta al blocco originale (con il suo contenuto)
+        DriveFork? fork = null;
+        Action<DriveFork> onFork = f => fork = f;
+        DriveSync.Forked += onFork;
+        try
+        {
+            sync.QuietDelay = TimeSpan.FromHours(1);
+            Modify(sync.CachePath(id), "Mia lezione");
+            sync.Changed(id, "2BO Fisica PDF - rinominato");
+            File.WriteAllBytes(sync.ClassPdfCachePath(id), Pdf("mia"));
+            sync.ClassPdfChanged(id);
+            drive.ChangeRemotely(id, drive.Items[id].Data, "Lezione dell'altro PC");
+            await sync.FlushAsync(TimeSpan.FromSeconds(3));
+            await WaitAsync(() => fork != null, 2000);
+        }
+        finally
+        {
+            DriveSync.Forked -= onFork;
+            sync.QuietDelay = TimeSpan.FromMilliseconds(400);
+        }
+        var copy = fork != null ? drive.Items.GetValueOrDefault(fork.NewId) : null;
+        check(copy != null && !copy.Props.ContainsKey(DriveSync.ClassPdfKey) && copy.Props.GetValueOrDefault(DriveSync.CopyOfKey) == id
+              && sync.Entry(fork!.NewId) is { ClassPdfId: null, ConflictCopyOf: var of } && of == id
+              && drive.Items[id].Props.GetValueOrDefault(DriveSync.ClassPdfKey) == pdf.Id && pdf.Data.SequenceEqual(Pdf("tre"))
+              && !File.Exists(sync.ClassPdfCachePath(id)) && Pdfs().Count(p => !p.Trashed) == pdfsBefore + 2
+              && fork.Message.Contains("PDF per la classe"),
+            "Conflitto: il PDF resta al blocco originale; la copia non ne ha e il PDF rifatto qui non lo sovrascrive",
+            copy != null ? copy.Name : "nessuna copia");
+        if (fork != null) await sync.TrashAsync(fork.NewId, none);
+
+        // eliminare il blocco tenendo il PDF, ed eliminando anche il PDF (tutto nel cestino, le cartelle restano)
+        var keptPdf = sync.Entry(id2)!.ClassPdfId!;
+        await sync.TrashAsync(id2, none);
+        check(drive.Items[id2].Trashed && !drive.Items[keptPdf].Trashed && sync.Entry(id2) == null && !File.Exists(sync.ClassPdfCachePath(id2)),
+            "Elimina il blocco e «Tieni il PDF»: il PDF resta (col suo link)");
+        await sync.TrashAsync(id, none, sync.Entry(id)!.ClassPdfId);
+        check(drive.Items[id].Trashed && pdf.Trashed && drive.Items.Values.Where(i => i.Mime == DriveApi.FolderMime).All(f => !f.Trashed),
+            "Elimina il blocco «e anche il PDF»: entrambi nel cestino, le cartelle restano");
     }
 
     static DriveSync NewSync(IDriveClient client, string folder) => new(client, folder, "prova@liceofoscarini.it")
@@ -403,10 +547,20 @@ public static class DriveSelfTest
             public bool Trashed;
             public DateTime Modified = DateTime.Now;
             public Dictionary<string, string> Props = new();
+
+            /// <summary>Domini con cui è condiviso (lettura, per chi ha il link).</summary>
+            public List<string> Shares = new();
         }
 
         public readonly Dictionary<string, Item> Items = new();
         public readonly Queue<Exception> Failures = new();
+
+        /// <summary>Errori della sola condivisione (es. rifiutata dall'amministratore).</summary>
+        public readonly Queue<Exception> ShareFailures = new();
+
+        /// <summary>Ordine dei caricamenti: «nuovo {nome}», «contenuto {id}».</summary>
+        public readonly List<string> Ops = new();
+
         public int Uploads, Downloads, UploadDelay, MetadataUpdates;
         int _next;
 
@@ -461,7 +615,24 @@ public static class DriveSelfTest
             MaybeFail();
             var it = Add(name, mimeType, parent, data);
             if (appProperties != null) Merge(it, appProperties.ToDictionary(p => p.Key, p => (string?)p.Value));
+            Ops.Add("nuovo " + name);
             return Task.FromResult(Info(it));
+        }
+
+        public Task<DriveFile> RenameAsync(string id, string name, CancellationToken ct)
+        {
+            MaybeFail();
+            var it = Find(id);
+            it.Name = name;
+            return Task.FromResult(Info(it));
+        }
+
+        public Task ShareWithDomainAsync(string id, string domain, CancellationToken ct)
+        {
+            MaybeFail();
+            if (ShareFailures.Count > 0) throw ShareFailures.Dequeue();
+            Find(id).Shares.Add(domain);
+            return Task.CompletedTask;
         }
 
         public async Task<DriveFile> UpdateContentAsync(string id, string mimeType, byte[] data, CancellationToken ct,
@@ -476,6 +647,7 @@ public static class DriveSelfTest
             if (newName != null) it.Name = newName;
             Merge(it, appProperties);
             Uploads++;
+            Ops.Add("contenuto " + id);
             progress?.Report(1);
             return Info(it);
         }

@@ -45,20 +45,18 @@ public partial class SettingsWindow : Window
         UpdateGoogle();
         Closing += (_, _) => _googleCts?.Cancel();
 
-        if (_openDriveId != null)
+        if (notebookPath != null)
         {
-            // Blocco su Google Drive: il PDF per la classe su Drive arriva con la fase 4 (docs/google-drive.md §6).
-            var d = DriveSync.Describe(notebookPath);
-            NotebookHint.Text = $"«{d?.Title}» è su Google Drive" + (d?.Folder != null ? $", nella cartella Ardesia / {d.Value.Folder}" : "") +
-                                ". Queste impostazioni sono salvate nel blocco appunti: valgono anche su un altro computer o su un'altra LIM.\n\n" +
-                                "Il PDF per la classe per i blocchi su Google Drive arriverà con un prossimo aggiornamento di Ardesia.";
-            ClassPdf.Visibility = UpdateNowButton.Visibility = ClassPdfTitle.Visibility = Visibility.Collapsed;
-            ClassPdf.IsEnabled = false;
-        }
-        else if (notebookPath != null)
-        {
-            NotebookHint.Text = $"Queste impostazioni sono salvate nel blocco appunti «{Path.GetFileName(notebookPath)}»: " +
-                                "valgono anche quando lo apri su un altro computer o su un'altra LIM.";
+            if (_openDriveId != null)
+            {
+                // Blocco su Google Drive: il PDF per la classe va su Drive, accanto al blocco (docs/google-drive.md §6).
+                var d = DriveSync.Describe(notebookPath);
+                NotebookHint.Text = $"«{d?.Title}» è su Google Drive" + (d?.Folder != null ? $", nella cartella Ardesia / {d.Value.Folder}" : "") +
+                                    ". Queste impostazioni sono salvate nel blocco appunti: valgono anche su un altro computer o su un'altra LIM.";
+            }
+            else
+                NotebookHint.Text = $"Queste impostazioni sono salvate nel blocco appunti «{Path.GetFileName(notebookPath)}»: " +
+                                    "valgono anche quando lo apri su un altro computer o su un'altra LIM.";
             ClassPdf.Load(nb, notebookPath);
             ClassPdf.BindToEnabled(UpdateNowButton);
         }
@@ -241,7 +239,9 @@ public partial class SettingsWindow : Window
             return;
         }
         _updatedWith = ClassPdfKey();
-        ClassPdf.ShowMessage($"PDF per la classe aggiornato alle {DateTime.Now:HH:mm}.", error: false);
+        ClassPdf.ShowMessage(ClassPdf.IsDrive
+            ? $"PDF per la classe rifatto alle {DateTime.Now:HH:mm}: Ardesia lo carica su Google Drive (sempre nello stesso file)."
+            : $"PDF per la classe aggiornato alle {DateTime.Now:HH:mm}.", error: false);
     }
 
     void Ok_Click(object sender, RoutedEventArgs e)
