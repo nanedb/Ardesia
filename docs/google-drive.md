@@ -121,8 +121,21 @@ crea/elenca/aggiorna/scarica un file col tipo di Ardesia, condivisione col domin
   tolto, lucchetto di un altro PC recente o vecchio, del proprio PC, chiusura con coda, chiusura senza rete e ripresa);
   la parte vera prova lucchetto scritto e tolto e un conflitto con un «ALTRO-PC-PROVA» simulato caricando con
   `DriveApi`, poi cestina blocco e copia.
-- **Provata il 20/10/2026 solo col Drive finto** (`--finto`: 37 su 37). Da fare: `--prova-drive` con l'account vero
-  (serve l'accesso nel browser) e le prove a mano nell'app (lucchetto con due PC, conflitto, chiusura senza rete).
+- Per le prove dal vivo con un «secondo PC» sullo stesso computer: variabili d'ambiente `ARDESIA_PROVA_PC` (nome del PC
+  nel lucchetto e nelle copie) e `ARDESIA_PROVA_CACHE` (cartella della cache di Drive al posto di
+  `%LocalAppData%\Ardesia\Drive`). `settings.json` resta in comune: prima di avviare la seconda Ardesia togliere
+  `LastFile`.
+- **Provata il 20/10/2026** con `giovanni.dalbo@liceofoscarini.it`: `--prova-drive` tutta OK (37 prove finte + parte
+  vera con lucchetto e conflitto). Nell'app vera, con due Ardesia («PC-STUDIO» e «LIM-AULA12» finta): nuovo blocco in
+  PROVA/Prova; sulla seconda la schermata iniziale mostra «aperto su PC-STUDIO» e all'apertura compare la domanda (No
+  predefinito); tratto caricato dalla seconda, poi tratto sulla prima → copia «PROVA Fase3 dal vivo (modifiche da
+  PC-STUDIO, 20-10 20.14)», titolo cambiato, messaggio, «Conflitto: salvata una copia» con spiegazione al clic (il
+  clic non arriva se la finestra ingrandita mette la barra sotto la finestra trasparente di Claude); chiusura con una
+  modifica appena fatta → «Carico su Google Drive… (1 kB)», poi uscita senza domande, niente in coda, lucchetto tolto
+  (la copia non risultava più «aperta» nell'elenco). Non provata dal vivo la chiusura senza rete (c'è nelle prove
+  finte). Blocchi di prova cestinati; restano le cartelle `Ardesia/PROVA/…` e il blocco «prova Prova-2 26-27».
+- Visto nelle prove (difetto della fase 2): eliminando il blocco aperto da «Apri da Drive…», la schermata iniziale
+  compare sopra l'elenco ancora aperto.
 
 ### Scelte dell'utente (17/10/2026)
 

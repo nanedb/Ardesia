@@ -120,9 +120,13 @@ public sealed class DriveSync : IDisposable
         }
     }
 
-    /// <summary>%LocalAppData%\Ardesia\Drive: una cartella per account.</summary>
-    public static string RootFolder => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Ardesia", "Drive");
+    /// <summary>
+    /// %LocalAppData%\Ardesia\Drive: una cartella per account. Per le prove dal vivo con un «secondo PC» sullo stesso
+    /// computer si può cambiare con la variabile d'ambiente ARDESIA_PROVA_CACHE.
+    /// </summary>
+    public static string RootFolder => Environment.GetEnvironmentVariable("ARDESIA_PROVA_CACHE") is { Length: > 0 } test
+        ? test
+        : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Ardesia", "Drive");
 
     /// <summary>Cartella della cache di un account: hash dell'e-mail, così due docenti non si mescolano.</summary>
     public static string AccountFolder(string email) => Path.Combine(RootFolder, AccountKey(email));
@@ -293,8 +297,12 @@ public sealed class DriveSync : IDisposable
     public TimeSpan[] RetryDelays { get; set; } =
         { TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(15), TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(5) };
 
-    /// <summary>Nome di questo PC nel lucchetto e nei nomi delle copie di un conflitto (le prove fingono altri PC).</summary>
-    public string MachineName { get; set; } = Environment.MachineName;
+    /// <summary>
+    /// Nome di questo PC nel lucchetto e nei nomi delle copie di un conflitto (le prove fingono altri PC; per le prove
+    /// dal vivo con un «secondo PC» c'è la variabile d'ambiente ARDESIA_PROVA_PC).
+    /// </summary>
+    public string MachineName { get; set; } =
+        Environment.GetEnvironmentVariable("ARDESIA_PROVA_PC") is { Length: > 0 } test ? test : Environment.MachineName;
 
     /// <summary>Il lucchetto del blocco aperto si rinnova ogni tanto anche senza caricamenti…</summary>
     public TimeSpan LockRefresh { get; set; } = TimeSpan.FromMinutes(5);
