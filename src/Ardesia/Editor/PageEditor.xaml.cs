@@ -107,6 +107,7 @@ public partial class PageEditor : UserControl
         SetupContextMenuInput();
         SetupFingerPan();
         SetupDrawingAids();
+        SetupPointerHalo();
         // Spostamento della selezione con dito o penna (col mouse è gestito in ContentHost_PreviewMouseDown).
         // Palmo / gomma della penna: gomma grande quanto il contatto (o 60 px se la LIM non ne dà la misura).
         // Mentre si cancella non va disegnata la «scia» della penna: al suo posto un cerchio che segue la gomma.
@@ -352,6 +353,7 @@ public partial class PageEditor : UserControl
     {
         CommitPending();
         if (_tool != EditorTool.Select) ClearSelection();
+        HidePointerHalo();
 
         switch (_tool)
         {
@@ -1838,6 +1840,50 @@ public partial class PageEditor : UserControl
     Stroke? _rulerStroke;
     int _rulerSide;
     double _rulerStartX;
+
+    // Alone attorno al puntatore con le penne: il cursore di Windows per l'inchiostro è un puntino quasi invisibile
+    // sulla LIM. Si vede finché il puntatore è sospeso (mouse senza tasti, penna vicina al vetro) e sparisce
+    // appena si comincia a disegnare. Il tocco non ha puntatore sospeso, quindi non lo mostra mai.
+    readonly System.Windows.Shapes.Ellipse _pointerHalo = new()
+    {
+        Stroke = new SolidColorBrush(Color.FromArgb(0xC0, 0x1E, 0x5A, 0x68)),
+        Fill = new SolidColorBrush(Color.FromArgb(0x30, 0x1E, 0x5A, 0x68)),
+        IsHitTestVisible = false,
+        Visibility = Visibility.Collapsed,
+    };
+
+    void ShowPointerHalo(Point p)
+    {
+        if (!IsInkTool || _drag != DragMode.None) { HidePointerHalo(); return; }
+        double d = 26 / _zoom; // stessa misura sullo schermo a ogni zoom
+        _pointerHalo.Width = _pointerHalo.Height = d;
+        _pointerHalo.StrokeThickness = 2 / _zoom;
+        Canvas.SetLeft(_pointerHalo, p.X - d / 2);
+        Canvas.SetTop(_pointerHalo, p.Y - d / 2);
+        _pointerHalo.Visibility = Visibility.Visible;
+    }
+
+    void HidePointerHalo() => _pointerHalo.Visibility = Visibility.Collapsed;
+
+    void SetupPointerHalo()
+    {
+        Overlay.Children.Add(_pointerHalo);
+        ContentHost.PreviewMouseMove += (_, e) =>
+        {
+            if (e.StylusDevice != null) return; // mouse simulato da tocco o penna: ci pensano gli eventi della penna
+            if (e.LeftButton == MouseButtonState.Released && e.RightButton == MouseButtonState.Released) ShowPointerHalo(e.GetPosition(Ink));
+            else HidePointerHalo();
+        };
+        ContentHost.PreviewStylusInAirMove += (_, e) =>
+        {
+            if (e.StylusDevice.Inverted) HidePointerHalo();
+            else ShowPointerHalo(e.GetPosition(Ink));
+        };
+        ContentHost.PreviewMouseDown += (_, _) => HidePointerHalo();
+        ContentHost.PreviewStylusDown += (_, _) => HidePointerHalo();
+        ContentHost.MouseLeave += (_, _) => HidePointerHalo();
+        ContentHost.StylusOutOfRange += (_, _) => HidePointerHalo();
+    }
 
     void SetupDrawingAids()
     {

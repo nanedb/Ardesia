@@ -72,6 +72,7 @@ public partial class MainWindow : Window
         Editor.FingerPans = _settings.FingerPans;
         ActivatePen(0);
         SetSimpleRibbon(_settings.SimpleRibbon);
+        VersionText.Text = "Ardesia " + AppVersion;
         PreviewKeyDown += Window_PreviewKeyDown;
         SourceInitialized += (_, _) => FitToScreen();
         Closing += Window_Closing;
@@ -429,8 +430,11 @@ public partial class MainWindow : Window
     {
         // Percorso completo: si vede subito in quale cartella (es. di Google Drive) si sta lavorando.
         var name = _path ?? "non salvato";
-        Title = $"{(_dirty ? "● " : "")}{_nb.Title} – {name} – Ardesia";
+        Title = $"{(_dirty ? "● " : "")}{_nb.Title} – {name} – Ardesia {AppVersion}";
     }
+
+    /// <summary>Versione dell'app (da &lt;Version&gt; nel .csproj), es. «0.6.0».</summary>
+    static readonly string AppVersion = typeof(MainWindow).Assembly.GetName().Version?.ToString(3) ?? "";
 
     void NotebookTitleBox_TextChanged(object sender, TextChangedEventArgs e) => UpdateTitle();
 

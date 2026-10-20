@@ -62,6 +62,8 @@
                              Foreground="White" CaretBrush="White" Background="Transparent" BorderThickness="0,0,0,1"
                              BorderBrush="#60FFFFFF" FontSize="15" MinWidth="160" MaxWidth="520" Padding="2,1"
                              ToolTip="Nome del blocco appunti" TextChanged="NotebookTitleBox_TextChanged" />
+                    <TextBlock x:Name="VersionText" Foreground="#A0FFFFFF" FontSize="11" VerticalAlignment="Center" Margin="12,2,0,0"
+                               ToolTip="Versione di Ardesia" />
                 </StackPanel>
             </DockPanel>
         </Border>
