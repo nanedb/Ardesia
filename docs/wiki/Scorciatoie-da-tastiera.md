@@ -17,6 +17,6 @@
 | **Rotellina** sopra un grafico selezionato | Zoom degli assi del grafico |
 | **Maiusc** mentre disegni una forma | Linea a 15°, quadrato, cerchio |
 | **F11** | Schermo intero |
-| **Esc** | Chiude compasso, forme e Sposta pagina tornando allo strumento di prima; esce dallo schermo intero |
+| **Esc** | Chiude compasso, forme, Sposta pagina e Inserisci spazio tornando allo strumento di prima; esce dallo schermo intero |
 | **F2** (nell'elenco) | Rinomina la sezione o la pagina |
 | **Canc** (nell'elenco) | Elimina la sezione o la pagina (con conferma) |

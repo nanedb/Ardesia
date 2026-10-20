@@ -37,7 +37,9 @@
     <Geometry x:Key="IconBgLinesNarrow">M3,3 H21 V21 H3 Z M3,7.5 H21 M3,12 H21 M3,16.5 H21</Geometry>
     <Geometry x:Key="IconBgLinesWide">M3,3 H21 V21 H3 Z M3,9 H21 M3,15 H21</Geometry>
     <Geometry x:Key="IconBgGridSmall">M3,3 H21 V21 H3 Z M3,7.5 H21 M3,12 H21 M3,16.5 H21 M7.5,3 V21 M12,3 V21 M16.5,3 V21</Geometry>
-    <Geometry x:Key="IconBgGridLarge">M3,3 H21 V21 H3 Z M3,12 H21 M12,3 V21</Geometry>
+    <Geometry x:Key="IconBgGridLarge">M3,3 H21 V21 H3 Z M3,9 H21 M3,15 H21 M9,3 V21 M15,3 V21</Geometry>
+    <Geometry x:Key="IconInsertSpace">M3,4 H21 M3,20 H21 M12,7.5 V16.5 M9,10.5 L12,7.5 L15,10.5 M9,13.5 L12,16.5 L15,13.5</Geometry>
+    <Geometry x:Key="IconBgGridXLarge">M3,3 H21 V21 H3 Z M3,12 H21 M12,3 V21</Geometry>
     <Geometry x:Key="IconBgDots">M3,3 H21 V21 H3 Z M7.5,7.5 h0.1 M12,7.5 h0.1 M16.5,7.5 h0.1 M7.5,12 h0.1 M12,12 h0.1 M16.5,12 h0.1 M7.5,16.5 h0.1 M12,16.5 h0.1 M16.5,16.5 h0.1</Geometry>
 
     <Style x:Key="IconPath" TargetType="Path">

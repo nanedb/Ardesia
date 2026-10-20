@@ -6,7 +6,7 @@ Blocco appunti per lavagne interattive (LIM), ispirato a OneNote. Applicazione d
 
 - **Blocchi appunti** salvati in un unico file `.ardesia`, che è un archivio ZIP con struttura JSON, tratti in formato ISF e immagini. All'avvio si riapre l'ultimo blocco appunti. Ogni modifica si salva da sola pochi istanti dopo, e comunque all'uscita, senza domande. Se l'ultimo file non si trova, o al primo avvio, una schermata iniziale chiede di creare un nuovo blocco appunti (scegliendo subito posizione e nome) o di aprirne uno esistente.
 - **Gerarchia libera**: sezioni → sottosezioni → … e pagine → sottopagine → …, senza limiti di profondità. Si riordina dal menu contestuale (tasto destro) o trascinando gli elementi.
-- **Foglio infinito** verso destra e verso il basso, con sfondo bianco, a righe (strette o larghe), a quadretti (5 mm o 1 cm) o a puntini, su sei colori (compresi «Ardesia» e «Lavagna verde»).
+- **Foglio infinito** verso destra e verso il basso, con sfondo bianco, a righe (strette o larghe), a quadretti (5 mm, 1 cm o 1,5 cm) o a puntini, su sei colori (compresi «Ardesia» e «Lavagna verde»).
 - **Strumenti**: penna, evidenziatore, gomma per tratti, gomma precisa, selezione a lazo (sposta, ridimensiona, cambia colore o spessore), caselle di testo formattate, immagini (da file, appunti o trascinamento), forme (linea, freccia, rettangolo, ellisse, triangolo; con Maiusc si vincolano angoli e proporzioni).
 - **Geometria**:
   - **righello** da 30 cm: tracciando lungo un bordo si ottiene una linea perfettamente dritta;

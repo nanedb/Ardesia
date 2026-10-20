@@ -15,7 +15,7 @@ using WpfPath = System.Windows.Shapes.Path;
 
 namespace Ardesia.Editor;
 
-public enum EditorTool { Select, Pen, Highlighter, Pencil, EraserStroke, EraserPoint, Text, Hand, Shape, Compass }
+public enum EditorTool { Select, Pen, Highlighter, Pencil, EraserStroke, EraserPoint, Text, Hand, Shape, Compass, Space }
 
 /// <summary>
 /// Il foglio di una pagina: si estende all'infinito verso destra e verso il basso,
@@ -33,7 +33,7 @@ public partial class PageEditor : UserControl
     static ClipData? _clip;
     static int _pasteCount;
 
-    enum DragMode { None, Pan, Shape, CompassMove, CompassRadius, CompassDraw, MoveSelection, RulerLine, GraphPan, GraphSlider }
+    enum DragMode { None, Pan, Shape, CompassMove, CompassRadius, CompassDraw, MoveSelection, RulerLine, GraphPan, GraphSlider, Space }
 
     readonly UndoManager _undo = new();
     readonly DispatcherTimer _commitTimer;
@@ -208,8 +208,8 @@ public partial class PageEditor : UserControl
     EditorTool _lastStableTool = EditorTool.Pen;
     string _shownTitle = "";
 
-    /// <summary>Strumenti "di passaggio": compasso, forme, sposta pagina.</summary>
-    public static bool IsTemporary(EditorTool t) => t is EditorTool.Compass or EditorTool.Shape or EditorTool.Hand;
+    /// <summary>Strumenti "di passaggio": compasso, forme, sposta pagina, inserisci spazio.</summary>
+    public static bool IsTemporary(EditorTool t) => t is EditorTool.Compass or EditorTool.Shape or EditorTool.Hand or EditorTool.Space;
 
     /// <summary>Esce dal compasso/forme/sposta e torna allo strumento usato prima.</summary>
     public bool ExitTemporaryTool()
@@ -386,6 +386,7 @@ public partial class PageEditor : UserControl
         {
             EditorTool.Text => Cursors.IBeam,
             EditorTool.Hand => Cursors.ScrollAll,
+            EditorTool.Space => Cursors.SizeNS,
             EditorTool.Shape or EditorTool.Compass => Cursors.Cross,
             _ => null,
         };
@@ -1513,7 +1514,7 @@ public partial class PageEditor : UserControl
             }
             var src = e.OriginalSource as DependencyObject;
             if (e.StylusDevice.Inverted) return; // il palmo appoggiato cancella, non apre il menu
-            if (_tool == EditorTool.Hand) return; // con «Sposta pagina» la pressione serve a scorrere
+            if (_tool is EditorTool.Hand or EditorTool.Space) return; // la pressione serve a scorrere / a trascinare lo spazio
             if (_node == null || _drag != DragMode.None || IsWithin(src, TitleArea) ||
                 FindAncestor<DraggableTool>(src) != null || (_tool == EditorTool.Text && FindAncestor<TextBoxBase>(src) != null))
                 return;
@@ -1691,6 +1692,13 @@ public partial class PageEditor : UserControl
                 e.Handled = true;
                 break;
 
+            case EditorTool.Space:
+                if (onTitle) return;
+                BeginSpace(p);
+                ContentHost.CaptureMouse();
+                e.Handled = true;
+                break;
+
             case EditorTool.Shape:
                 if (onTitle) return;
                 _drag = DragMode.Shape;
@@ -1788,6 +1796,9 @@ public partial class PageEditor : UserControl
             case DragMode.GraphSlider:
                 ContinueGraphSlider(p);
                 break;
+            case DragMode.Space:
+                ContinueSpace(p);
+                break;
         }
         e.Handled = true;
     }
@@ -1817,6 +1828,7 @@ public partial class PageEditor : UserControl
         if (ended == DragMode.RulerLine) EndRulerLine();
         if (ended == DragMode.GraphPan) EndGraphPan();
         if (ended == DragMode.GraphSlider) EndGraphSlider();
+        if (ended == DragMode.Space) EndSpace();
         DeferCommit();
     }
 
@@ -2257,6 +2269,84 @@ public partial class PageEditor : UserControl
     {
         if (_tool == EditorTool.Select) Ink.Select(_moveStrokes, _moveElements);
         if (_moved) MarkChanged();
+    }
+
+    // ───────────────────────────── Inserisci spazio ─────────────────────────────
+    // Come in OneNote: si tocca tra due righe e si trascina in giù; tutto ciò che comincia sotto quel punto
+    // scende. Trascinando in su lo spazio si toglie, ma senza far salire nulla sopra ciò che resta fermo.
+
+    readonly System.Windows.Shapes.Rectangle _spaceBand = new()
+    {
+        Fill = new SolidColorBrush(Color.FromArgb(0x22, 0x1E, 0x5A, 0x68)),
+        IsHitTestVisible = false,
+        Visibility = Visibility.Collapsed,
+    };
+    readonly System.Windows.Shapes.Line _spaceLine = new()
+    {
+        Stroke = new SolidColorBrush(Color.FromRgb(0x1E, 0x5A, 0x68)),
+        StrokeDashArray = new DoubleCollection { 4, 3 },
+        IsHitTestVisible = false,
+        Visibility = Visibility.Collapsed,
+    };
+    StrokeCollection _spaceStrokes = new();
+    List<UIElement> _spaceElements = new();
+    double _spaceY, _spaceStartY, _spaceOffset, _spaceMinOffset;
+
+    static double TopOf(UIElement el) => InkCanvas.GetTop(el) is var y && double.IsNaN(y) ? 0 : y;
+
+    void BeginSpace(Point p)
+    {
+        if (!Overlay.Children.Contains(_spaceBand))
+        {
+            Overlay.Children.Add(_spaceBand);
+            Overlay.Children.Add(_spaceLine);
+        }
+        _spaceY = _spaceStartY = p.Y;
+        _spaceOffset = 0;
+        _spaceStrokes = new StrokeCollection(Ink.Strokes.Where(s => s.GetBounds().Top >= p.Y));
+        _spaceElements = Ink.Children.Cast<UIElement>().Where(el => TopOf(el) >= p.Y).ToList();
+        // Quanto si può risalire: fino a toccare il fondo di ciò che resta fermo (o il bordo del foglio).
+        double below = _spaceStrokes.Select(s => s.GetBounds().Top).Concat(_spaceElements.Select(TopOf)).DefaultIfEmpty(p.Y).Min();
+        double above = Ink.Strokes.Except(_spaceStrokes).Select(s => s.GetBounds().Bottom)
+            .Concat(Ink.Children.Cast<UIElement>().Except(_spaceElements).Select(el => TopOf(el) + el.RenderSize.Height))
+            .Where(b => b <= below).DefaultIfEmpty(0).Max();
+        _spaceMinOffset = Math.Min(0, above - below);
+        _drag = DragMode.Space;
+        UpdateSpacePreview();
+        _spaceBand.Visibility = _spaceLine.Visibility = Visibility.Visible;
+    }
+
+    void ContinueSpace(Point p)
+    {
+        double offset = Math.Max(_spaceMinOffset, p.Y - _spaceStartY);
+        double d = offset - _spaceOffset;
+        if (Math.Abs(d) < 0.01) return;
+        _spaceOffset = offset;
+        _spaceStrokes.Transform(new Matrix(1, 0, 0, 1, 0, d), false);
+        foreach (var el in _spaceElements) InkCanvas.SetTop(el, TopOf(el) + d);
+        UpdateSpacePreview();
+    }
+
+    void UpdateSpacePreview()
+    {
+        double w = Math.Max(Ink.ActualWidth, Ink.Width);
+        double top = Math.Min(_spaceY, _spaceY + _spaceOffset);
+        Canvas.SetLeft(_spaceBand, 0);
+        Canvas.SetTop(_spaceBand, top);
+        _spaceBand.Width = w;
+        _spaceBand.Height = Math.Abs(_spaceOffset);
+        _spaceLine.X1 = 0;
+        _spaceLine.X2 = w;
+        _spaceLine.Y1 = _spaceLine.Y2 = _spaceY + _spaceOffset;
+        _spaceLine.StrokeThickness = 1.5 / _zoom;
+    }
+
+    void EndSpace()
+    {
+        _spaceBand.Visibility = _spaceLine.Visibility = Visibility.Collapsed;
+        _spaceStrokes = new StrokeCollection();
+        _spaceElements = new();
+        if (Math.Abs(_spaceOffset) > 0.01) MarkChanged();
     }
 
     // ───────────────────────────── Assi del grafico col mouse ─────────────────────────────

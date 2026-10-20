@@ -34,7 +34,7 @@ Ha quattro schede. All'avvio è aperta **Disegna**.
 
 ![Scheda Disegna](immagini/barra-disegna.png)
 
-- **Strumenti**: Seleziona, Testo, Sposta pagina, Gomma, Gomma precisa.
+- **Strumenti**: Seleziona, Testo, Sposta pagina, Inserisci spazio, Gomma, Gomma precisa.
 - **Penne**: le tue penne, evidenziatori e matite, più il pulsante **+** per aggiungerne. Vedi [Scrivere e disegnare](Scrivere-e-disegnare.md).
 - **Forme**: linea, freccia, rettangolo, ellisse, triangolo.
 - **Geometria**: Righello, Goniometro, Compasso.
@@ -43,7 +43,7 @@ Ha quattro schede. All'avvio è aperta **Disegna**.
 
 ![Scheda Visualizza](immagini/barra-visualizza.png)
 
-- **Sfondo della pagina**: Bianco, Righe strette, Righe larghe, Quadretti 5 mm, Quadretti 1 cm, Puntini.
+- **Sfondo della pagina**: Bianco, Righe strette, Righe larghe, Quadretti 5 mm, Quadretti 1 cm, Quadretti 1,5 cm, Puntini.
 - **Colore della pagina**: bianco, avorio, azzurro chiaro, verde chiaro, Ardesia (scuro), Lavagna verde.
 - **Applica**: «A tutta la sezione» (stesso sfondo per tutte le pagine della sezione).
 - **Zoom**: Ingrandisci, Riduci, 100%.
@@ -54,7 +54,7 @@ Ha quattro schede. All'avvio è aperta **Disegna**.
 
 Con il pulsante **Barra semplificata** (in alto a destra della barra completa) gli strumenti si riducono a **una sola riga**, che lascia più spazio al foglio. Contiene, da sinistra:
 
-Annulla, Ripeti · Seleziona, Testo, Sposta pagina, Il dito sposta la pagina · le penne (con il **+**) · Gomma, Gomma precisa · Forme (un pulsante che apre le cinque forme), Righello, Goniometro, Compasso · Inserisci immagine, **Grafico**, Nuova pagina, Esporta in PDF.
+Annulla, Ripeti · Seleziona, Testo, Sposta pagina, Il dito sposta la pagina, Inserisci spazio, Gomma, Gomma precisa · le penne (con il **+**) · Forme (un pulsante che apre le cinque forme), Righello, Goniometro, Compasso · Inserisci immagine, **Grafico**, Nuova pagina, Esporta in PDF.
 
 Il pulsante **Barra completa** (a destra) riporta le schede. La scelta resta memorizzata su quel PC.
 

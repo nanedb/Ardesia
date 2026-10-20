@@ -8,7 +8,7 @@ namespace Ardesia.Models;
 
 public enum NodeKind { Section, Page }
 
-public enum PageBackground { Blank, LinesNarrow, LinesWide, GridSmall, GridLarge, Dots }
+public enum PageBackground { Blank, LinesNarrow, LinesWide, GridSmall, GridLarge, Dots, GridXLarge }
 
 public abstract class ObservableObject : INotifyPropertyChanged
 {
@@ -239,7 +239,7 @@ public class NotebookNode : ObservableObject
 public class PageData
 {
     public DateTime Created { get; set; } = DateTime.Now;
-    public PageBackground Background { get; set; } = PageBackground.GridSmall;
+    public PageBackground Background { get; set; } = PageBackground.GridLarge;
     public string BackgroundColor { get; set; } = "#FFFFFF";
     public List<ElementData> Elements { get; set; } = new();
 

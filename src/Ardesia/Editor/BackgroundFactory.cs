@@ -37,6 +37,7 @@ public static class BackgroundFactory
             PageBackground.LinesWide => 11 * Mm,
             PageBackground.GridSmall => 5 * Mm,
             PageBackground.GridLarge => 10 * Mm,
+            PageBackground.GridXLarge => 15 * Mm,
             _ => 5 * Mm,
         };
 
@@ -53,6 +54,7 @@ public static class BackgroundFactory
                 break;
             case PageBackground.GridSmall:
             case PageBackground.GridLarge:
+            case PageBackground.GridXLarge:
                 group.Children.Add(new GeometryDrawing(line, null, new RectangleGeometry(new Rect(0, 0, cell, 1))));
                 group.Children.Add(new GeometryDrawing(line, null, new RectangleGeometry(new Rect(0, 0, 1, cell))));
                 break;
