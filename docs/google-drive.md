@@ -1,7 +1,7 @@
 # Blocchi appunti su Google Drive (senza Drive per desktop) – piano
 
 Stato: **fase 1 (accesso) fatta il 19/10/2026, rilasciata nella 0.6.0 (20/10/2026)**; **fase 2 (Drive di base) scritta e
-provata il 20/10/2026**, da rilasciare insieme alle fasi 3–4. Per il PDF condiviso (fase 4) si aspettano gli account
+provata il 20/10/2026**; **fase 3 (robustezza) scritta il 20/10/2026**; da rilasciare insieme alla fase 4. Per il PDF condiviso (fase 4) si aspettano gli account
 `@liceofoscarini.it` degli alunni (l'amministratore li sta creando).
 Domande aperte risolte.
 
@@ -88,6 +88,41 @@ crea/elenca/aggiorna/scarica un file col tipo di Ardesia, condivisione col domin
   aspetta: resta in `sync.json` e riparte al prossimo avvio **su questo PC**), avviso nella barra quando la rete torna.
   Creare un blocco con una cartella nuova richiede 5–6 chiamate (~10 s sulla rete di casa): accettabile, da rivedere
   se a scuola è lento.
+
+**Fase 3 (robustezza) scritta il 20/10/2026** (ramo `claude/google-drive-fase-3-9df131`, parte dalla fase 2):
+- `DriveApi`: `DriveFile.AppProperties` (in `Fields`), `UpdateMetadataAsync` (PATCH `files/{id}` dei soli metadati, un
+  valore null toglie la chiave; niente revisione nuova), `UpdateContentAsync` con appProperties che possono togliere
+  chiavi e con l'avanzamento del caricamento riprendibile.
+- **Lucchetto morbido** (§4.4) in `DriveSync`: `SetOpen(id)` (chiamato da `MainWindow.SetNotebook` tramite
+  `DriveNotebookChanged`) scrive subito `apertoSu=<nome PC>` e `apertoAlle=<ora UTC ISO>`; si rinnova con ogni
+  caricamento o ogni 5 minuti (solo metadati); si toglie al cambio di blocco, alla chiusura e prima di «Esci da
+  Google», **solo se è ancora di questo PC** (un altro PC può averlo preso nel frattempo). Con modifiche in coda lo
+  toglie il caricamento stesso. All'apertura, se il blocco risulta aperto su un altro PC da meno di 15 minuti:
+  «Questo blocco appunti risulta aperto anche sul PC X (ultima attività alle hh:mm)…» Sì = aprilo lo stesso,
+  No = annulla (predefinito). Il lucchetto di questo stesso PC si ignora. «Apri da Drive…» e la schermata iniziale
+  mostrano «aperto su X».
+- **Conflitti «tieni entrambi»** (§4.4, senza domande): prima di ogni caricamento `GetAsync` e confronto di
+  `headRevisionId` con `BaseRevision`. Se diversi, la nostra copia va in un file nuovo «{titolo} (modifiche da {PC},
+  dd-MM HH.mm).ardesia» nella stessa cartella (`ForkAsync`), la cache passa al nuovo ID, il lucchetto pure; la cache
+  del file originale si cancella (si riscarica all'apertura). Evento `DriveSync.Forked` → `MainWindow` cambia
+  `_path`, `_driveId` e titolo, mostra il messaggio una volta; nella barra «Conflitto: salvata una copia» (clic →
+  spiegazione) finché il blocco resta aperto. Lo stesso all'apertura, se su Drive è cambiato e la cache ha modifiche
+  non caricate: si apre la copia (resta il vecchio avviso solo se la revisione di partenza è sconosciuta).
+- **Chiusura con coda** (§4.5): `FinishDriveOnExit` dopo `ConfirmClose` toglie il lucchetto e, se c'è lavoro
+  (`HasWork`), `FlushAsync` con «Carico su Google Drive… (2,1 MB)», avanzamento ed «Esci senza aspettare» (compare dopo
+  350 ms, quindi quasi mai per il solo lucchetto). Se restano modifiche: «Le ultime modifiche sono salvate su questo PC
+  ma non ancora su Google Drive…». Se va tutto bene, nessuna domanda. I messaggi dei conflitti nati durante la chiusura
+  si mostrano alla fine.
+- **Senza rete**: `NetworkChange.NetworkAvailabilityChanged` (riportato sul thread della UI) → `NetworkRestored`
+  azzera attese e tentativi, il caricamento riparte subito. `FlushAsync` senza rete non aspetta il secondo tentativo.
+  Creare ed eliminare restano impossibili senza rete, con un messaggio che lo dice (per creare: «oppure crealo sul
+  computer»).
+- Prove: `--prova-drive --finto` ora 37 prove (conflitto all'apertura e al caricamento, lucchetto scritto/rinnovato/
+  tolto, lucchetto di un altro PC recente o vecchio, del proprio PC, chiusura con coda, chiusura senza rete e ripresa);
+  la parte vera prova lucchetto scritto e tolto e un conflitto con un «ALTRO-PC-PROVA» simulato caricando con
+  `DriveApi`, poi cestina blocco e copia.
+- **Provata il 20/10/2026 solo col Drive finto** (`--finto`: 37 su 37). Da fare: `--prova-drive` con l'account vero
+  (serve l'accesso nel browser) e le prove a mano nell'app (lucchetto con due PC, conflitto, chiusura senza rete).
 
 ### Scelte dell'utente (17/10/2026)
 
@@ -442,7 +477,7 @@ quella finta. `DriveBrowserWindow` e `NewDriveNotebookDialog` sono scritte in co
 2. **Drive di base** (*scritta e provata il 20/10/2026*, vedi in cima): cartella «Ardesia» con sottocartelle classe/materia, nuovo blocco su Drive con classe,
    materia e nome proposto (§2.1, default da collegati), elenco e apertura, cache,
    coda di caricamento, download all'apertura, recenti, stato nella barra, `--prova-drive`.
-3. **Robustezza**: senza rete, conflitti («tieni entrambi»), lucchetto morbido, chiusura con coda.
+3. **Robustezza** (*scritta il 20/10/2026*, vedi in cima): senza rete, conflitti («tieni entrambi»), lucchetto morbido, chiusura con coda.
    *Prima di usarlo con le classi servono le fasi 1–4 insieme* (il PDF su Drive è ciò che leggono gli alunni a casa).
 4. **PDF per la classe su Drive**, accanto al blocco, condivisione automatica col dominio, «Copia il link»,
    rinomina insieme al blocco.

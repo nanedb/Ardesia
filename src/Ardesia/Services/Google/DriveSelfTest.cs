@@ -8,7 +8,9 @@ namespace Ardesia.Services.Google;
 /// <summary>
 /// Prove di DriveSync con un Drive finto in memoria (prima parte di --prova-drive): cartelle classe/materia,
 /// creazione, coda di caricamento (pausa, massimo, tentativi, rinomina), sync.json dopo un riavvio, apertura con e
-/// senza download, senza rete, blocco eliminato. Non usa la rete né l'account.
+/// senza download, senza rete, blocco eliminato; fase 3: conflitti «tieni entrambi» all'apertura e al caricamento,
+/// lucchetto morbido (proprio e di un altro PC), chiusura senza rete e ripresa quando la rete torna. Non usa la rete
+/// né l'account.
 /// </summary>
 public static class DriveSelfTest
 {
@@ -142,17 +144,28 @@ public static class DriveSelfTest
             r = await sync.OpenAsync(id, null, CancellationToken.None);
             Check(drive.Downloads == downloads + 1 && NotebookStore.Load(r.CachePath).Sections.Any(s => s.Title == "Cambiato altrove"),
                 "Modificato su un altro PC: si scarica la versione nuova");
+            // ── conflitto all'apertura: modifiche non caricate qui, versione nuova là ──
+            sync.QuietDelay = TimeSpan.FromHours(1);
+            drive.ChangeRemotely(id, File.ReadAllBytes(sync.CachePath(id)), "Là");
             Modify(sync.CachePath(id), "Qui");
             sync.Changed(id, "Fisica 2BO / secondo quadrimestre");
-            drive.ChangeRemotely(id, File.ReadAllBytes(sync.CachePath(id)), "Là");
             r = await sync.OpenAsync(id, null, CancellationToken.None);
-            Check(r.Warning != null && drive.Downloads == downloads + 1, "Modificato qui e altrove: si tiene questo (conflitti: fase 3)", r.Warning ?? "");
-            await sync.FlushAsync(TimeSpan.FromSeconds(3));
+            var openCopy = Path.GetFileNameWithoutExtension(r.CachePath);
+            Check(r.Conflict != null && openCopy != id && drive.Items.TryGetValue(openCopy, out var oc)
+                  && oc.Name.StartsWith("Fisica 2BO - secondo quadrimestre (modifiche da PC-PROVA, ") && oc.Parent == drive.Items[id].Parent
+                  && SectionsOf(oc.Data).Contains("Qui") && !SectionsOf(oc.Data).Contains("Là")
+                  && SectionsOf(drive.Items[id].Data).Contains("Là") && !SectionsOf(drive.Items[id].Data).Contains("Qui")
+                  && File.Exists(r.CachePath) && !File.Exists(sync.CachePath(id)) && sync.Entry(id) is { Pending: false, BaseRevision: null }
+                  && drive.Downloads == downloads + 1,
+                "Modificato qui e altrove, all'apertura: le modifiche di qui in una copia nella stessa cartella",
+                drive.Items.TryGetValue(openCopy, out var oc2) ? oc2.Name : "nessuna copia");
+            sync.QuietDelay = TimeSpan.FromMilliseconds(400);
+            id = openCopy;
 
             drive.Failures.Enqueue(new HttpRequestException("rete assente (finta)"));
             r = await sync.OpenAsync(id, null, CancellationToken.None);
             Check(r.Warning?.StartsWith("Senza connessione") == true, "Senza rete si apre la copia in cache, con un avviso", r.Warning ?? "");
-            var other = listing.Notebooks.First(n => n.Id != id).Id;
+            var other = listing.Notebooks.Last(n => n.Id != id).Id;
             File.Delete(sync.CachePath(other));
             drive.Failures.Enqueue(new HttpRequestException("rete assente (finta)"));
             string offlineError = "";
@@ -176,6 +189,134 @@ public static class DriveSelfTest
                 sync.Status(id).Text);
             sync.UploadSoon(id); // riprova a mano (cambio di blocco)
             await WaitAsync(() => sync.Entry(id)!.Pending == false, 3000);
+
+            // ── lucchetto morbido: scritto all'apertura, rinnovato, tolto alla chiusura ──
+            var props = drive.Items[id].Props;
+            sync.LockRefresh = TimeSpan.FromMilliseconds(500);
+            sync.SetOpen(id);
+            await WaitAsync(() => props.GetValueOrDefault(DriveSync.LockPcKey) == "PC-PROVA", 2000);
+            var firstTime = props.GetValueOrDefault(DriveSync.LockTimeKey);
+            Check(props.GetValueOrDefault(DriveSync.LockPcKey) == "PC-PROVA" && DateTime.TryParse(firstTime, null,
+                      System.Globalization.DateTimeStyles.RoundtripKind, out var at) && Math.Abs((DateTime.UtcNow - at.ToUniversalTime()).TotalMinutes) < 1,
+                "Lucchetto scritto all'apertura (apertoSu, apertoAlle)", $"apertoSu={props.GetValueOrDefault(DriveSync.LockPcKey)}, apertoAlle={firstTime}");
+            await WaitAsync(() => props.GetValueOrDefault(DriveSync.LockTimeKey) != firstTime, 2000);
+            Check(props.GetValueOrDefault(DriveSync.LockTimeKey) != firstTime, "Lucchetto rinnovato ogni tanto (solo metadati)",
+                $"aggiornamenti dei metadati: {drive.MetadataUpdates}");
+            sync.LockRefresh = TimeSpan.FromMinutes(5);
+            var beforeUpload = props.GetValueOrDefault(DriveSync.LockTimeKey);
+            await Task.Delay(20);
+            Modify(sync.CachePath(id), "Col lucchetto");
+            sync.Changed(id, drive.Items[id].Name.Replace(NotebookStore.Extension, ""));
+            await sync.FlushAsync(TimeSpan.FromSeconds(3));
+            Check(props.GetValueOrDefault(DriveSync.LockPcKey) == "PC-PROVA" && props.GetValueOrDefault(DriveSync.LockTimeKey) != beforeUpload,
+                "Lucchetto aggiornato col caricamento");
+            sync.SetOpen(null);
+            bool released = await sync.FlushAsync(TimeSpan.FromSeconds(3));
+            Check(released && !props.ContainsKey(DriveSync.LockPcKey) && !props.ContainsKey(DriveSync.LockTimeKey) && !sync.HasWork,
+                "Lucchetto tolto alla chiusura del blocco");
+
+            sync.QuietDelay = TimeSpan.FromHours(1);
+            sync.SetOpen(id);
+            await WaitAsync(() => props.ContainsKey(DriveSync.LockPcKey), 2000);
+            Modify(sync.CachePath(id), "Chiusura con coda");
+            sync.Changed(id, drive.Items[id].Name.Replace(NotebookStore.Extension, ""));
+            sync.SetOpen(null);
+            before = drive.Uploads;
+            released = await sync.FlushAsync(TimeSpan.FromSeconds(3));
+            Check(released && drive.Uploads == before + 1 && !props.ContainsKey(DriveSync.LockPcKey) && !sync.HasWork,
+                "Chiusura con modifiche in coda: il caricamento toglie anche il lucchetto");
+            sync.QuietDelay = TimeSpan.FromMilliseconds(400);
+
+            // ── lucchetto di un altro PC ──
+            props[DriveSync.LockPcKey] = "LIM-AULA12";
+            props[DriveSync.LockTimeKey] = DateTime.UtcNow.AddMinutes(-3).ToString("o");
+            DriveLock? asked = null;
+            bool canceled = false;
+            try { await sync.OpenAsync(id, null, CancellationToken.None, lk => { asked = lk; return false; }); }
+            catch (OperationCanceledException) { canceled = true; }
+            Check(canceled && asked?.Pc == "LIM-AULA12" && Math.Abs((DateTime.Now.AddMinutes(-3) - asked.At).TotalSeconds) < 30,
+                "Aperto su un altro PC da 3 minuti: si chiede, «Annulla» non apre", asked != null ? $"{asked.Pc} alle {asked.At:HH:mm}" : "nessuna domanda");
+            asked = null;
+            r = await sync.OpenAsync(id, null, CancellationToken.None, lk => { asked = lk; return true; });
+            Check(asked != null && r.CachePath == sync.CachePath(id), "«Aprilo lo stesso» apre");
+            listing = await sync.ListAsync(CancellationToken.None);
+            Check(listing.Notebooks.FirstOrDefault(n => n.Id == id)?.OpenOn == "LIM-AULA12", "Nell'elenco: «aperto su LIM-AULA12»");
+
+            sync.SetOpen(id);
+            await WaitAsync(() => props.GetValueOrDefault(DriveSync.LockPcKey) == "PC-PROVA", 2000);
+            props[DriveSync.LockPcKey] = "LIM-AULA12"; // l'altro PC lo riapre
+            props[DriveSync.LockTimeKey] = DateTime.UtcNow.ToString("o");
+            sync.SetOpen(null);
+            await sync.FlushAsync(TimeSpan.FromSeconds(3));
+            Check(props.GetValueOrDefault(DriveSync.LockPcKey) == "LIM-AULA12", "Chiudendo non si toglie il lucchetto di un altro PC");
+
+            asked = null;
+            props[DriveSync.LockTimeKey] = DateTime.UtcNow.AddMinutes(-20).ToString("o");
+            await sync.OpenAsync(id, null, CancellationToken.None, lk => { asked = lk; return false; });
+            bool oldAsked = asked != null;
+            props[DriveSync.LockPcKey] = "PC-PROVA";
+            props[DriveSync.LockTimeKey] = DateTime.UtcNow.ToString("o");
+            await sync.OpenAsync(id, null, CancellationToken.None, lk => { asked = lk; return false; });
+            listing = await sync.ListAsync(CancellationToken.None);
+            Check(!oldAsked && asked == null && listing.Notebooks.First(n => n.Id == id).OpenOn == null,
+                "Lucchetto vecchio (20 minuti) o di questo stesso PC: nessuna domanda");
+            props.Clear();
+
+            // ── conflitto al caricamento: «tieni entrambi», si continua sulla copia ──
+            DriveFork? fork = null;
+            Action<DriveFork> onFork = f => fork = f;
+            DriveSync.Forked += onFork;
+            sync.SetOpen(id);
+            await WaitAsync(() => props.ContainsKey(DriveSync.LockPcKey), 2000);
+            var title = drive.Items[id].Name.Replace(NotebookStore.Extension, "");
+            Modify(sync.CachePath(id), "Mia modifica");
+            sync.Changed(id, title);
+            drive.ChangeRemotely(id, drive.Items[id].Data, "Dell'altro PC");
+            props[DriveSync.LockPcKey] = "LIM-AULA12";
+            props[DriveSync.LockTimeKey] = DateTime.UtcNow.ToString("o");
+            sync.UploadSoon(id);
+            await WaitAsync(() => fork != null && !sync.HasPending, 3000);
+            DriveSync.Forked -= onFork;
+            var copy = fork?.NewId ?? "";
+            Check(fork != null && fork.OldId == id && drive.Items.TryGetValue(copy, out var ci)
+                  && ci.Name.StartsWith(title + " (modifiche da PC-PROVA, ") && ci.Name.EndsWith(NotebookStore.Extension) && ci.Parent == drive.Items[id].Parent
+                  && SectionsOf(ci.Data).Contains("Mia modifica") && !SectionsOf(ci.Data).Contains("Dell'altro PC")
+                  && SectionsOf(drive.Items[id].Data).Contains("Dell'altro PC") && !SectionsOf(drive.Items[id].Data).Contains("Mia modifica")
+                  && fork.NewTitle == ci.Name.Replace(NotebookStore.Extension, "") && fork.Message.Contains("LIM-AULA12"),
+                "Modificato qui e altrove, al caricamento: la versione dell'altro PC resta, la nostra in una copia",
+                fork != null ? $"«{fork.NewTitle}»" : "nessun conflitto");
+            Check(sync.OpenId == copy && File.Exists(sync.CachePath(copy)) && !File.Exists(sync.CachePath(id))
+                  && sync.Status(copy) is { State: DriveSyncState.Conflict, Text: "Conflitto: salvata una copia" }
+                  && sync.ConflictMessage(copy) != null && drive.Items[copy].Props.GetValueOrDefault(DriveSync.LockPcKey) == "PC-PROVA"
+                  && props.GetValueOrDefault(DriveSync.LockPcKey) == "LIM-AULA12",
+                "La copia in cache passa al nuovo file, col lucchetto; stato «Conflitto: salvata una copia»", sync.Status(copy).Text);
+            sync.SetOpen(null);
+            await sync.FlushAsync(TimeSpan.FromSeconds(3));
+            Check(sync.Status(copy).State == DriveSyncState.Synced && !drive.Items[copy].Props.ContainsKey(DriveSync.LockPcKey),
+                "Chiuso il blocco, lo stato del conflitto sparisce e il lucchetto si toglie");
+            id = copy;
+
+            // ── senza rete: alla chiusura non si aspetta, poi la rete torna e si carica subito ──
+            var retry = sync.RetryDelays;
+            sync.RetryDelays = new[] { TimeSpan.FromMinutes(10) };
+            bool network = false;
+            sync.NetworkAvailable = () => network;
+            for (int i = 0; i < 5; i++) drive.Failures.Enqueue(new HttpRequestException("rete assente (finta)"));
+            Modify(sync.CachePath(id), "Senza rete");
+            sync.Changed(id, drive.Items[id].Name.Replace(NotebookStore.Extension, ""));
+            var t0 = DateTime.Now;
+            bool flushedOffline = await sync.FlushAsync(TimeSpan.FromSeconds(10));
+            var waitedOffline = DateTime.Now - t0;
+            Check(!flushedOffline && waitedOffline < TimeSpan.FromSeconds(3) && sync.Entry(id)!.Pending && sync.Status(id).State == DriveSyncState.Offline,
+                "Chiusura senza rete: non si aspetta, le modifiche restano da caricare", $"atteso {waitedOffline.TotalSeconds:0.0} s; {sync.Status(id).Text}");
+            drive.Failures.Clear();
+            network = true;
+            sync.NetworkRestored();
+            await WaitAsync(() => !sync.Entry(id)!.Pending, 2000);
+            Check(!sync.Entry(id)!.Pending && SectionsOf(drive.Items[id].Data).Contains("Senza rete"),
+                "La rete torna: si carica subito, senza aspettare il prossimo tentativo (10 minuti)");
+            sync.RetryDelays = retry;
+            sync.NetworkAvailable = () => true;
 
             // ── eliminare: cestino, le cartelle restano ──
             await sync.TrashAsync(id, CancellationToken.None);
@@ -202,6 +343,8 @@ public static class DriveSelfTest
 
     static DriveSync NewSync(IDriveClient client, string folder) => new(client, folder, "prova@liceofoscarini.it")
     {
+        MachineName = "PC-PROVA",
+        NetworkAvailable = () => true,
         QuietDelay = TimeSpan.FromMilliseconds(400),
         MaxDelay = TimeSpan.FromMilliseconds(1500),
         RetryDelays = new[] { TimeSpan.FromMilliseconds(150), TimeSpan.FromMilliseconds(300) },
@@ -227,6 +370,21 @@ public static class DriveSelfTest
         NotebookStore.Save(nb, path);
     }
 
+    /// <summary>Titoli delle sezioni di un blocco salvato in memoria (contenuto di un file su Drive).</summary>
+    internal static List<string> SectionsOf(byte[] data)
+    {
+        var tmp = Path.Combine(Path.GetTempPath(), $"ardesia-prova-{Guid.NewGuid():N}{NotebookStore.Extension}");
+        try
+        {
+            File.WriteAllBytes(tmp, data);
+            return NotebookStore.Load(tmp).Sections.Select(s => s.Title).ToList();
+        }
+        finally
+        {
+            try { File.Delete(tmp); } catch { /* temporaneo */ }
+        }
+    }
+
     internal static async Task WaitAsync(Func<bool> condition, int ms)
     {
         var end = DateTime.Now.AddMilliseconds(ms);
@@ -244,11 +402,12 @@ public static class DriveSelfTest
             public int Rev = 1;
             public bool Trashed;
             public DateTime Modified = DateTime.Now;
+            public Dictionary<string, string> Props = new();
         }
 
         public readonly Dictionary<string, Item> Items = new();
         public readonly Queue<Exception> Failures = new();
-        public int Uploads, Downloads, UploadDelay;
+        public int Uploads, Downloads, UploadDelay, MetadataUpdates;
         int _next;
 
         void MaybeFail()
@@ -257,7 +416,17 @@ public static class DriveSelfTest
         }
 
         static DriveFile Info(Item i) => new(i.Id, i.Name, i.Mime, null, i.Mime == DriveApi.FolderMime ? null : "rev" + i.Rev, i.Rev,
-            new[] { i.Parent ?? "root-del-mio-drive" }, i.Modified, i.Trashed, i.Data.Length);
+            new[] { i.Parent ?? "root-del-mio-drive" }, i.Modified, i.Trashed, i.Data.Length,
+            i.Props.Count > 0 ? new Dictionary<string, string>(i.Props) : null);
+
+        /// <summary>Come Drive: un valore null toglie la chiave.</summary>
+        static void Merge(Item it, IDictionary<string, string?>? props)
+        {
+            if (props == null) return;
+            foreach (var (k, v) in props)
+                if (v == null) it.Props.Remove(k);
+                else it.Props[k] = v;
+        }
 
         Item Add(string name, string mime, string? parent, byte[] data)
         {
@@ -268,6 +437,7 @@ public static class DriveSelfTest
 
         Item Find(string id) => Items.TryGetValue(id, out var it) ? it : throw new DriveException(404, "notFound", "File not found: " + id);
 
+        /// <summary>Un altro PC ha caricato una versione nuova (revisione nuova).</summary>
         public void ChangeRemotely(string id, byte[] notebook, string section)
         {
             var tmp = Path.Combine(Path.GetTempPath(), $"ardesia-finto-{Guid.NewGuid():N}.ardesia");
@@ -289,11 +459,13 @@ public static class DriveSelfTest
             IDictionary<string, string>? appProperties = null)
         {
             MaybeFail();
-            return Task.FromResult(Info(Add(name, mimeType, parent, data)));
+            var it = Add(name, mimeType, parent, data);
+            if (appProperties != null) Merge(it, appProperties.ToDictionary(p => p.Key, p => (string?)p.Value));
+            return Task.FromResult(Info(it));
         }
 
         public async Task<DriveFile> UpdateContentAsync(string id, string mimeType, byte[] data, CancellationToken ct,
-            IDictionary<string, string>? appProperties = null, string? newName = null)
+            IDictionary<string, string?>? appProperties = null, string? newName = null, IProgress<double>? progress = null)
         {
             if (UploadDelay > 0) await Task.Delay(UploadDelay, ct);
             MaybeFail();
@@ -302,8 +474,19 @@ public static class DriveSelfTest
             it.Rev++;
             it.Modified = DateTime.Now;
             if (newName != null) it.Name = newName;
+            Merge(it, appProperties);
             Uploads++;
+            progress?.Report(1);
             return Info(it);
+        }
+
+        public Task<DriveFile> UpdateMetadataAsync(string id, IDictionary<string, string?> appProperties, CancellationToken ct)
+        {
+            MaybeFail();
+            var it = Find(id);
+            Merge(it, appProperties);
+            MetadataUpdates++;
+            return Task.FromResult(Info(it));
         }
 
         public Task<DriveFile> GetAsync(string id, CancellationToken ct)

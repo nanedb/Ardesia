@@ -152,6 +152,7 @@ public sealed class DriveBrowserWindow : Window
             var detail = string.Join(" · ", new[]
             {
                 n.Folder.Length > 0 ? n.Folder : null,
+                n.OpenOn != null && n.Id != _openId ? "aperto su " + n.OpenOn : null,
                 n.Modified is { } m ? "modificato " + DriveUi.When(m) : null,
                 n.Size is { } s ? DriveUi.Size(s) : null,
             }.Where(s => s != null));

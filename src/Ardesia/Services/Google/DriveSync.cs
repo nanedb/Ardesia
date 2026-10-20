@@ -1,4 +1,6 @@
+using System.Globalization;
 using System.IO;
+using System.Net.NetworkInformation;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -8,7 +10,7 @@ using Ardesia.Models;
 namespace Ardesia.Services.Google;
 
 /// <summary>Stato di un blocco su Drive, per la barra in alto.</summary>
-public enum DriveSyncState { Synced, Pending, Uploading, Offline, Retrying, Failed, SignedOut }
+public enum DriveSyncState { Synced, Pending, Uploading, Offline, Retrying, Failed, SignedOut, Conflict }
 
 /// <summary>Quello che Ardesia ricorda di un blocco su Drive (in sync.json, accanto alla copia in cache).</summary>
 public sealed class DriveSyncEntry
@@ -39,7 +41,8 @@ public sealed class DriveSyncEntry
 public sealed record DriveFolder(string Id, string Name, string? ParentId, DateTime? ModifiedTime);
 
 /// <summary>Un blocco appunti nell'elenco di Drive.</summary>
-public sealed record DriveNotebook(string Id, string Title, string? Class, string? Subject, DateTime? Modified, long? Size)
+public sealed record DriveNotebook(string Id, string Title, string? Class, string? Subject, DateTime? Modified, long? Size,
+    string? OpenOn = null)
 {
     public string Folder => Class != null && Subject != null ? $"{Class} / {Subject}" : Class ?? "";
 }
@@ -54,8 +57,20 @@ public sealed class DriveGoneException(string message, bool hadPendingChanges) :
     public bool HadPendingChanges { get; } = hadPendingChanges;
 }
 
-/// <summary>Esito dell'apertura: la copia in cache da aprire e un eventuale avviso per la barra.</summary>
-public sealed record DriveOpenResult(string CachePath, string? Warning);
+/// <summary>
+/// Esito dell'apertura: la copia in cache da aprire, un eventuale avviso per la barra e, se c'era un conflitto, la
+/// spiegazione (allora la copia da aprire è quella nuova, «… (modifiche da PC, …)»).
+/// </summary>
+public sealed record DriveOpenResult(string CachePath, string? Warning, string? Conflict = null);
+
+/// <summary>«Lucchetto morbido» di un altro PC (§4.4): il blocco risulta aperto là.</summary>
+public sealed record DriveLock(string Pc, DateTime At);
+
+/// <summary>
+/// Conflitto risolto con «tieni entrambi» (§4.4): la versione dell'altro PC resta in <see cref="OldId"/>, le
+/// modifiche di questo PC sono nel file nuovo <see cref="NewId"/>, su cui si continua a lavorare.
+/// </summary>
+public sealed record DriveFork(string OldId, string NewId, string OldTitle, string NewTitle, string Message);
 
 /// <summary>
 /// Blocchi appunti su Google Drive (docs/google-drive.md §4): la copia in cache è il file di lavoro (si salva come
@@ -70,8 +85,17 @@ public sealed class DriveSync : IDisposable
 
     static DriveSync? _current;
 
+    /// <summary>Chiavi delle appProperties del «lucchetto morbido» (§4.4).</summary>
+    public const string LockPcKey = "apertoSu", LockTimeKey = "apertoAlle";
+
     /// <summary>Cambia lo stato di un blocco (fileId). Arriva sul thread della UI.</summary>
     public static event Action<string>? StatusChanged;
+
+    /// <summary>
+    /// Un caricamento ha trovato su Drive una versione più nuova di un altro PC: le nostre modifiche sono andate in un
+    /// file nuovo, e la copia in cache è passata al nuovo ID. Arriva sul thread della UI.
+    /// </summary>
+    public static event Action<DriveFork>? Forked;
 
     /// <summary>
     /// La sincronizzazione dell'account collegato, o null se nessuno è collegato. Va chiamata sul thread della UI.
@@ -194,6 +218,20 @@ public sealed class DriveSync : IDisposable
         public int Serial, Failures;
         public bool Uploading, Blocked;
         public DriveSyncState? State;
+
+        /// <summary>Lucchetto: scritto da noi su Drive, quando, prossimo tentativo dopo un errore.</summary>
+        public bool LockHeld;
+        public DateTime LockWritten = DateTime.MinValue, LockNextTry = DateTime.MinValue;
+        public int LockFailures;
+
+        /// <summary>Spiegazione del conflitto (copia nuova), finché il blocco resta aperto.</summary>
+        public string? ConflictMessage;
+    }
+
+    /// <summary>Avanzamento che passa subito il valore (senza passare dal contesto di sincronizzazione).</summary>
+    sealed class Relay(Action<double> report) : IProgress<double>
+    {
+        public void Report(double value) => report(value);
     }
 
     static readonly JsonSerializerOptions Json = new() { WriteIndented = true };
@@ -204,7 +242,12 @@ public sealed class DriveSync : IDisposable
     readonly Dictionary<string, Runtime> _rt = new();
     readonly DispatcherTimer _timer;
     readonly CancellationTokenSource _cts = new();
+    readonly HashSet<string> _release = new(); // blocchi chiusi a cui togliere il lucchetto
+    readonly NetworkAvailabilityChangedEventHandler _onNetwork;
+    string? _openId;
     bool _busy, _disposed;
+    IProgress<double>? _flushProgress;
+    long _flushTotal, _flushDone;
 
     public DriveSync(IDriveClient client, string folder, string email)
     {
@@ -226,6 +269,13 @@ public sealed class DriveSync : IDisposable
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _timer.Tick += (_, _) => Pump();
         _timer.Start();
+        // La rete torna (Wi-Fi della scuola): si riprova subito, senza aspettare il prossimo tentativo.
+        var dispatcher = Dispatcher.CurrentDispatcher;
+        _onNetwork = (_, a) =>
+        {
+            if (a.IsAvailable) dispatcher.BeginInvoke(NetworkRestored);
+        };
+        NetworkChange.NetworkAvailabilityChanged += _onNetwork;
     }
 
     public string Email { get; }
@@ -243,6 +293,18 @@ public sealed class DriveSync : IDisposable
     public TimeSpan[] RetryDelays { get; set; } =
         { TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(15), TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(5) };
 
+    /// <summary>Nome di questo PC nel lucchetto e nei nomi delle copie di un conflitto (le prove fingono altri PC).</summary>
+    public string MachineName { get; set; } = Environment.MachineName;
+
+    /// <summary>Il lucchetto del blocco aperto si rinnova ogni tanto anche senza caricamenti…</summary>
+    public TimeSpan LockRefresh { get; set; } = TimeSpan.FromMinutes(5);
+
+    /// <summary>…e un lucchetto più vecchio di così non conta più (Ardesia chiusa male, PC spento).</summary>
+    public TimeSpan LockMaxAge { get; set; } = TimeSpan.FromMinutes(15);
+
+    /// <summary>C'è una rete? Senza, alla chiusura non si aspetta il secondo tentativo (le prove la fingono).</summary>
+    public Func<bool> NetworkAvailable { get; set; } = NetworkInterface.GetIsNetworkAvailable;
+
     /// <summary>Ogni quanto si guarda la coda (le prove la accorciano).</summary>
     public TimeSpan PumpInterval
     {
@@ -259,6 +321,22 @@ public sealed class DriveSync : IDisposable
     /// <summary>Vero se ci sono modifiche da caricare (anche ferme per un errore).</summary>
     public bool HasPending => _data.Files.Values.Any(e => e.Pending);
 
+    /// <summary>Vero se alla chiusura c'è ancora qualcosa da fare su Drive: modifiche da caricare o lucchetti da togliere.</summary>
+    public bool HasWork => HasPending || _release.Any(_data.Files.ContainsKey);
+
+    /// <summary>Byte da caricare (per «Carico su Google Drive… (2,1 MB)»).</summary>
+    public long PendingBytes() => _data.Files.Where(f => f.Value.Pending).Sum(f =>
+    {
+        try { return new FileInfo(CachePath(f.Key)).Length; }
+        catch { return 0L; }
+    });
+
+    /// <summary>Il blocco aperto in Ardesia (porta il lucchetto), o null.</summary>
+    public string? OpenId => _openId;
+
+    /// <summary>Spiegazione del conflitto per il clic sulla barra, finché il blocco resta aperto.</summary>
+    public string? ConflictMessage(string id) => _rt.GetValueOrDefault(id)?.ConflictMessage;
+
     /// <summary>Stato del blocco e testo per la barra in alto.</summary>
     public (DriveSyncState State, string Text, string Tooltip) Status(string id)
     {
@@ -267,6 +345,9 @@ public sealed class DriveSync : IDisposable
         var state = rt?.State ?? (e?.Pending == true ? DriveSyncState.Pending : DriveSyncState.Synced);
         if (state == DriveSyncState.Synced && e?.Pending == true) state = DriveSyncState.Pending;
         var when = e?.LastUpload is { } t ? $" alle {t:HH:mm}" : "";
+        if (rt?.ConflictMessage != null && state is DriveSyncState.Synced or DriveSyncState.Pending)
+            return (DriveSyncState.Conflict, "Conflitto: salvata una copia",
+                "Su Google Drive il blocco era cambiato anche su un altro PC: le modifiche di questo PC sono in una copia. Clic per la spiegazione.");
         return state switch
         {
             DriveSyncState.Uploading => (state, "Caricamento su Drive…", "Ardesia sta caricando le ultime modifiche su Google Drive."),
@@ -280,6 +361,120 @@ public sealed class DriveSync : IDisposable
                 "Le modifiche sono salvate su questo PC e verranno caricate quando accedi di nuovo con questo account."),
             _ => (state, "Su Drive · salvato" + when, $"Su Google Drive{(e?.Folder != null ? $", in Ardesia / {e.Folder}" : "")}."),
         };
+    }
+
+    // ───────────── lucchetto morbido (§4.4) ─────────────
+
+    /// <summary>
+    /// Il blocco aperto in Ardesia (null: nessuno su Drive). Il suo lucchetto si scrive subito e si rinnova; quello del
+    /// blocco chiuso si toglie (dal caricamento, se ha modifiche in coda).
+    /// </summary>
+    public void SetOpen(string? id)
+    {
+        if (_disposed || id == _openId) return;
+        if (_openId != null && _rt.GetValueOrDefault(_openId) is { } old)
+        {
+            if (old.LockHeld) _release.Add(_openId);
+            old.ConflictMessage = null;
+        }
+        _openId = id;
+        if (id != null)
+        {
+            _release.Remove(id);
+            var rt = RuntimeOf(id);
+            rt.LockWritten = rt.LockNextTry = DateTime.MinValue;
+            rt.LockFailures = 0;
+        }
+        Pump();
+    }
+
+    /// <summary>Il lucchetto di un altro PC, se è recente (quello di questo PC non conta).</summary>
+    public DriveLock? LockOf(DriveFile f, bool anyAge = false)
+    {
+        if (f.AppProperties is not { } p || !p.TryGetValue(LockPcKey, out var pc) || pc.Length == 0) return null;
+        if (string.Equals(pc, MachineName, StringComparison.OrdinalIgnoreCase)) return null;
+        var at = p.TryGetValue(LockTimeKey, out var t) && DateTime.TryParse(t, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var x)
+            ? x.ToLocalTime() : DateTime.MinValue;
+        if (!anyAge && (at == DateTime.MinValue || DateTime.Now - at > LockMaxAge)) return null;
+        return new DriveLock(pc, at);
+    }
+
+    bool LockIsMine(DriveFile f) =>
+        f.AppProperties?.GetValueOrDefault(LockPcKey) is { } pc && string.Equals(pc, MachineName, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>appProperties del lucchetto: da scrivere (blocco aperto) o da togliere (null = via la chiave).</summary>
+    Dictionary<string, string?> LockProps(bool hold) => new()
+    {
+        [LockPcKey] = hold ? MachineName : null,
+        [LockTimeKey] = hold ? DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture) : null,
+    };
+
+    /// <summary>Scrive (o rinnova) il lucchetto del blocco aperto, oppure toglie il nostro da un blocco chiuso.</summary>
+    async Task LockAsync(string id, bool hold)
+    {
+        var rt = RuntimeOf(id);
+        _busy = true;
+        try
+        {
+            if (hold)
+            {
+                await _client.UpdateMetadataAsync(id, LockProps(true), _cts.Token);
+                rt.LockHeld = true;
+                rt.LockWritten = DateTime.Now;
+                if (id != _openId) _release.Add(id); // chiuso nel frattempo
+            }
+            else
+            {
+                // si toglie solo se è ancora nostro: un altro PC può averlo aperto nel frattempo
+                var meta = await _client.GetAsync(id, _cts.Token);
+                if (!meta.Trashed && LockIsMine(meta)) await _client.UpdateMetadataAsync(id, LockProps(false), _cts.Token);
+                rt.LockHeld = false;
+                if (id != _openId) _release.Remove(id);
+            }
+            rt.LockFailures = 0;
+        }
+        catch (OperationCanceledException) when (_cts.IsCancellationRequested)
+        {
+            // sync fermata
+        }
+        catch (DriveException ex) when (ex.Status is 403 or 404)
+        {
+            // eliminato o non più accessibile: lo dice il caricamento; niente lucchetto da togliere
+            rt.LockHeld = false;
+            _release.Remove(id);
+            rt.LockNextTry = DateTime.Now + LockRefresh;
+        }
+        catch (Exception)
+        {
+            // senza rete: si riprova (il lucchetto non è indispensabile, il conflitto si riconosce comunque)
+            rt.LockFailures++;
+            rt.LockNextTry = DateTime.Now + RetryDelays[Math.Min(rt.LockFailures, RetryDelays.Length) - 1];
+        }
+        finally
+        {
+            _busy = false;
+        }
+        if (!_disposed) Pump();
+    }
+
+    /// <summary>La rete è tornata: i tentativi in attesa ripartono subito.</summary>
+    public void NetworkRestored()
+    {
+        if (_disposed) return;
+        foreach (var rt in _rt.Values)
+        {
+            if (rt.Failures > 0 || rt.State is DriveSyncState.Offline or DriveSyncState.Retrying)
+            {
+                rt.Failures = 0;
+                rt.NextTry = DateTime.MinValue;
+            }
+            if (rt.LockFailures > 0)
+            {
+                rt.LockFailures = 0;
+                rt.LockNextTry = DateTime.MinValue;
+            }
+        }
+        Pump();
     }
 
     // ───────────── coda di caricamento ─────────────
@@ -314,21 +509,45 @@ public sealed class DriveSync : IDisposable
         Pump();
     }
 
-    /// <summary>Carica subito tutto quello che è in coda e aspetta (al massimo <paramref name="timeout"/>). Vero se non resta niente.</summary>
-    public async Task<bool> FlushAsync(TimeSpan timeout, CancellationToken ct = default)
+    /// <summary>
+    /// Carica subito tutto quello che è in coda, toglie i lucchetti dei blocchi chiusi e aspetta (al massimo
+    /// <paramref name="timeout"/>). Vero se non restano modifiche da caricare.
+    /// </summary>
+    public async Task<bool> FlushAsync(TimeSpan timeout, CancellationToken ct = default, IProgress<double>? progress = null)
     {
         foreach (var id in _data.Files.Where(f => f.Value.Pending).Select(f => f.Key).ToList()) UploadSoon(id);
-        var end = DateTime.Now + timeout;
-        while (DateTime.Now < end && !ct.IsCancellationRequested)
+        foreach (var id in _release)
         {
-            var pending = _data.Files.Where(f => f.Value.Pending).Select(f => f.Key).ToList();
-            if (pending.Count == 0) return true;
-            // con un errore definitivo, o senza accesso, inutile aspettare
-            if (!_busy && pending.All(id => _rt.GetValueOrDefault(id) is { } rt
-                    && (rt.Blocked || rt.State == DriveSyncState.SignedOut || rt.Failures >= 2))) return false;
-            try { await Task.Delay(150, ct); } catch (OperationCanceledException) { break; }
+            var rt = RuntimeOf(id);
+            rt.LockFailures = 0;
+            rt.LockNextTry = DateTime.MinValue;
         }
-        return !HasPending;
+        _flushTotal = PendingBytes();
+        _flushDone = 0;
+        _flushProgress = progress;
+        try
+        {
+            Pump();
+            var end = DateTime.Now + timeout;
+            while (DateTime.Now < end && !ct.IsCancellationRequested)
+            {
+                var pending = _data.Files.Where(f => f.Value.Pending).Select(f => f.Key).ToList();
+                // un lucchetto che non si riesce a togliere non vale l'attesa: scade da solo
+                bool releases = _release.Any(id => _data.Files.ContainsKey(id) && RuntimeOf(id).LockFailures == 0);
+                if (pending.Count == 0 && !releases) return true;
+                // con un errore definitivo, senza accesso o senza rete, inutile aspettare
+                bool offline = !NetworkAvailable();
+                if (!_busy && (!releases || offline) && pending.All(id => _rt.GetValueOrDefault(id) is { } rt
+                        && (rt.Blocked || rt.State == DriveSyncState.SignedOut || rt.Failures >= 2 || (offline && rt.Failures >= 1))))
+                    return pending.Count == 0;
+                try { await Task.Delay(150, ct); } catch (OperationCanceledException) { break; }
+            }
+            return !HasPending;
+        }
+        finally
+        {
+            _flushProgress = null;
+        }
     }
 
     Runtime RuntimeOf(string id) => _rt.TryGetValue(id, out var rt) ? rt : _rt[id] = new Runtime();
@@ -358,7 +577,23 @@ public sealed class DriveSync : IDisposable
                 nextDue = due;
             }
         }
-        if (next != null) _ = UploadAsync(next);
+        if (next != null)
+        {
+            _ = UploadAsync(next);
+            return;
+        }
+
+        // Lucchetti: via quelli dei blocchi chiusi (se hanno modifiche in coda lo fa il caricamento), poi si rinnova
+        // quello del blocco aperto.
+        foreach (var id in _release)
+        {
+            if (_data.Files.GetValueOrDefault(id) is not { Pending: false } || RuntimeOf(id).LockNextTry > now) continue;
+            _ = LockAsync(id, hold: false);
+            return;
+        }
+        if (_openId is { } open && _data.Files.ContainsKey(open) && RuntimeOf(open) is { Blocked: false } ort
+            && ort.LockWritten + LockRefresh <= now && ort.LockNextTry <= now)
+            _ = LockAsync(open, hold: true);
     }
 
     static DateTime Min(DateTime a, DateTime b) => a < b ? a : b;
@@ -393,10 +628,36 @@ public sealed class DriveSync : IDisposable
                 return;
             }
             int serial = rt.Serial;
-            var wanted = SafeName(e.Title) + NotebookStore.Extension;
-            var f = await _client.UpdateContentAsync(id, MimeType, data, _cts.Token,
-                newName: e.Title.Length > 0 && wanted != e.DriveName ? wanted : null);
+
+            // Conflitto (§4.4): se su Drive c'è una revisione diversa da quella da cui parte la cache, un altro PC ha
+            // caricato nel frattempo. La sua versione resta com'è, la nostra va in un file nuovo («tieni entrambi»).
+            var meta = await _client.GetAsync(id, _cts.Token);
             if (_disposed) return;
+            if (meta.Trashed) throw new DriveException(404, "trashed", "Il blocco appunti è nel cestino di Google Drive.");
+            if (e.BaseRevision != null && meta.HeadRevisionId != null && meta.HeadRevisionId != e.BaseRevision)
+            {
+                await ForkAsync(id, e, meta, data, _cts.Token, serial, notify: true);
+                return;
+            }
+
+            // lucchetto: si rinnova col caricamento se il blocco è aperto, si toglie (se è nostro) se è stato chiuso
+            bool hold = id == _openId;
+            var props = hold || LockIsMine(meta) ? LockProps(hold) : null;
+            var wanted = SafeName(e.Title) + NotebookStore.Extension;
+            long size = data.Length;
+            var progress = _flushProgress == null ? null : new Relay(p =>
+                _flushProgress?.Report(_flushTotal > 0 ? Math.Min(1, (_flushDone + p * size) / _flushTotal) : 0));
+            var f = await _client.UpdateContentAsync(id, MimeType, data, _cts.Token, props,
+                e.Title.Length > 0 && wanted != e.DriveName ? wanted : null, progress);
+            if (_disposed) return;
+            if (props != null)
+            {
+                rt.LockHeld = hold;
+                if (hold) rt.LockWritten = DateTime.Now;
+                else _release.Remove(id);
+            }
+            _flushDone += size;
+            if (_flushTotal > 0) _flushProgress?.Report(Math.Min(1, (double)_flushDone / _flushTotal));
             e.BaseRevision = f.HeadRevisionId;
             e.DriveName = f.Name;
             e.ModifiedTime = f.ModifiedTime ?? DateTime.Now;
@@ -445,6 +706,80 @@ public sealed class DriveSync : IDisposable
             _busy = rt.Uploading = false;
         }
         if (!_disposed) Pump(); // un altro file in coda
+    }
+
+    /// <summary>
+    /// «Tieni entrambi» (§4.4, scelta dell'utente: senza domande): <paramref name="data"/> (le modifiche di questo PC)
+    /// va in un file nuovo «{titolo} (modifiche da {PC}, dd-MM HH.mm).ardesia» nella stessa cartella; la versione
+    /// dell'altro PC resta com'è. La copia in cache passa al nuovo ID. Restituisce il nuovo ID.
+    /// </summary>
+    async Task<string> ForkAsync(string id, DriveSyncEntry e, DriveFile meta, byte[] data, CancellationToken ct, int serial, bool notify)
+    {
+        var other = LockOf(meta, anyAge: true)?.Pc;
+        var oldTitle = e.Title.Length > 0 ? e.Title : TitleOf(meta.Name);
+        var title = $"{oldTitle} (modifiche da {MachineName}, {DateTime.Now:dd-MM HH.mm})";
+        var parent = meta.Parents?.FirstOrDefault() ?? e.ParentId;
+        bool open = id == _openId;
+        var props = new Dictionary<string, string>();
+        if (meta.AppProperties?.GetValueOrDefault("ardesiaFormato") is { } format) props["ardesiaFormato"] = format;
+        if (open)
+            foreach (var (k, v) in LockProps(true)) props[k] = v!;
+        var f = await _client.CreateFileAsync(SafeName(title) + NotebookStore.Extension, MimeType, parent, data, ct, props);
+        if (_disposed) return f.Id;
+
+        // La copia in cache di adesso (può essere più nuova di quella caricata, se si è salvato nel frattempo).
+        var oldCache = CachePath(id);
+        try
+        {
+            File.Copy(oldCache, CachePath(f.Id), overwrite: true);
+        }
+        catch (IOException)
+        {
+            File.WriteAllBytes(CachePath(f.Id), data); // la copia caricata
+        }
+        var rt = RuntimeOf(id);
+        var message =
+            $"«{oldTitle}» su Google Drive era stato modificato anche {(other != null ? $"sul PC {other}" : "su un altro PC")} " +
+            "mentre qui c'erano modifiche non ancora caricate. Le modifiche fatte in due posti non si uniscono.\n\n" +
+            "Per non perdere niente Ardesia ha tenuto tutte e due le versioni, nella stessa cartella di Google Drive:\n" +
+            $"•  «{oldTitle}»: la versione dell'altro PC;\n" +
+            $"•  «{title}»: le modifiche fatte su questo PC. Ardesia continua a lavorare su questa.\n\n" +
+            "Se serve, copia le pagine che ti interessano da un blocco all'altro ed elimina quello che non ti serve più.";
+        var ne = new DriveSyncEntry
+        {
+            Title = title,
+            DriveName = f.Name,
+            ParentId = parent,
+            Folder = e.Folder,
+            BaseRevision = f.HeadRevisionId,
+            ModifiedTime = f.ModifiedTime ?? DateTime.Now,
+            LastUpload = DateTime.Now,
+            Pending = rt.Serial != serial, // salvato di nuovo durante il caricamento: si ricarica sul file nuovo
+        };
+        _data.Files[f.Id] = ne;
+        var nrt = RuntimeOf(f.Id);
+        nrt.ConflictMessage = message;
+        if (ne.Pending) nrt.First = nrt.Last = DateTime.Now;
+        if (open)
+        {
+            _openId = f.Id;
+            nrt.LockHeld = true;
+            nrt.LockWritten = DateTime.Now;
+            if (rt.LockHeld) _release.Add(id);
+        }
+
+        // Il file di prima ora è dell'altro PC: la nostra cache non vale più (alla prossima apertura si riscarica).
+        e.Pending = false;
+        e.BaseRevision = null;
+        e.LastError = null;
+        rt.Failures = 0;
+        rt.ConflictMessage = null;
+        SaveData(_folder, _data);
+        if (notify) Forked?.Invoke(new DriveFork(id, f.Id, oldTitle, title, message));
+        try { File.Delete(oldCache); } catch { /* ancora in uso: si riscarica comunque */ }
+        SetState(id, DriveSyncState.Synced);
+        SetState(f.Id, ne.Pending ? DriveSyncState.Pending : DriveSyncState.Synced);
+        return f.Id;
     }
 
     // ───────────── cartelle ─────────────
@@ -560,7 +895,8 @@ public sealed class DriveSync : IDisposable
         {
             var (c, s) = Locate(f.Parents?.FirstOrDefault());
             var pending = _data.Files.GetValueOrDefault(f.Id);
-            return new DriveNotebook(f.Id, pending?.Pending == true ? pending.Title : TitleOf(f.Name), c, s, f.ModifiedTime, f.Size);
+            return new DriveNotebook(f.Id, pending?.Pending == true ? pending.Title : TitleOf(f.Name), c, s, f.ModifiedTime, f.Size,
+                LockOf(f)?.Pc);
         }).OrderByDescending(n => n.Modified ?? DateTime.MinValue).ToList();
 
         // Classi = figlie di «Ardesia», materie = figlie di una classe; prima le usate più di recente.
@@ -626,9 +962,12 @@ public sealed class DriveSync : IDisposable
 
     /// <summary>
     /// Apertura (§4.3): se la versione su Drive è quella della cache si apre subito la cache; se è cambiata (modificata
-    /// su un altro PC) si scarica. Senza rete si apre la cache, con un avviso; se manca, non si può aprire.
+    /// su un altro PC) si scarica; se è cambiata là e anche qui, conflitto: le modifiche di qui vanno in una copia
+    /// (§4.4), che è quella da aprire. Senza rete si apre la cache, con un avviso; se manca, non si può aprire.
+    /// Se il blocco risulta aperto su un altro PC si chiede a <paramref name="confirmOpenElsewhere"/> (falso = annulla).
     /// </summary>
-    public async Task<DriveOpenResult> OpenAsync(string id, IProgress<double>? progress, CancellationToken ct)
+    public async Task<DriveOpenResult> OpenAsync(string id, IProgress<double>? progress, CancellationToken ct,
+        Func<DriveLock, bool>? confirmOpenElsewhere = null)
     {
         var cache = CachePath(id);
         var e = Entry(id);
@@ -649,6 +988,7 @@ public sealed class DriveSync : IDisposable
                                   "su questo PC non ce n'è ancora una copia.", ex);
         }
         if (meta.Trashed) throw Gone(e, hasCache);
+        if (confirmOpenElsewhere != null && LockOf(meta) is { } lk && !confirmOpenElsewhere(lk)) throw new OperationCanceledException();
 
         if (e == null) _data.Files[id] = e = new DriveSyncEntry();
         e.DriveName = meta.Name;
@@ -663,9 +1003,15 @@ public sealed class DriveSync : IDisposable
         {
             // la cache è già l'ultima versione
         }
+        else if (hasCache && e.Pending && e.BaseRevision != null)
+        {
+            // Cambiata altrove e anche qui: «tieni entrambi», si apre la copia con le modifiche di questo PC.
+            var newId = await ForkAsync(id, e, meta, await File.ReadAllBytesAsync(cache, ct), ct, RuntimeOf(id).Serial, notify: false);
+            return new DriveOpenResult(CachePath(newId), null, RuntimeOf(newId).ConflictMessage);
+        }
         else if (hasCache && e.Pending)
         {
-            // Cambiata altrove e anche qui (conflitto, fase 3): si tiene questa; Drive conserva le revisioni precedenti.
+            // revisione di partenza sconosciuta: si tiene questa; Drive conserva le revisioni precedenti
             warning = "Il blocco era stato modificato anche su un altro PC: si tiene la versione di questo PC";
         }
         else
@@ -711,6 +1057,8 @@ public sealed class DriveSync : IDisposable
     {
         _data.Files.Remove(id);
         _rt.Remove(id);
+        _release.Remove(id);
+        if (_openId == id) _openId = null;
         try { File.Delete(CachePath(id)); } catch { /* resta: nessuno la usa più */ }
         SaveData(_folder, _data);
     }
@@ -758,6 +1106,7 @@ public sealed class DriveSync : IDisposable
         _disposed = true;
         _timer.Stop();
         _cts.Cancel();
+        NetworkChange.NetworkAvailabilityChanged -= _onNetwork;
         if (_current == this) _current = null;
     }
 

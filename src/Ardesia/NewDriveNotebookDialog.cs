@@ -240,8 +240,10 @@ public sealed class NewDriveNotebookDialog : Window
         }
         catch (Exception ex)
         {
-            ShowError((DriveApi.IsTransient(ex) ? "Non riesco a raggiungere Google Drive: controlla la connessione. " : "Non è stato possibile creare il blocco appunti: ")
-                      + ex.Message);
+            ShowError(DriveApi.IsTransient(ex)
+                ? "Senza connessione a Google Drive non si può creare un blocco appunti: riprova quando c'è la rete, " +
+                  "oppure crealo sul computer («Crea invece sul computer…»). (" + ex.Message + ")"
+                : "Non è stato possibile creare il blocco appunti: " + ex.Message);
         }
     }
 }

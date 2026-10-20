@@ -151,7 +151,7 @@ public partial class MainWindow : Window
         _dirty = false;
         _classPdfStale = false;
         UpdateTitle();
-        UpdateDriveStatus();
+        DriveNotebookChanged();
     }
 
     /// <summary>Nuovo blocco appunti: prima si sceglie dove salvarlo (su Drive se si è collegati), poi si apre.</summary>
@@ -175,7 +175,7 @@ public partial class MainWindow : Window
     bool TryOpen(string path, bool quiet = false)
     {
         // blocco su Google Drive: prima si controlla la versione su Drive (e si scarica se è cambiata)
-        if (!PrepareDriveOpen(path, quiet, out var driveWarning)) return false;
+        if (!PrepareDriveOpen(ref path, quiet, out var driveOpen)) return false;
         try
         {
             var nb = NotebookStore.Load(path);
@@ -186,7 +186,7 @@ public partial class MainWindow : Window
                 nb.Insert(NotebookNode.NewPage(), s);
             }
             SetNotebook(nb, path);
-            AfterDriveOpen(driveWarning);
+            AfterDriveOpen(driveOpen);
             _settings.AddRecent(path);
             _settings.Save();
             return true;
@@ -411,6 +411,7 @@ public partial class MainWindow : Window
             e.Cancel = true;
             return;
         }
+        FinishDriveOnExit();
         _settings.Save();
     }
 

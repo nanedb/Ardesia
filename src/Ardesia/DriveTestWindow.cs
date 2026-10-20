@@ -14,7 +14,8 @@ namespace Ardesia;
 /// «Prova di Google Drive» (Ardesia.exe --prova-drive [registro.txt] [--finto]): prima le prove con un Drive finto in
 /// memoria (DriveSelfTest), poi con l'account vero nella cartella «Ardesia» vera (scelta dell'utente): crea un blocco
 /// in Ardesia/PROVA/Prova, lo carica, lo rinomina, lo riscarica, prova il caricamento riprendibile, lo trova
-/// nell'elenco e alla fine lo mette nel cestino (le cartelle restano). Se non si è collegati si apre il browser.
+/// nell'elenco; fase 3: lucchetto scritto e tolto, conflitto con un «altro PC» simulato caricando direttamente con
+/// DriveApi (copia «modifiche da …» nella stessa cartella). Alla fine blocco e copia vanno nel cestino (le cartelle restano). Se non si è collegati si apre il browser.
 /// La cache della prova è in una cartella temporanea, non in quella vera. Codice d'uscita 1 se qualcosa non va.
 /// </summary>
 public sealed class DriveTestWindow : Window
@@ -124,7 +125,7 @@ public sealed class DriveTestWindow : Window
         Log(null, "Seconda parte: il tuo Google Drive");
         var folder = Path.Combine(Path.GetTempPath(), "ardesia-prova-drive-vera-" + Guid.NewGuid().ToString("N")[..8]);
         DriveSync? sync = null;
-        string? id = null;
+        string? id = null, copyId = null;
         try
         {
             var g = GoogleAccountService.Current;
@@ -177,6 +178,84 @@ public sealed class DriveTestWindow : Window
             opened = await sync.OpenAsync(id, null, CancellationToken.None);
             Log(opened.Warning == null, "Riaperto senza scaricare di nuovo (stessa revisione)");
 
+            // ── fase 3: lucchetto morbido ──
+            var none = CancellationToken.None;
+            sync.SetOpen(id);
+            var locked = await api.GetAsync(id, none);
+            for (int i = 0; i < 40 && locked.AppProperties?.GetValueOrDefault(DriveSync.LockPcKey) != sync.MachineName; i++)
+            {
+                await Task.Delay(500);
+                locked = await api.GetAsync(id, none);
+            }
+            Log(locked.AppProperties?.GetValueOrDefault(DriveSync.LockPcKey) == sync.MachineName
+                && locked.AppProperties?.ContainsKey(DriveSync.LockTimeKey) == true,
+                "Lucchetto scritto su Drive (appProperties)",
+                $"apertoSu={locked.AppProperties?.GetValueOrDefault(DriveSync.LockPcKey)}, apertoAlle={locked.AppProperties?.GetValueOrDefault(DriveSync.LockTimeKey)}");
+            sync.SetOpen(null);
+            await sync.FlushAsync(TimeSpan.FromSeconds(30));
+            var unlocked = await api.GetAsync(id, none);
+            Log(unlocked.AppProperties?.ContainsKey(DriveSync.LockPcKey) != true && !sync.HasWork, "Lucchetto tolto alla chiusura del blocco");
+
+            // ── fase 3: conflitto, con un «altro PC» che carica direttamente con DriveApi ──
+            DriveFork? fork = null;
+            Action<DriveFork> onFork = f => fork = f;
+            DriveSync.Forked += onFork;
+            try
+            {
+                sync.SetOpen(id);
+                // prima il nostro lucchetto, poi l'«altro PC» (che lo sovrascrive col suo)
+                for (int i = 0; i < 40 && (await api.GetAsync(id, none)).AppProperties?.GetValueOrDefault(DriveSync.LockPcKey) != sync.MachineName; i++)
+                    await Task.Delay(500);
+                var otherPc =Path.Combine(folder, "altro-pc" + NotebookStore.Extension);
+                File.Copy(sync.CachePath(id), otherPc, overwrite: true);
+                DriveSelfTest.Modify(otherPc, "Modifica dell'altro PC");
+                await api.UpdateContentAsync(id, DriveSync.MimeType, File.ReadAllBytes(otherPc), none,
+                    new Dictionary<string, string?> { [DriveSync.LockPcKey] = "ALTRO-PC-PROVA", [DriveSync.LockTimeKey] = DateTime.UtcNow.ToString("o") });
+                DriveSelfTest.Modify(sync.CachePath(id), "Modifica di questo PC");
+                sync.Changed(id, renamed);
+                await sync.FlushAsync(TimeSpan.FromSeconds(60));
+                await DriveSelfTest.WaitAsync(() => fork != null, 5000);
+                copyId = fork?.NewId;
+                if (copyId == null) throw new Exception("Il conflitto non è stato riconosciuto: nessuna copia.");
+                var copyMeta = await api.GetAsync(copyId, none);
+                var copySections = DriveSelfTest.SectionsOf(await api.DownloadAsync(copyId, none));
+                var origMeta = await api.GetAsync(id, none);
+                var origSections = DriveSelfTest.SectionsOf(await api.DownloadAsync(id, none));
+                Log(copyMeta.Name.StartsWith(renamed + $" (modifiche da {sync.MachineName}, ") && copyMeta.Parents?[0] == meta.Parents[0]
+                    && copySections.Contains("Modifica di questo PC") && !copySections.Contains("Modifica dell'altro PC")
+                    && origSections.Contains("Modifica dell'altro PC") && !origSections.Contains("Modifica di questo PC"),
+                    "Conflitto: la versione dell'altro PC resta, la nostra in una copia nella stessa cartella", copyMeta.Name);
+                Log(sync.OpenId == copyId && copyMeta.AppProperties?.GetValueOrDefault(DriveSync.LockPcKey) == sync.MachineName
+                    && origMeta.AppProperties?.GetValueOrDefault(DriveSync.LockPcKey) == "ALTRO-PC-PROVA"
+                    && sync.Status(copyId).State == DriveSyncState.Conflict,
+                    "Si continua sulla copia (col lucchetto); stato «Conflitto: salvata una copia»", sync.Status(copyId).Text);
+
+                listing = await sync.ListAsync(none);
+                DriveLock? asked = null;
+                bool canceled = false;
+                try { await sync.OpenAsync(id, null, none, lk => { asked = lk; return false; }); }
+                catch (OperationCanceledException) { canceled = true; }
+                Log(listing.Notebooks.FirstOrDefault(n => n.Id == id)?.OpenOn == "ALTRO-PC-PROVA" && canceled && asked?.Pc == "ALTRO-PC-PROVA",
+                    "Blocco aperto su un altro PC: «aperto su ALTRO-PC-PROVA» nell'elenco, domanda all'apertura",
+                    asked != null ? $"ultima attività alle {asked.At:HH:mm}" : "nessuna domanda");
+
+                sync.SetOpen(null);
+                await sync.FlushAsync(TimeSpan.FromSeconds(30));
+                copyMeta = await api.GetAsync(copyId, none);
+                origMeta = await api.GetAsync(id, none);
+                Log(copyMeta.AppProperties?.ContainsKey(DriveSync.LockPcKey) != true
+                    && origMeta.AppProperties?.GetValueOrDefault(DriveSync.LockPcKey) == "ALTRO-PC-PROVA",
+                    "Chiusura: tolto il nostro lucchetto, non quello dell'altro PC");
+                await sync.TrashAsync(copyId, none);
+                Log((await api.GetAsync(copyId, none)).Trashed, "Copia del conflitto nel cestino di Drive");
+                copyId = null;
+            }
+            finally
+            {
+                DriveSync.Forked -= onFork;
+            }
+            opened = await sync.OpenAsync(id, null, none); // la cache del file originale si riscarica
+
             // caricamento riprendibile: 1,3 MB in pezzi da 256 KB, poi si rimette il blocco vero
             var big = RandomNumberGenerator.GetBytes(1300 * 1024);
             await api.UpdateContentAsync(id, DriveSync.MimeType, big, CancellationToken.None);
@@ -203,10 +282,11 @@ public sealed class DriveTestWindow : Window
         }
         finally
         {
-            if (id != null && sync != null)
-            {
-                try { await sync.TrashAsync(id, CancellationToken.None); } catch { /* resta: si cancella dal sito di Drive */ }
-            }
+            foreach (var leftover in new[] { id, copyId })
+                if (leftover != null && sync != null)
+                {
+                    try { await sync.TrashAsync(leftover, CancellationToken.None); } catch { /* resta: si cancella dal sito di Drive */ }
+                }
             sync?.Dispose();
             try { Directory.Delete(folder, recursive: true); } catch { /* cartella temporanea */ }
             _report.AppendLine();

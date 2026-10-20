@@ -17,7 +17,8 @@ public sealed class DriveException(int status, string reason, string message) : 
 
 /// <summary>Un file di Drive, con i soli campi che servono ad Ardesia.</summary>
 public sealed record DriveFile(string Id, string Name, string? MimeType, string? WebViewLink, string? HeadRevisionId, long? Version,
-    IReadOnlyList<string>? Parents = null, DateTime? ModifiedTime = null, bool Trashed = false, long? Size = null);
+    IReadOnlyList<string>? Parents = null, DateTime? ModifiedTime = null, bool Trashed = false, long? Size = null,
+    IReadOnlyDictionary<string, string>? AppProperties = null);
 
 /// <summary>
 /// Le chiamate a Drive che servono a DriveSync. Le prove automatiche (--prova-drive) usano un Drive finto in memoria.
@@ -29,9 +30,15 @@ public interface IDriveClient
     Task<DriveFile> CreateFileAsync(string name, string mimeType, string? parent, byte[] data, CancellationToken ct,
         IDictionary<string, string>? appProperties = null);
 
-    /// <summary>Nuovo contenuto (e, se <paramref name="newName"/> non è null, nuovo nome) per un file esistente.</summary>
+    /// <summary>
+    /// Nuovo contenuto (e, se <paramref name="newName"/> non è null, nuovo nome) per un file esistente. Nelle
+    /// <paramref name="appProperties"/> un valore null toglie la chiave.
+    /// </summary>
     Task<DriveFile> UpdateContentAsync(string id, string mimeType, byte[] data, CancellationToken ct,
-        IDictionary<string, string>? appProperties = null, string? newName = null);
+        IDictionary<string, string?>? appProperties = null, string? newName = null, IProgress<double>? progress = null);
+
+    /// <summary>Cambia solo le appProperties (un valore null toglie la chiave): niente revisione nuova del contenuto.</summary>
+    Task<DriveFile> UpdateMetadataAsync(string id, IDictionary<string, string?> appProperties, CancellationToken ct);
 
     Task<DriveFile> GetAsync(string id, CancellationToken ct);
 
@@ -48,7 +55,7 @@ public sealed class DriveApi : IDriveClient
     public const string FolderMime = "application/vnd.google-apps.folder";
     const string Api = "https://www.googleapis.com/drive/v3/files";
     const string Upload = "https://www.googleapis.com/upload/drive/v3/files";
-    const string Fields = "id,name,mimeType,webViewLink,headRevisionId,version,parents,modifiedTime,trashed,size";
+    const string Fields = "id,name,mimeType,webViewLink,headRevisionId,version,parents,modifiedTime,trashed,size,appProperties";
 
     static readonly HttpClient Http = new() { Timeout = TimeSpan.FromMinutes(5) };
 
@@ -85,21 +92,24 @@ public sealed class DriveApi : IDriveClient
     public Task<DriveFile> CreateFileAsync(string name, string mimeType, string? parent, byte[] data, CancellationToken ct,
         IDictionary<string, string>? appProperties = null)
     {
-        var meta = Metadata(name, mimeType, parent, appProperties);
+        var meta = Metadata(name, mimeType, parent, appProperties?.Select(p => KeyValuePair.Create(p.Key, (string?)p.Value)));
         return data.Length > ResumableThreshold
-            ? ResumableAsync(HttpMethod.Post, Upload, meta, mimeType, data, ct)
+            ? ResumableAsync(HttpMethod.Post, Upload, meta, mimeType, data, ct, null)
             : SendFileAsync(HttpMethod.Post, $"{Upload}?uploadType=multipart&fields={Fields}", () => Multipart(meta, mimeType, data), ct);
     }
 
     /// <summary>Sostituisce il contenuto di un file esistente (stesso ID, quindi stesso link e stesse condivisioni).</summary>
     public Task<DriveFile> UpdateContentAsync(string id, string mimeType, byte[] data, CancellationToken ct,
-        IDictionary<string, string>? appProperties = null, string? newName = null)
+        IDictionary<string, string?>? appProperties = null, string? newName = null, IProgress<double>? progress = null)
     {
         var meta = Metadata(newName, null, null, appProperties);
         return data.Length > ResumableThreshold
-            ? ResumableAsync(HttpMethod.Patch, $"{Upload}/{id}", meta, mimeType, data, ct)
+            ? ResumableAsync(HttpMethod.Patch, $"{Upload}/{id}", meta, mimeType, data, ct, progress)
             : SendFileAsync(HttpMethod.Patch, $"{Upload}/{id}?uploadType=multipart&fields={Fields}", () => Multipart(meta, mimeType, data), ct);
     }
+
+    public Task<DriveFile> UpdateMetadataAsync(string id, IDictionary<string, string?> appProperties, CancellationToken ct) =>
+        SendFileAsync(HttpMethod.Patch, $"{Api}/{id}?fields={Fields}", () => Json(Metadata(null, null, null, appProperties)), ct);
 
     public Task<DriveFile> GetAsync(string id, CancellationToken ct) =>
         SendFileAsync(HttpMethod.Get, $"{Api}/{id}?fields={Fields}", null, ct);
@@ -153,7 +163,8 @@ public sealed class DriveApi : IDriveClient
     /// Caricamento riprendibile: si apre una sessione, poi si mandano i pezzi. Se un pezzo non arriva (rete che cade)
     /// si chiede a Google fin dove è arrivato e si riparte da lì, qualche volta; poi l'errore passa alla coda di DriveSync.
     /// </summary>
-    async Task<DriveFile> ResumableAsync(HttpMethod method, string url, JsonNode meta, string mimeType, byte[] data, CancellationToken ct)
+    async Task<DriveFile> ResumableAsync(HttpMethod method, string url, JsonNode meta, string mimeType, byte[] data, CancellationToken ct,
+        IProgress<double>? progress)
     {
         Uri session;
         using (var start = await SendAsync(method, $"{url}?uploadType=resumable&fields={Fields}", () => Json(meta), ct,
@@ -188,6 +199,7 @@ public sealed class DriveApi : IDriveClient
                 {
                     sent = ReceivedUpTo(r);
                     failures = 0;
+                    progress?.Report((double)sent / data.Length);
                     continue;
                 }
                 await ThrowAsync(r, ct);
@@ -275,7 +287,7 @@ public sealed class DriveApi : IDriveClient
         throw new DriveException(status, reason, message);
     }
 
-    static JsonObject Metadata(string? name, string? mimeType, string? parent, IDictionary<string, string>? appProperties = null)
+    static JsonObject Metadata(string? name, string? mimeType, string? parent, IEnumerable<KeyValuePair<string, string?>>? appProperties = null)
     {
         var m = new JsonObject();
         if (name != null) m["name"] = name;
@@ -284,7 +296,7 @@ public sealed class DriveApi : IDriveClient
         if (appProperties != null)
         {
             var p = new JsonObject();
-            foreach (var (k, v) in appProperties) p[k] = v;
+            foreach (var (k, v) in appProperties) p[k] = v; // null → JSON null: Drive toglie la chiave
             m["appProperties"] = p;
         }
         return m;
@@ -316,5 +328,8 @@ public sealed class DriveApi : IDriveClient
         f["modifiedTime"]?.GetValue<string>() is { } m && DateTime.TryParse(m, null, System.Globalization.DateTimeStyles.RoundtripKind, out var mt)
             ? mt.ToLocalTime() : null,
         f["trashed"]?.GetValue<bool>() ?? false,
-        long.TryParse(f["size"]?.ToString(), out var s) ? s : null);
+        long.TryParse(f["size"]?.ToString(), out var s) ? s : null,
+        f["appProperties"] is JsonObject props
+            ? props.Where(p => p.Value != null).ToDictionary(p => p.Key, p => p.Value!.ToString())
+            : null);
 }

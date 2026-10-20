@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Windows;
+using System.Windows.Input;
 using Ardesia.Controls;
 using Ardesia.Services;
 using Ardesia.Services.Google;
@@ -21,6 +22,9 @@ public partial class MainWindow
 
     static string? DriveIdOf(string? path) => DriveSync.TryParseCachePath(path, out _, out var id) ? id : null;
 
+    bool _exitingDrive; // chiusura di Ardesia: i messaggi dei conflitti si mostrano alla fine
+    readonly List<string> _exitDriveNotes = new();
+
     void InitDrive()
     {
         Action<string> onStatus = id =>
@@ -28,17 +32,62 @@ public partial class MainWindow
             if (id == _driveId) UpdateDriveStatus();
         };
         DriveSync.StatusChanged += onStatus;
-        Closed += (_, _) => DriveSync.StatusChanged -= onStatus;
+        Action<DriveFork> onForked = OnDriveForked;
+        DriveSync.Forked += onForked;
+        Closed += (_, _) =>
+        {
+            DriveSync.StatusChanged -= onStatus;
+            DriveSync.Forked -= onForked;
+        };
+        // «Conflitto: salvata una copia» nella barra: clic → spiegazione
+        StatusText.MouseLeftButtonUp += (_, _) =>
+        {
+            if (_driveId != null && DriveSync.Current?.ConflictMessage(_driveId) is { } m)
+                MessageBox.Show(this, m, "Ardesia – Conflitto su Google Drive", MessageBoxButton.OK, MessageBoxImage.Information);
+        };
         _ = DriveSync.Current; // riprende i caricamenti rimasti in coda dall'ultima volta
+    }
+
+    /// <summary>Cambiato il blocco aperto: il lucchetto morbido (§4.4) passa a quello nuovo, o si toglie.</summary>
+    void DriveNotebookChanged()
+    {
+        if (DriveSync.Current is { } sync)
+            sync.SetOpen(_driveId != null && DriveSync.TryParseCachePath(_path, out var key, out _) && key == sync.AccountKeyValue ? _driveId : null);
+        UpdateDriveStatus();
+    }
+
+    /// <summary>
+    /// Conflitto durante un caricamento (§4.4): le modifiche di questo PC sono andate in un file nuovo. Se è il blocco
+    /// aperto, Ardesia continua su quello (nuovo percorso in cache, nuovo titolo); il messaggio si mostra una volta.
+    /// </summary>
+    void OnDriveForked(DriveFork f)
+    {
+        if (f.OldId == _driveId && DriveSync.Current is { } sync)
+        {
+            _path = sync.CachePath(f.NewId);
+            _driveId = f.NewId;
+            _nb.Title = f.NewTitle; // si salva nella copia nuova, il nome su Drive è già quello
+            _settings.AddRecent(_path);
+            _settings.Save();
+            UpdateTitle();
+            UpdateDriveStatus();
+        }
+        if (_exitingDrive) _exitDriveNotes.Add(f.Message);
+        else
+            Dispatcher.BeginInvoke(() =>
+            {
+                if (IsVisible) MessageBox.Show(this, f.Message, "Ardesia – Conflitto su Google Drive", MessageBoxButton.OK, MessageBoxImage.Information);
+            });
     }
 
     /// <summary>
     /// Prima di aprire un blocco su Drive: metadati, ed eventualmente download della versione nuova (con la
-    /// finestrella di attesa). <paramref name="path"/> resta la copia in cache. Falso se non si può aprire.
+    /// finestrella di attesa). <paramref name="path"/> resta la copia in cache (con un conflitto diventa quella della
+    /// copia nuova). Falso se non si può aprire.
     /// </summary>
-    bool PrepareDriveOpen(string path, bool quiet, out string? warning)
+    bool PrepareDriveOpen(ref string path, bool quiet, out DriveOpenResult? result)
     {
-        warning = null;
+        result = null;
         if (!DriveSync.TryParseCachePath(path, out var key, out var id)) return true;
         var sync = DriveSync.Current;
         if (sync == null || sync.AccountKeyValue != key)
@@ -53,9 +102,9 @@ public partial class MainWindow
         var title = sync.Entry(id)?.Title;
         try
         {
-            var r = BusyDialog.Run(this, title != null ? $"Apro «{title}» da Google Drive…" : "Apro il blocco appunti da Google Drive…",
-                (p, ct) => sync.OpenAsync(id, p, ct));
-            warning = r.Warning;
+            result = BusyDialog.Run(this, title != null ? $"Apro «{title}» da Google Drive…" : "Apro il blocco appunti da Google Drive…",
+                (p, ct) => sync.OpenAsync(id, p, ct, ConfirmOpenElsewhere));
+            path = result.CachePath;
             return true;
         }
         catch (OperationCanceledException)
@@ -76,17 +125,66 @@ public partial class MainWindow
         }
     }
 
-    /// <summary>Dopo l'apertura: se su Drive il blocco è stato rinominato (dal sito), il titolo segue il nome.</summary>
-    void AfterDriveOpen(string? warning)
+    /// <summary>
+    /// Lucchetto di un altro PC (§4.4): si chiede se aprire lo stesso. Il pulsante predefinito è «No» (annulla),
+    /// contro i tocchi per sbaglio sulla LIM.
+    /// </summary>
+    bool ConfirmOpenElsewhere(DriveLock lk)
+    {
+        Window owner = Application.Current.Windows.OfType<BusyDialog>().FirstOrDefault(w => w.IsVisible) ?? (Window)this;
+        return MessageBox.Show(owner,
+            $"Questo blocco appunti risulta aperto anche sul PC {lk.Pc} (ultima attività alle {lk.At:HH:mm}). " +
+            "Se lo modifichi qui e là, le modifiche non si uniscono.\n\nSì = aprilo lo stesso    No = annulla",
+            "Ardesia – Blocco aperto su un altro PC", MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No) == MessageBoxResult.Yes;
+    }
+
+    /// <summary>
+    /// Dopo l'apertura: se su Drive il blocco è stato rinominato (dal sito, o per un conflitto) il titolo segue il
+    /// nome; avvisi e conflitti vanno nella barra.
+    /// </summary>
+    void AfterDriveOpen(DriveOpenResult? r)
     {
         if (_driveId == null || DriveSync.Current?.Entry(_driveId) is not { } e) return;
         if (!e.Pending && e.Title.Length > 0 && DriveSync.SafeName(_nb.Title) != e.Title) _nb.Title = e.Title;
         UpdateDriveStatus();
-        if (warning != null)
+        if (r?.Warning != null)
         {
-            StatusText.Text = warning;
+            StatusText.Text = r.Warning;
             StatusText.ToolTip = "Le versioni precedenti restano nella cronologia del file su Google Drive.";
         }
+        if (r?.Conflict is { } conflict)
+            Dispatcher.BeginInvoke(() => MessageBox.Show(this, conflict, "Ardesia – Conflitto su Google Drive",
+                MessageBoxButton.OK, MessageBoxImage.Information));
+    }
+
+    /// <summary>
+    /// Chiusura di Ardesia (§4.5), dopo ConfirmClose: si toglie il lucchetto e si caricano le modifiche in coda, con
+    /// «Carico su Google Drive… (2,1 MB)» ed «Esci senza aspettare» (la finestrella compare solo se ci vuole più di un
+    /// attimo). Se tutto va bene si esce senza domande; altrimenti si avvisa che le modifiche restano su questo PC.
+    /// </summary>
+    void FinishDriveOnExit()
+    {
+        if (!_settings.Persist || DriveSync.Current is not { } sync) return;
+        _exitingDrive = true;
+        sync.SetOpen(null);
+        if (!sync.HasWork) return;
+        var bytes = sync.PendingBytes();
+        bool flushed;
+        try
+        {
+            flushed = BusyDialog.Run(this, bytes > 0 ? $"Carico su Google Drive… ({DriveUi.Size(bytes)})" : "Aggiorno Google Drive…",
+                (p, ct) => sync.FlushAsync(TimeSpan.FromMinutes(3), ct, p), "Esci senza aspettare");
+        }
+        catch (OperationCanceledException)
+        {
+            flushed = false;
+        }
+        foreach (var note in _exitDriveNotes)
+            MessageBox.Show(this, note, "Ardesia – Conflitto su Google Drive", MessageBoxButton.OK, MessageBoxImage.Information);
+        if (!flushed && sync.HasPending)
+            MessageBox.Show(this,
+                "Le ultime modifiche sono salvate su questo PC ma non ancora su Google Drive. Verranno caricate la prossima " +
+                "volta che apri Ardesia su questo PC.", "Ardesia", MessageBoxButton.OK, MessageBoxImage.Warning);
     }
 
     /// <summary>Dopo ogni salvataggio della copia in cache: il blocco va in coda per Drive.</summary>
@@ -110,9 +208,10 @@ public partial class MainWindow
         DriveIcon.Visibility = Visibility.Visible;
         if (DriveSync.Current is { } sync && _path != null && sync.AccountKeyValue == (DriveSync.TryParseCachePath(_path, out var k, out _) ? k : null))
         {
-            var (_, text, tip) = sync.Status(_driveId);
+            var (state, text, tip) = sync.Status(_driveId);
             StatusText.Text = text;
             StatusText.ToolTip = tip;
+            StatusText.Cursor = state == DriveSyncState.Conflict ? Cursors.Hand : null;
         }
         else
         {
@@ -214,7 +313,8 @@ public partial class MainWindow
             Editor.Flush();
             if (_dirty) Save(quiet: true);
         }
-        if (DriveSync.Current is { HasPending: true } sync)
+        DriveSync.Current?.SetOpen(null); // il lucchetto si toglie prima di uscire
+        if (DriveSync.Current is { HasWork: true } sync)
         {
             bool flushed;
             try
@@ -230,7 +330,10 @@ public partial class MainWindow
                     "Alcune modifiche non sono ancora su Google Drive. Restano su questo PC e verranno caricate quando accedi " +
                     "di nuovo con questo account.\n\nUscire lo stesso da Google?",
                     "Ardesia", MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No) != MessageBoxResult.Yes)
+            {
+                DriveNotebookChanged(); // si resta: il lucchetto torna
                 return (false, null);
+            }
         }
         var warning = await g.SignOutAsync(CancellationToken.None);
         _ = DriveSync.Current; // ferma la sincronizzazione dell'account

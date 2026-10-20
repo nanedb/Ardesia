@@ -77,7 +77,7 @@ public partial class StartWindow : Window
             var listing = await sync.ListAsync(CancellationToken.None);
             if (!IsLoaded) return;
             DriveList.ItemsSource = listing.Notebooks.Take(5)
-                .Select(n => new RecentItem(n.Title, string.Join(" · ", new[] { n.Folder, n.Modified is { } m ? "modificato " + DriveUi.When(m) : "" }
+                .Select(n => new RecentItem(n.Title, string.Join(" · ", new[] { n.Folder, n.OpenOn != null ? "aperto su " + n.OpenOn : "", n.Modified is { } m ? "modificato " + DriveUi.When(m) : "" }
                     .Where(x => x.Length > 0)), sync.CachePath(n.Id)))
                 .ToList();
             DriveText.Text = listing.Offline
