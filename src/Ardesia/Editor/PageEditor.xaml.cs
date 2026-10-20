@@ -165,6 +165,7 @@ public partial class PageEditor : UserControl
         ContentHost.ManipulationStarting += ContentHost_ManipulationStarting;
         ContentHost.ManipulationDelta += ContentHost_ManipulationDelta;
         ContentHost.ManipulationInertiaStarting += ContentHost_ManipulationInertiaStarting;
+        SetupResizePreview();
         SetupTextSelection(); // per ultimo: riceve solo ciò che gli altri gestori non hanno già preso
 
         Scroller.PreviewMouseWheel += Scroller_PreviewMouseWheel;
@@ -1301,6 +1302,96 @@ public partial class PageEditor : UserControl
         ContentHost.PreviewMouseLeftButtonDown += (_, e) => { if (e.StylusDevice == null) Begin(e.GetPosition(Ink), e.OriginalSource as DependencyObject); };
         ContentHost.PreviewMouseMove += (_, e) => { if (e.StylusDevice == null) Add(e.GetPosition(Ink)); };
         ContentHost.PreviewMouseLeftButtonUp += (_, e) => { if (e.StylusDevice == null) End(); };
+    }
+
+    // ───── Ridimensionamento della selezione: anteprima del contenuto ─────
+    // InkCanvas, mentre si trascina una maniglia, mostra solo il rettangolo e cambia il contenuto al rilascio.
+    // Qui si disegna anche una copia semitrasparente del contenuto, deformata come il rettangolo.
+
+    readonly Image _resizePreview = new() { Stretch = Stretch.Fill, Opacity = 0.5, IsHitTestVisible = false, Visibility = Visibility.Collapsed };
+    InkCanvasSelectionHitResult _resizeHandle;
+    Rect _resizeStartBounds;
+    Point _resizeStart;
+    int? _resizeStylus;
+
+    void SetupResizePreview()
+    {
+        Overlay.Children.Add(_resizePreview);
+        ContentHost.PreviewStylusDown += (_, e) => { if (!e.StylusDevice.Inverted && BeginResizePreview(e.GetPosition(Ink))) _resizeStylus = e.StylusDevice.Id; };
+        ContentHost.PreviewStylusMove += (_, e) => { if (_resizeStylus == e.StylusDevice.Id) ContinueResizePreview(e.GetPosition(Ink)); };
+        ContentHost.PreviewStylusUp += (_, _) => EndResizePreview();
+        ContentHost.PreviewMouseLeftButtonDown += (_, e) => { if (e.StylusDevice == null) BeginResizePreview(e.GetPosition(Ink)); };
+        ContentHost.PreviewMouseMove += (_, e) => { if (e.StylusDevice == null && _resizeStylus == null) ContinueResizePreview(e.GetPosition(Ink)); };
+        ContentHost.PreviewMouseLeftButtonUp += (_, _) => EndResizePreview();
+        ContentHost.LostMouseCapture += (_, _) => { if (_resizeStylus == null) EndResizePreview(); };
+        Ink.SelectionResized += (_, _) => EndResizePreview();
+        Ink.SelectionChanged += (_, _) => EndResizePreview();
+    }
+
+    bool BeginResizePreview(Point p)
+    {
+        EndResizePreview();
+        if (_tool != EditorTool.Select || _drag != DragMode.None || !HasSelection) return false;
+        var handle = Ink.HitTestSelection(p);
+        if (handle is InkCanvasSelectionHitResult.None or InkCanvasSelectionHitResult.Selection) return false;
+        var bounds = Ink.GetSelectionBounds();
+        if (bounds.IsEmpty || bounds.Width < 1 || bounds.Height < 1) return false;
+
+        // Il contenuto selezionato in un disegno grande esattamente quanto la selezione.
+        var group = new DrawingGroup();
+        using (var dc = group.Open())
+        {
+            dc.DrawRectangle(Brushes.Transparent, null, bounds);
+            dc.PushClip(new RectangleGeometry(bounds));
+            foreach (var el in Ink.GetSelectedElements().OfType<FrameworkElement>())
+            {
+                var r = new Rect(InkCanvas.GetLeft(el) is var x && double.IsNaN(x) ? 0 : x, TopOf(el), el.ActualWidth, el.ActualHeight);
+                if (r.Width > 0 && r.Height > 0) dc.DrawRectangle(new VisualBrush(el) { Stretch = Stretch.Fill }, null, r);
+            }
+            Ink.GetSelectedStrokes().Draw(dc);
+            dc.Pop();
+        }
+        _resizePreview.Source = new DrawingImage(group);
+        _resizeHandle = handle;
+        _resizeStartBounds = bounds;
+        _resizeStart = p;
+        return true;
+    }
+
+    void ContinueResizePreview(Point p)
+    {
+        if (_resizePreview.Source == null) return;
+        var b = _resizeStartBounds;
+        double dx = p.X - _resizeStart.X, dy = p.Y - _resizeStart.Y;
+        double left = b.Left, top = b.Top, right = b.Right, bottom = b.Bottom;
+        switch (_resizeHandle)
+        {
+            case InkCanvasSelectionHitResult.TopLeft: left += dx; top += dy; break;
+            case InkCanvasSelectionHitResult.Top: top += dy; break;
+            case InkCanvasSelectionHitResult.TopRight: right += dx; top += dy; break;
+            case InkCanvasSelectionHitResult.Right: right += dx; break;
+            case InkCanvasSelectionHitResult.BottomRight: right += dx; bottom += dy; break;
+            case InkCanvasSelectionHitResult.Bottom: bottom += dy; break;
+            case InkCanvasSelectionHitResult.BottomLeft: left += dx; bottom += dy; break;
+            case InkCanvasSelectionHitResult.Left: left += dx; break;
+        }
+        if (Math.Abs(dx) < 1 && Math.Abs(dy) < 1 && _resizePreview.Visibility != Visibility.Visible) return;
+        var r = new Rect(new Point(left, top), new Point(right, bottom)); // trascinando oltre il lato opposto si capovolge come il rettangolo
+        _resizePreview.RenderTransformOrigin = new Point(0.5, 0.5);
+        _resizePreview.RenderTransform = new ScaleTransform(right < left ? -1 : 1, bottom < top ? -1 : 1);
+        Canvas.SetLeft(_resizePreview, r.Left);
+        Canvas.SetTop(_resizePreview, r.Top);
+        _resizePreview.Width = Math.Max(1, r.Width);
+        _resizePreview.Height = Math.Max(1, r.Height);
+        _resizePreview.Visibility = Visibility.Visible;
+    }
+
+    void EndResizePreview()
+    {
+        _resizeStylus = null;
+        if (_resizePreview.Source == null) return;
+        _resizePreview.Visibility = Visibility.Collapsed;
+        _resizePreview.Source = null;
     }
 
     void FinishLasso(List<Point> points)
