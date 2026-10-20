@@ -84,11 +84,11 @@
                         <ToggleButton Style="{StaticResource IconToggle}" Tag="Tool:Text" ToolTip="Testo"><TextBlock Style="{StaticResource SmallGlyph}" Text="&#xE8D2;" FontSize="17" /></ToggleButton>
                         <ToggleButton Style="{StaticResource IconToggle}" Tag="Tool:Hand" ToolTip="Sposta pagina (due dita per lo zoom)"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconHand}" /></ToggleButton>
                         <ToggleButton Style="{StaticResource IconToggle}" Tag="FingerPan" ToolTip="Il dito sposta la pagina, la penna scrive (solo per le LIM che li distinguono, es. Newline)"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconFinger}" /></ToggleButton>
-                        <Border Style="{StaticResource BarSeparator}" />
-                        <StackPanel x:Name="PensSimple" Orientation="Horizontal" VerticalAlignment="Center" />
-                        <Border Style="{StaticResource BarSeparator}" />
+                        <!-- le gomme prima delle penne, come nel gruppo «Strumenti» della barra completa -->
                         <ToggleButton Style="{StaticResource IconToggle}" Tag="Tool:EraserStroke" ToolTip="Gomma (tratti interi)"><TextBlock Style="{StaticResource SmallGlyph}" Text="&#xE75C;" FontSize="17" /></ToggleButton>
                         <ToggleButton Style="{StaticResource IconToggle}" Tag="Tool:EraserPoint" ToolTip="Gomma precisa (la freccetta sceglie la misura)"><Grid Width="32" Height="32"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconPointEraser}" HorizontalAlignment="Center" VerticalAlignment="Center" /><Button Style="{StaticResource PenChevron}" Width="13" Height="13" Click="EraserSize_Click" ToolTip="Misura della gomma" /></Grid></ToggleButton>
+                        <Border Style="{StaticResource BarSeparator}" />
+                        <StackPanel x:Name="PensSimple" Orientation="Horizontal" VerticalAlignment="Center" />
                         <Border Style="{StaticResource BarSeparator}" />
                         <Button x:Name="ShapesButton" Style="{StaticResource IconButton}" Click="ShapesButton_Click" ToolTip="Forme"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconTriangle}" /></Button>
                         <Popup x:Name="ShapesPopup" PlacementTarget="{Binding ElementName=ShapesButton}" Placement="Bottom" StaysOpen="False" AllowsTransparency="True">

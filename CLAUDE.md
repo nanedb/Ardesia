@@ -55,6 +55,7 @@ dotnet build                                   # se fallisce per file bloccato, 
 
 - `Ardesia.exe --snapshot out.png --demo [--tab Disegna]`: crea contenuti di prova, salva lo screenshot della finestra, salva/ricarica un `.ardesia` ed esporta un PDF nella stessa cartella, poi esce. Non tocca le impostazioni.
 - `--tab Impostazioni` / `--tab "Impostazioni blocco"`: fotografa la finestra Impostazioni (scheda Questo PC / Questo blocco appunti) invece del foglio.
+- `--tab Semplificata`: fotografa la barra semplificata (lo snapshot usa impostazioni nuove e non salvate, quindi `SimpleRibbon` di `settings.json` non conta).
 - `Ardesia.exe --prova-tocco`: apre solo la prova del tocco.
 - `Ardesia.exe --prova-google <client_secret….json>`: prova di accesso a Google e Drive (fase 0 del piano in `docs/google-drive.md`). Il JSON del client e lo screenshot «ID client OAuth.png» non vanno mai nel repository.
 - `Ardesia.exe --prova-accesso [registro.txt]`: accesso a Google della fase 1 (`AccessTestWindow`). La prima volta apre il **browser** (avvisare l'utente), salva l'account cifrato; rilanciata deve risultare collegata senza browser; «Esci da Google (revoca)» lo scollega. Usa l'account vero (`%LocalAppData%\Ardesia\google-account.bin`). Il client è incorporato in `GoogleConfig.cs` (scelta dell'utente); un `google-client.json` accanto all'exe o in `%AppData%\Ardesia` ha la precedenza.
