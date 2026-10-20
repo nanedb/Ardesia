@@ -180,6 +180,12 @@ public sealed class DriveBrowserWindow : Window
     {
         if (Selected is not { } n) return;
         if (!(Delete ?? (x => DriveUi.ConfirmAndTrash(this, _sync, x.Id, x.Title)))(n)) return;
+        if (n.Id == _openId)
+        {
+            // eliminato il blocco aperto: l'elenco si chiude, poi chi l'ha aperto mostra la schermata iniziale
+            DialogResult = false;
+            return;
+        }
         _all.Remove(n);
         Fill();
         _status.Text = $"«{n.Title}» è nel cestino di Google Drive.";

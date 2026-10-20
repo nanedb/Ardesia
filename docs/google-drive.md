@@ -134,8 +134,8 @@ crea/elenca/aggiorna/scarica un file col tipo di Ardesia, condivisione col domin
   modifica appena fatta → «Carico su Google Drive… (1 kB)», poi uscita senza domande, niente in coda, lucchetto tolto
   (la copia non risultava più «aperta» nell'elenco). Non provata dal vivo la chiusura senza rete (c'è nelle prove
   finte). Blocchi di prova cestinati; restano le cartelle `Ardesia/PROVA/…` e il blocco «prova Prova-2 26-27».
-- Visto nelle prove (difetto della fase 2): eliminando il blocco aperto da «Apri da Drive…», la schermata iniziale
-  compare sopra l'elenco ancora aperto.
+- Corretto (difetto della fase 2 visto nelle prove): eliminando il blocco aperto da «Apri da Drive…», l'elenco si
+  chiude e solo dopo compare la schermata iniziale (prima compariva sopra l'elenco ancora aperto). Provato dal vivo.
 
 ### Scelte dell'utente (17/10/2026)
 

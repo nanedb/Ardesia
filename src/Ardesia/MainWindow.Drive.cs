@@ -228,8 +228,14 @@ public partial class MainWindow
     void OpenFromDrive()
     {
         if (DriveSync.Current is not { } sync) return;
-        var dlg = new DriveBrowserWindow(sync, _driveId) { Owner = this, Delete = n => DeleteDriveNotebook(n.Id, n.Title) };
-        if (dlg.ShowDialog() != true) return;
+        string? startMessage = null;
+        var dlg = new DriveBrowserWindow(sync, _driveId) { Owner = this, Delete = n => DeleteDriveNotebook(n.Id, n.Title, m => startMessage = m) };
+        if (dlg.ShowDialog() != true)
+        {
+            // eliminato il blocco aperto: la schermata iniziale solo ora che l'elenco è chiuso
+            if (startMessage != null) ShowStart(startMessage);
+            return;
+        }
         if (dlg.ResultNew)
         {
             NewNotebook();
@@ -240,9 +246,10 @@ public partial class MainWindow
     }
 
     /// <summary>
-    /// «Elimina il blocco appunti…» (§2.2). Se è quello aperto, si chiude: dopo l'eliminazione si torna alla schermata iniziale.
+    /// «Elimina il blocco appunti…» (§2.2). Se è quello aperto, si chiude: dopo l'eliminazione si torna alla schermata
+    /// iniziale (subito, oppure la mostra <paramref name="showStartLater"/> quando la finestra che ha chiesto è chiusa).
     /// </summary>
-    bool DeleteDriveNotebook(string id, string title)
+    bool DeleteDriveNotebook(string id, string title, Action<string>? showStartLater = null)
     {
         if (DriveSync.Current is not { } sync) return false;
         bool isOpen = id == _driveId;
@@ -259,7 +266,9 @@ public partial class MainWindow
         {
             _autosaveTimer.Stop();
             OpenInMemoryNotebook();
-            Dispatcher.BeginInvoke(() => ShowStart($"«{title}» è nel cestino di Google Drive."));
+            var message = $"«{title}» è nel cestino di Google Drive.";
+            if (showStartLater != null) showStartLater(message);
+            else Dispatcher.BeginInvoke(() => ShowStart(message));
         }
         return true;
     }
