@@ -1,7 +1,8 @@
 # Blocchi appunti su Google Drive (senza Drive per desktop) – piano
 
-Stato: **fase 1 (accesso) fatta il 19/10/2026, rilasciata nella 0.6.0 (20/10/2026)**; per le fasi seguenti si aspettano gli account
-`@liceofoscarini.it` degli alunni (l'amministratore li sta creando), che servono solo per il PDF condiviso (fase 4).
+Stato: **fase 1 (accesso) fatta il 19/10/2026, rilasciata nella 0.6.0 (20/10/2026)**; **fase 2 (Drive di base) scritta e
+provata il 20/10/2026**, da rilasciare insieme alle fasi 3–4. Per il PDF condiviso (fase 4) si aspettano gli account
+`@liceofoscarini.it` degli alunni (l'amministratore li sta creando).
 Domande aperte risolte.
 
 **Fase 0 fatta (17/10/2026)**: progetto `ardesia-511918`, client desktop
@@ -33,6 +34,60 @@ crea/elenca/aggiorna/scarica un file col tipo di Ardesia, condivisione col domin
   cifrato, riavvio senza browser, rinnovo dopo 401, «Esci» con vecchio gettone rifiutato); nell'app vera accesso da
   Impostazioni, nome nella barra, ancora collegato dopo chiusura e riapertura, «Esci da Google» dalla barra.
 - Non fatto in fase 1: «Esci» non carica code (non ci sono ancora), «Svuota la cache di Drive» (fase 2).
+
+**Fase 2 (Drive di base) scritta e provata il 20/10/2026** (ramo `claude/google-drive-fase-2-372a7a`, non ancora rilasciata):
+- `Services/Google/DriveApi.cs`: interfaccia `IDriveClient`; costruttore con `GoogleAccountService` (gettone rinnovato,
+  401 → riprova; `SendAsync` accetta ora un HttpClient e `HttpCompletionOption`); elenco a pagine; caricamento
+  **riprendibile** a pezzi sopra 5 MB (pezzi da 2 MB, se un pezzo non arriva si chiede a Google fin dove è arrivato);
+  download con avanzamento; `IsTransient` (rete, 408, 429, 5xx, limiti di frequenza).
+- `Services/Google/DriveSync.cs` (`DriveSync.Current`, uno per account, sul thread della UI): cache in
+  `%LocalAppData%\Ardesia\Drive\{hash e-mail}\{fileId}.ardesia` + `sync.json` (titolo, nome su Drive, cartella,
+  revisione di base, «da caricare», ultimo caricamento/errore, elenco delle cartelle per classi e materie senza rete),
+  scritto in modo atomico. Coda: ~30 s dopo l'ultima modifica, al massimo ogni ~3 min, `UploadSoon` al cambio di
+  blocco; istantanea letta sul thread della UI tra un salvataggio e l'altro; tentativi a 5 s, 15 s, 1 min, 5 min;
+  403/404 → avviso, niente più tentativi; dopo un riavvio i «da caricare» ripartono. Cartelle `Ardesia/{classe}/{materia}`
+  riusate senza distinguere maiuscole (cartella «Ardesia» cestinata → se ne crea un'altra), nomi con i caratteri non
+  ammessi → «-», anno scolastico che cambia a settembre. Apertura (§4.3): stessa revisione → cache; cambiata → download;
+  cambiata anche qui → si tiene la cache (conflitti veri: fase 3); senza rete → cache con avviso, o messaggio se manca.
+  Blocco nel cestino / 404 → `DriveGoneException` (via da recenti e cache; con modifiche non caricate si offre una
+  copia sul computer). **Rinomina** (scelta dell'utente 20/10/2026): il nome nuovo va su Drive col caricamento.
+  **Eliminare** (scelta dell'utente 20/10/2026, già in fase 2): cestino di Drive, cartelle mai; la domanda sul PDF
+  arriva con la fase 4.
+- Interfaccia: `NewDriveNotebookDialog` (classe e materia scritte a mano, quelle già usate come pulsanti, nome proposto
+  modificabile, percorso su Drive mostrato sotto, «Crea invece sul computer…»), `DriveBrowserWindow` («Apri da
+  Drive…»: cerca, Apri, Elimina…, Nuovo…, con la frase sui blocchi di `G:`), `Controls/BusyDialog` (attesa con
+  «Annulla», compare dopo 350 ms). `StartWindow`: da collegati «Nuovo» va su Drive, sezione «Su Google Drive» con
+  gli ultimi 5 blocchi e «Tutti i blocchi su Drive…», «Nuovo blocco appunti sul computer…»; da scollegati «Accedi con
+  Google»; recenti con la nuvola. Menu File: «Nuovo blocco appunti su Drive…», «…sul computer…», «Apri da Drive…»,
+  «Apri dal computer…», recenti con nome e cartella, «Salva una copia sul computer…», «Apri la cartella su Google
+  Drive», «Elimina il blocco appunti…». Barra: nuvola + «Su Drive · salvato alle 10:32» / «Salvato su questo PC · da
+  caricare su Drive» / «Caricamento su Drive…» / «Senza connessione…» / «Accedi a Google per caricare le modifiche».
+  Titolo «Nome – Google Drive (e-mail) – Ardesia». Impostazioni: «Svuota la cache» (tiene quelle da caricare e quella
+  aperta); nella scheda del blocco, dove si trova su Drive. All'avvio si riapre l'ultimo blocco su Drive (scaricandolo
+  se serve); se non si è collegati la schermata iniziale dice di accedere.
+- Il codice di `MainWindow` per Drive è in `MainWindow.Drive.cs`; in `MainWindow.xaml.cs` solo agganci piccoli
+  (`_path` resta la copia in cache, quindi salvataggio automatico, di emergenza e `NotebookStore` non cambiano).
+- **PDF per la classe**: per i blocchi su Drive non si crea fino alla fase 4 (scelta dell'utente 20/10/2026); le
+  impostazioni del blocco lo dicono.
+- «Esci da Google» (barra e Impostazioni): salva, carica la coda con l'attesa e «Esci senza aspettare» (se resta
+  qualcosa chiede conferma: resta su questo PC e si carica quando si rientra), revoca, chiude il blocco su Drive
+  aperto, cancella la cache dell'account se non restano modifiche.
+- Prova `Ardesia.exe --prova-drive [registro.txt] [--finto]` (`DriveTestWindow` + `Services/Google/DriveSelfTest.cs`):
+  prima 22 prove con un Drive finto in memoria (con `--finto` solo queste, senza finestra, codice d'uscita 1 se
+  qualcosa non va), poi con l'account vero: crea un blocco in `Ardesia/PROVA/Prova`, coda, rinomina, download,
+  riprendibile (1,3 MB in pezzi da 256 KB), elenco, cestino. La cache della prova è in una cartella temporanea.
+  Se non si è collegati apre il browser.
+- **Provata il 20/10/2026** con `giovanni.dalbo@liceofoscarini.it`: `--prova-drive` tutta OK; nell'app vera nuovo
+  blocco su Drive dalla schermata iniziale (classi e materie lette da Drive), tratto → «da caricare» → caricato dopo
+  ~30 s, rinomina, «Apri da Drive…», riapertura all'avvio con la cache cancellata (riscaricato), «Elimina il blocco
+  appunti…», «Esci da Google» con una modifica appena fatta (caricata prima, poi cache tolta). Sul Drive dell'utente
+  restano le cartelle `Ardesia/PROVA/Prova` e `Ardesia/PROVA/Prova-2` con un blocco «prova Prova-2 26-27»: da
+  cancellare dal sito di Drive.
+- Non fatto in fase 2 (fase 3): conflitti «tieni entrambi» (ora vince la copia di questo PC; Drive tiene le
+  revisioni), lucchetto morbido, finestrella di chiusura con la coda (ora alla chiusura il caricamento parte ma non si
+  aspetta: resta in `sync.json` e riparte al prossimo avvio **su questo PC**), avviso nella barra quando la rete torna.
+  Creare un blocco con una cartella nuova richiede 5–6 chiamate (~10 s sulla rete di casa): accettabile, da rivedere
+  se a scuola è lento.
 
 ### Scelte dell'utente (17/10/2026)
 
@@ -374,6 +429,9 @@ blocchi su Drive diventerà «Accedi a Google per riaprire …». `DriveLocator`
 `DriveSync` lavora su un'interfaccia `IDriveClient`, così le prove automatiche usano un **Drive finto in memoria**:
 `Ardesia.exe --prova-drive [registro.txt]` simula caricamenti, rete assente, conflitti, PDF per la classe
 (codice d'uscita 1 se qualcosa non va), come `--prova-grafico`. La prova con un account vero si fa a mano, nella cartella «Ardesia» vera (scelta 15).
+(Fatto nella fase 2: il Drive finto è in `DriveSelfTest.cs`; `--prova-drive` fa anche la parte vera, `--finto` solo
+quella finta. `DriveBrowserWindow` e `NewDriveNotebookDialog` sono scritte in codice, senza XAML; il codice di
+`MainWindow` per Drive è in `MainWindow.Drive.cs`.)
 
 ## 9. Fasi
 
@@ -381,7 +439,7 @@ blocchi su Drive diventerà «Accedi a Google per riaprire …». `DriveLocator`
    client e secret.
 1. **Accesso** (*scritta il 19/10/2026*): login col browser, token cifrato, «Esci», account nelle impostazioni;
    prova `--prova-accesso` (apre il browser, stampa e-mail e scadenza).
-2. **Drive di base**: cartella «Ardesia» con sottocartelle classe/materia, nuovo blocco su Drive con classe,
+2. **Drive di base** (*scritta e provata il 20/10/2026*, vedi in cima): cartella «Ardesia» con sottocartelle classe/materia, nuovo blocco su Drive con classe,
    materia e nome proposto (§2.1, default da collegati), elenco e apertura, cache,
    coda di caricamento, download all'apertura, recenti, stato nella barra, `--prova-drive`.
 3. **Robustezza**: senza rete, conflitti («tieni entrambi»), lucchetto morbido, chiusura con coda.

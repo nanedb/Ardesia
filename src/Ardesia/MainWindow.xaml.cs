@@ -84,6 +84,7 @@ public partial class MainWindow : Window
             GoogleAccountService.Current.Changed += onAccount;
             Closed += (_, _) => GoogleAccountService.Current.Changed -= onAccount;
             UpdateAccountButton();
+            InitDrive();
         }
 
         Loaded += (_, _) =>
@@ -141,6 +142,7 @@ public partial class MainWindow : Window
         _nb.PropertyChanged -= Notebook_PropertyChanged;
         _nb = nb;
         _path = path;
+        _driveId = DriveIdOf(path);
         DataContext = nb;
         nb.PropertyChanged += Notebook_PropertyChanged;
         _section = null;
@@ -149,13 +151,15 @@ public partial class MainWindow : Window
         _dirty = false;
         _classPdfStale = false;
         UpdateTitle();
+        UpdateDriveStatus();
     }
 
-    /// <summary>Nuovo blocco appunti: prima si sceglie dove salvarlo, poi si apre.</summary>
-    void NewNotebook()
+    /// <summary>Nuovo blocco appunti: prima si sceglie dove salvarlo (su Drive se si è collegati), poi si apre.</summary>
+    void NewNotebook(bool onComputer = false)
     {
         if (!ConfirmClose()) return;
-        if (StartWindow.CreateNotebookFile(this, _settings) is { } path) TryOpen(path);
+        if ((onComputer ? StartWindow.CreateNotebookFile(this, _settings) : StartWindow.CreateNotebook(this, _settings)) is { } path)
+            TryOpen(path);
     }
 
     /// <summary>Blocco appunti non salvato, usato solo nelle prove automatiche.</summary>
@@ -170,6 +174,8 @@ public partial class MainWindow : Window
 
     bool TryOpen(string path, bool quiet = false)
     {
+        // blocco su Google Drive: prima si controlla la versione su Drive (e si scarica se è cambiata)
+        if (!PrepareDriveOpen(path, quiet, out var driveWarning)) return false;
         try
         {
             var nb = NotebookStore.Load(path);
@@ -180,6 +186,7 @@ public partial class MainWindow : Window
                 nb.Insert(NotebookNode.NewPage(), s);
             }
             SetNotebook(nb, path);
+            AfterDriveOpen(driveWarning);
             _settings.AddRecent(path);
             _settings.Save();
             return true;
@@ -212,6 +219,7 @@ public partial class MainWindow : Window
             UpdateTitle();
             StatusText.Text = $"Salvato alle {DateTime.Now:HH:mm}";
             StatusText.ToolTip = _path;
+            if (_driveId != null) DriveSaved();
             _settings.AddRecent(_path);
             _settings.Save();
             return true;
@@ -269,6 +277,7 @@ public partial class MainWindow : Window
         Editor.Flush();
         if (!_dirty || _path == null || Save(quiet: true))
         {
+            if (_driveId != null) DriveSync.Current?.UploadSoon(_driveId); // cambio di blocco: si carica subito
             // Il PDF per la classe si rifà qui: se non riesce bisogna dirlo, perché la barra di stato sparisce con la finestra.
             if (UpdateClassPdf() is not { } error) return true;
             return MessageBox.Show(this,
@@ -295,6 +304,7 @@ public partial class MainWindow : Window
     /// </summary>
     string? UpdateClassPdf(bool force = false)
     {
+        if (_driveId != null) return null; // per i blocchi su Drive il PDF per la classe arriva con la fase 4
         if (_nb.ClassPdfFile(_path) is not { } pdf) return null;
         if (!force && !_classPdfStale && File.Exists(pdf)) return null;
         var dir = Path.GetDirectoryName(pdf);
@@ -333,6 +343,12 @@ public partial class MainWindow : Window
 
     void ClassPdfSettings()
     {
+        if (_driveId != null)
+        {
+            MessageBox.Show(this, "Per i blocchi appunti su Google Drive il PDF per la classe arriverà con un prossimo aggiornamento di Ardesia.",
+                "Ardesia", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
         if (_path == null)
         {
             MessageBox.Show(this, "Salva prima il blocco appunti.", "Ardesia", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -365,6 +381,7 @@ public partial class MainWindow : Window
         {
             Owner = this,
             UpdateNow = () => UpdateClassPdf(force: true),
+            SignOut = SignOutGoogleAsync,
         };
         if (notebookTab) dlg.ShowNotebookTab();
         if (!modal)
@@ -383,6 +400,7 @@ public partial class MainWindow : Window
             SetDirty();
             _classPdfStale = !dlg.ClassPdfUpdated;
         }
+        CloseDriveNotebookIfSignedOut();
         return dlg;
     }
 
@@ -428,7 +446,7 @@ public partial class MainWindow : Window
     void UpdateTitle()
     {
         // Percorso completo: si vede subito in quale cartella (es. di Google Drive) si sta lavorando.
-        var name = _path ?? "non salvato";
+        var name = DriveWindowTitle() ?? _path ?? "non salvato";
         Title = $"{(_dirty ? "● " : "")}{_nb.Title} – {name} – Ardesia";
     }
 
@@ -1558,8 +1576,9 @@ public partial class MainWindow : Window
         menu.Items.Add(new Separator());
         menu.Items.Add(Item("Esci da Google", async () =>
         {
-            var warning = await g.SignOutAsync(CancellationToken.None);
+            var (_, warning) = await SignOutGoogleAsync();
             if (warning != null) MessageBox.Show(this, warning, "Ardesia", MessageBoxButton.OK, MessageBoxImage.Warning);
+            CloseDriveNotebookIfSignedOut();
         }));
         menu.Items.Add(Item("Impostazioni…", () => OpenSettings()));
         menu.IsOpen = true;
@@ -1568,13 +1587,18 @@ public partial class MainWindow : Window
     void FileButton_Click(object sender, RoutedEventArgs e)
     {
         var menu = new ContextMenu { PlacementTarget = FileButton, Placement = PlacementMode.Bottom, FontSize = 14 };
-        menu.Items.Add(Item("Nuovo blocco appunti", () => NewNotebook()));
-        menu.Items.Add(Item("Apri…   (Ctrl+O)", Open));
+        // Da collegati a Google «Nuovo» crea il blocco su Drive (docs/google-drive.md §7).
+        bool google = DriveSync.Current != null;
+        menu.Items.Add(Item(google ? "Nuovo blocco appunti su Drive…" : "Nuovo blocco appunti", () => NewNotebook()));
+        if (google) menu.Items.Add(Item("Nuovo blocco appunti sul computer…", () => NewNotebook(onComputer: true)));
+        if (google) menu.Items.Add(Item("Apri da Drive…", OpenFromDrive));
+        menu.Items.Add(Item(google ? "Apri dal computer…   (Ctrl+O)" : "Apri…   (Ctrl+O)", Open));
         var recent = new MenuItem { Header = "Recenti" };
-        foreach (var f in _settings.RecentFiles.Where(File.Exists))
+        foreach (var f in _settings.RecentFiles.Where(p => DriveIdOf(p) != null ? DriveSync.IsCurrentAccountPath(p) : File.Exists(p)))
         {
             var file = f;
-            recent.Items.Add(Item(file, () =>
+            var header = DriveSync.Describe(file) is { } d ? $"{d.Title}   (Google Drive{(d.Folder != null ? " · " + d.Folder : "")})" : file;
+            recent.Items.Add(Item(header, () =>
             {
                 if (ConfirmClose()) TryOpen(file);
             }));
@@ -1583,14 +1607,21 @@ public partial class MainWindow : Window
         menu.Items.Add(recent);
         menu.Items.Add(new Separator());
         menu.Items.Add(Item("Salva   (Ctrl+S)", () => Save()));
-        menu.Items.Add(Item("Salva con nome…", () => SaveAs()));
+        if (_driveId != null) menu.Items.Add(Item("Salva una copia sul computer…", SaveCopyToComputer));
+        else menu.Items.Add(Item("Salva con nome…", () => SaveAs()));
         menu.Items.Add(new Separator());
         menu.Items.Add(Item("Esporta in PDF…   (Ctrl+P)", () => ExportPdf(ExportScope.Page)));
         menu.Items.Add(Item(_nb.ClassPdfDisabled ? "PDF per la classe (spento)…" : "PDF per la classe…", ClassPdfSettings, _path != null));
-        menu.Items.Add(Item("Apri la cartella del blocco appunti", () =>
+        if (_driveId is { } driveId)
         {
-            if (_path != null) Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{_path}\"") { UseShellExecute = true });
-        }, _path != null));
+            menu.Items.Add(Item("Apri la cartella su Google Drive", OpenDriveFolderInBrowser));
+            menu.Items.Add(Item("Elimina il blocco appunti…", () => DeleteDriveNotebook(driveId, _nb.Title)));
+        }
+        else
+            menu.Items.Add(Item("Apri la cartella del blocco appunti", () =>
+            {
+                if (_path != null) Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{_path}\"") { UseShellExecute = true });
+            }, _path != null));
         menu.Items.Add(new Separator());
         menu.Items.Add(Item("Prova del tocco della LIM…", () => new TouchTestWindow { Owner = this, WindowState = WindowState.Maximized }.ShowDialog()));
         menu.Items.Add(Item("Impostazioni…", () => OpenSettings()));

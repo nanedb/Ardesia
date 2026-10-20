@@ -1,0 +1,218 @@
+using System.IO;
+using System.Security.Cryptography;
+using System.Text;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
+using Ardesia.Models;
+using Ardesia.Services;
+using Ardesia.Services.Google;
+
+namespace Ardesia;
+
+/// <summary>
+/// «Prova di Google Drive» (Ardesia.exe --prova-drive [registro.txt] [--finto]): prima le prove con un Drive finto in
+/// memoria (DriveSelfTest), poi con l'account vero nella cartella «Ardesia» vera (scelta dell'utente): crea un blocco
+/// in Ardesia/PROVA/Prova, lo carica, lo rinomina, lo riscarica, prova il caricamento riprendibile, lo trova
+/// nell'elenco e alla fine lo mette nel cestino (le cartelle restano). Se non si è collegati si apre il browser.
+/// La cache della prova è in una cartella temporanea, non in quella vera. Codice d'uscita 1 se qualcosa non va.
+/// </summary>
+public sealed class DriveTestWindow : Window
+{
+    readonly StackPanel _steps = new();
+    readonly ScrollViewer _scroll;
+    readonly TextBlock _summary;
+    readonly StringBuilder _report = new();
+    readonly string _logFile;
+    int _failures;
+
+    public DriveTestWindow(string? logFile)
+    {
+        _logFile = logFile ?? Path.Combine(Path.GetTempPath(), "ardesia-drive.log");
+        Title = "Ardesia – Prova di Google Drive";
+        Width = 760;
+        Height = Math.Min(860, SystemParameters.WorkArea.Height - 20);
+        WindowStartupLocation = WindowStartupLocation.CenterScreen;
+        FontFamily = new FontFamily("Segoe UI");
+        FontSize = 14;
+        if (Application.Current.TryFindResource("TextBrush") is Brush fg) Foreground = fg;
+        Background = Brushes.White;
+
+        var root = new DockPanel { Margin = new Thickness(26, 20, 26, 20) };
+        var head = new StackPanel();
+        head.Children.Add(new TextBlock { Text = "Prova di Google Drive", FontSize = 22, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 6) });
+        head.Children.Add(new TextBlock
+        {
+            Text = "Prima con un Drive finto, poi con il tuo account: un blocco di prova in Ardesia › PROVA › Prova, che alla fine va nel " +
+                   "cestino di Drive. Le cartelle PROVA e Prova restano: cancellale dal sito di Drive quando vuoi.",
+            TextWrapping = TextWrapping.Wrap,
+            Foreground = Brushes.DimGray,
+            Margin = new Thickness(0, 0, 0, 14),
+        });
+        DockPanel.SetDock(head, Dock.Top);
+        root.Children.Add(head);
+
+        var close = new Button { Content = "Chiudi", MinWidth = 120, Height = 38, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 16, 0, 0) };
+        if (Application.Current.TryFindResource("AccentButton") is Style st) close.Style = st;
+        close.Click += (_, _) => Close();
+        DockPanel.SetDock(close, Dock.Bottom);
+        root.Children.Add(close);
+
+        _summary = new TextBlock { TextWrapping = TextWrapping.Wrap, FontSize = 15, Margin = new Thickness(0, 12, 0, 0) };
+        DockPanel.SetDock(_summary, Dock.Bottom);
+        root.Children.Add(_summary);
+
+        _scroll = new ScrollViewer { Content = _steps, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+        root.Children.Add(_scroll);
+        Content = root;
+        Loaded += async (_, _) => await RunAsync();
+        Closed += (_, _) => Application.Current.Shutdown(_failures == 0 ? 0 : 1);
+    }
+
+    void Log(bool? ok, string title, string detail = "")
+    {
+        var icon = new TextBlock
+        {
+            Text = ok switch { true => "✔", false => "✖", null => "•" },
+            Width = 28,
+            FontSize = 18,
+            FontFamily = new FontFamily("Segoe UI Symbol"),
+            Foreground = ok switch
+            {
+                true => new SolidColorBrush(Color.FromRgb(0x2E, 0x7D, 0x32)),
+                false => new SolidColorBrush(Color.FromRgb(0xC6, 0x28, 0x28)),
+                null => Brushes.Gray,
+            },
+        };
+        var text = new StackPanel();
+        text.Children.Add(new TextBlock { Text = title, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap });
+        if (detail.Length > 0) text.Children.Add(new TextBlock { Text = detail, TextWrapping = TextWrapping.Wrap, Foreground = Brushes.DimGray });
+        var row = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
+        row.Children.Add(icon);
+        row.Children.Add(text);
+        _steps.Children.Add(row);
+        _scroll.ScrollToEnd();
+
+        if (ok == false) _failures++;
+        _report.AppendLine($"[{ok switch { true => "OK", false => "NO", null => "--" }}] {title}");
+        if (detail.Length > 0) _report.AppendLine("      " + detail.Replace("\n", "\n      "));
+        try { File.WriteAllText(_logFile, _report.ToString()); } catch { /* registro facoltativo */ }
+    }
+
+    /// <summary>Solo la parte col Drive finto, senza finestra: scrive il registro e restituisce i problemi.</summary>
+    public static async Task<int> RunFakeOnlyAsync(string logFile)
+    {
+        var report = new StringBuilder($"Prova di Google Drive (Drive finto) – {DateTime.Now:dd/MM/yyyy HH:mm}\n\n");
+        int failures = await DriveSelfTest.RunAsync((ok, title, detail) =>
+        {
+            report.AppendLine($"[{ok switch { true => "OK", false => "NO", null => "--" }}] {title}");
+            if (detail.Length > 0) report.AppendLine("      " + detail.Replace("\n", "\n      "));
+        });
+        report.AppendLine().AppendLine(failures == 0 ? "Esito: OK" : $"Esito: {failures} problemi");
+        File.WriteAllText(logFile, report.ToString());
+        return failures;
+    }
+
+    async Task RunAsync()
+    {
+        _report.AppendLine($"Prova di Google Drive di Ardesia – {DateTime.Now:dd/MM/yyyy HH:mm}");
+        _report.AppendLine();
+        Log(null, "Prima parte: Drive finto in memoria");
+        await DriveSelfTest.RunAsync(Log);
+        int fakeFailures = _failures;
+
+        Log(null, "Seconda parte: il tuo Google Drive");
+        var folder = Path.Combine(Path.GetTempPath(), "ardesia-prova-drive-vera-" + Guid.NewGuid().ToString("N")[..8]);
+        DriveSync? sync = null;
+        string? id = null;
+        try
+        {
+            var g = GoogleAccountService.Current;
+            if (!g.IsSignedIn)
+            {
+                Log(null, "Nessun account collegato: si apre il browser", $"Accedi con l'account @{GoogleClientConfig.SchoolDomain} (5 minuti al massimo).");
+                using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+                await g.SignInAsync(cts.Token);
+                Activate();
+            }
+            Log(true, $"Collegato come {g.Email}");
+
+            // pezzi piccoli: il caricamento riprendibile si prova con poco più di un megabyte
+            var api = new DriveApi(g) { ResumableThreshold = 512 * 1024, ChunkSize = 256 * 1024 };
+            sync = new DriveSync(api, folder, g.Email!) { QuietDelay = TimeSpan.FromSeconds(1), MaxDelay = TimeSpan.FromSeconds(5) };
+
+            var listing = await sync.ListAsync(CancellationToken.None);
+            Log(true, "Elenco dei blocchi su Drive", $"{listing.Notebooks.Count} blocchi; classi: {string.Join(", ", listing.Classes.DefaultIfEmpty("nessuna"))}");
+
+            var title = $"PROVA Prova {DateTime.Now:dd-MM HH.mm.ss}";
+            id = await sync.CreateNotebookAsync("PROVA", "Prova", title, DriveSelfTest.NewNotebook(), CancellationToken.None);
+            var meta = await api.GetAsync(id, CancellationToken.None);
+            var subj = await api.GetAsync(meta.Parents![0], CancellationToken.None);
+            var cls = await api.GetAsync(subj.Parents![0], CancellationToken.None);
+            var root = await api.GetAsync(cls.Parents![0], CancellationToken.None);
+            Log(meta.MimeType == DriveSync.MimeType && subj.Name == "Prova" && cls.Name == "PROVA" && root.Name == "Ardesia" && root.Id == sync.RootFolderId,
+                "Blocco creato in Ardesia › PROVA › Prova", $"{root.Name}/{cls.Name}/{subj.Name}/{meta.Name} ({meta.MimeType})");
+
+            var again = await sync.EnsureFolderAsync("prova", "PROVA", CancellationToken.None);
+            Log(again.Id == subj.Id, "Cartelle riusate senza distinguere maiuscole", $"«prova/PROVA» → {again.Class}/{again.Subject}");
+
+            DriveSelfTest.Modify(sync.CachePath(id), "Aggiunta dalla prova");
+            sync.Changed(id, title);
+            var flushed = await sync.FlushAsync(TimeSpan.FromSeconds(60));
+            var after = await api.GetAsync(id, CancellationToken.None);
+            Log(flushed && after.HeadRevisionId != meta.HeadRevisionId && after.HeadRevisionId == sync.Entry(id)!.BaseRevision,
+                "Modifica caricata dalla coda", sync.Status(id).Text);
+
+            var renamed = title + " rinominato";
+            sync.Changed(id, renamed);
+            await sync.FlushAsync(TimeSpan.FromSeconds(60));
+            after = await api.GetAsync(id, CancellationToken.None);
+            Log(after.Name == renamed + NotebookStore.Extension, "Rinomina su Drive col caricamento", after.Name);
+
+            File.Delete(sync.CachePath(id));
+            var opened = await sync.OpenAsync(id, null, CancellationToken.None);
+            var nb = NotebookStore.Load(opened.CachePath);
+            Log(nb.Sections.Any(s => s.Title == "Aggiunta dalla prova"), "Riscaricato da Drive (copia in cache cancellata)",
+                $"{nb.Sections.Count} sezioni, {DriveUi.Size(new FileInfo(opened.CachePath).Length)}");
+            opened = await sync.OpenAsync(id, null, CancellationToken.None);
+            Log(opened.Warning == null, "Riaperto senza scaricare di nuovo (stessa revisione)");
+
+            // caricamento riprendibile: 1,3 MB in pezzi da 256 KB, poi si rimette il blocco vero
+            var big = RandomNumberGenerator.GetBytes(1300 * 1024);
+            await api.UpdateContentAsync(id, DriveSync.MimeType, big, CancellationToken.None);
+            var back = await api.DownloadAsync(id, CancellationToken.None);
+            Log(back.AsSpan().SequenceEqual(big), "Caricamento riprendibile a pezzi (1,3 MB) e download", $"{back.Length} byte, uguali");
+            await api.UpdateContentAsync(id, DriveSync.MimeType, File.ReadAllBytes(opened.CachePath), CancellationToken.None);
+
+            listing = await sync.ListAsync(CancellationToken.None);
+            var found = listing.Notebooks.FirstOrDefault(n => n.Id == id);
+            Log(found is { Class: "PROVA", Subject: "Prova" } && listing.Classes.Contains("PROVA"),
+                "Il blocco è nell'elenco, con classe e materia", found != null ? $"{found.Title} – {found.Folder}" : "non trovato");
+
+            await sync.TrashAsync(id, CancellationToken.None);
+            var trashed = await api.GetAsync(id, CancellationToken.None);
+            bool gone = false;
+            try { await sync.OpenAsync(id, null, CancellationToken.None); }
+            catch (DriveGoneException) { gone = true; }
+            Log(trashed.Trashed && gone, "Blocco di prova nel cestino di Drive", "Le cartelle PROVA e Prova restano (Ardesia non elimina cartelle).");
+            id = null;
+        }
+        catch (Exception ex)
+        {
+            Log(false, "Errore", ex.Message);
+        }
+        finally
+        {
+            if (id != null && sync != null)
+            {
+                try { await sync.TrashAsync(id, CancellationToken.None); } catch { /* resta: si cancella dal sito di Drive */ }
+            }
+            sync?.Dispose();
+            try { Directory.Delete(folder, recursive: true); } catch { /* cartella temporanea */ }
+            _report.AppendLine();
+            _report.AppendLine(_failures == 0 ? "Esito: OK" : $"Esito: {_failures} problemi ({fakeFailures} col Drive finto)");
+            try { File.WriteAllText(_logFile, _report.ToString()); } catch { /* registro facoltativo */ }
+            _summary.Text = _failures == 0 ? "Tutto a posto." : $"{_failures} problemi: vedi sopra (registro: {_logFile}).";
+        }
+    }
+}

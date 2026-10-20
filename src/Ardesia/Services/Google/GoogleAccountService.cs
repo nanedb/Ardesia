@@ -146,14 +146,16 @@ public sealed class GoogleAccountService
     /// Manda una richiesta autenticata. Con 401 rinnova il gettone e riprova una volta; per questo la richiesta
     /// si costruisce con una funzione (un HttpRequestMessage non si può mandare due volte).
     /// </summary>
-    public async Task<HttpResponseMessage> SendAsync(Func<HttpRequestMessage> makeRequest, CancellationToken ct)
+    /// <param name="client">HttpClient da usare (Drive ne ha uno con un tempo massimo più lungo, per i file grandi).</param>
+    public async Task<HttpResponseMessage> SendAsync(Func<HttpRequestMessage> makeRequest, CancellationToken ct,
+        HttpClient? client = null, HttpCompletionOption option = HttpCompletionOption.ResponseContentRead)
     {
         for (int attempt = 0; ; attempt++)
         {
             var token = await GetAccessTokenAsync(ct, forceRefresh: attempt > 0);
             var request = makeRequest();
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-            var response = await Http.SendAsync(request, ct);
+            var response = await (client ?? Http).SendAsync(request, option, ct);
             if (response.StatusCode != HttpStatusCode.Unauthorized || attempt > 0) return response;
             response.Dispose();
         }

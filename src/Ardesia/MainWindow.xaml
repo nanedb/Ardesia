@@ -24,6 +24,9 @@
                 </Button>
 
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                    <!-- Nuvola per i blocchi su Google Drive (stato del caricamento nel testo accanto) -->
+                    <TextBlock x:Name="DriveIcon" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Text="&#xE753;" FontSize="14"
+                               Foreground="#E0FFFFFF" VerticalAlignment="Center" Margin="0,1,7,0" Visibility="Collapsed" />
                     <TextBlock x:Name="StatusText" Foreground="#E0FFFFFF" FontSize="12" VerticalAlignment="Center" Margin="0,0,12,0" />
                     <!-- Chi è collegato a Google (visibile solo da collegati): clic → account ed «Esci» -->
                     <Button x:Name="AccountButton" Style="{StaticResource HeaderButton}" Padding="10,0" Visibility="Collapsed"

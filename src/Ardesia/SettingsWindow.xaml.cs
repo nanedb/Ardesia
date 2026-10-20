@@ -22,6 +22,11 @@ public partial class SettingsWindow : Window
     /// <summary>Chiamato da «Aggiorna ora il PDF» dopo aver applicato le impostazioni: restituisce un messaggio di errore o null.</summary>
     public Func<string?>? UpdateNow { get; init; }
 
+    /// <summary>«Esci» da Google fatto dalla finestra principale (carica prima la coda di Drive): (fatto, avviso).</summary>
+    public Func<Task<(bool Done, string? Warning)>>? SignOut { get; init; }
+
+    readonly string? _openDriveId; // blocco su Drive aperto: la sua copia in cache non si toglie
+
     /// <summary>Vero se il PDF per la classe è stato rifatto con «Aggiorna ora il PDF».</summary>
     public bool ClassPdfUpdated => _updatedWith != null && _updatedWith == ClassPdfKey();
 
@@ -35,10 +40,22 @@ public partial class SettingsWindow : Window
         _recent = settings.RecentFiles.ToList();
         FingerPansBox.IsChecked = settings.FingerPans;
         FillRecent();
+        DriveSync.TryParseCachePath(notebookPath, out _, out var driveId);
+        _openDriveId = driveId.Length > 0 ? driveId : null;
         UpdateGoogle();
         Closing += (_, _) => _googleCts?.Cancel();
 
-        if (notebookPath != null)
+        if (_openDriveId != null)
+        {
+            // Blocco su Google Drive: il PDF per la classe su Drive arriva con la fase 4 (docs/google-drive.md §6).
+            var d = DriveSync.Describe(notebookPath);
+            NotebookHint.Text = $"«{d?.Title}» è su Google Drive" + (d?.Folder != null ? $", nella cartella Ardesia / {d.Value.Folder}" : "") +
+                                ". Queste impostazioni sono salvate nel blocco appunti: valgono anche su un altro computer o su un'altra LIM.\n\n" +
+                                "Il PDF per la classe per i blocchi su Google Drive arriverà con un prossimo aggiornamento di Ardesia.";
+            ClassPdf.Visibility = UpdateNowButton.Visibility = ClassPdfTitle.Visibility = Visibility.Collapsed;
+            ClassPdf.IsEnabled = false;
+        }
+        else if (notebookPath != null)
         {
             NotebookHint.Text = $"Queste impostazioni sono salvate nel blocco appunti «{Path.GetFileName(notebookPath)}»: " +
                                 "valgono anche quando lo apri su un altro computer o su un'altra LIM.";
@@ -62,16 +79,17 @@ public partial class SettingsWindow : Window
         for (int i = 0; i < _recent.Count; i++)
         {
             var file = _recent[i];
-            bool exists = File.Exists(file);
+            var drive = DriveSync.Describe(file);
+            bool exists = drive != null || File.Exists(file);
             var name = new TextBlock
             {
-                Text = Path.GetFileNameWithoutExtension(file) + (exists ? "" : "  (non trovato)"),
+                Text = (drive?.Title ?? Path.GetFileNameWithoutExtension(file)) + (exists ? "" : "  (non trovato)"),
                 FontWeight = FontWeights.SemiBold,
                 TextTrimming = TextTrimming.CharacterEllipsis,
             };
             var folder = new TextBlock
             {
-                Text = Path.GetDirectoryName(file),
+                Text = drive is { } d ? $"Google Drive ({d.Email})" + (d.Folder != null ? " · " + d.Folder : "") : Path.GetDirectoryName(file),
                 FontSize = 12.5,
                 Foreground = (System.Windows.Media.Brush)FindResource("SubtleTextBrush"),
                 TextTrimming = TextTrimming.CharacterEllipsis,
@@ -132,11 +150,15 @@ public partial class SettingsWindow : Window
             GoogleButton.Style = (Style)FindResource("BigPlain");
             GoogleButton.IsEnabled = true;
         }
+        DriveCachePanel.Visibility = g.IsSignedIn && _googleCts == null ? Visibility.Visible : Visibility.Collapsed;
+        if (DriveCachePanel.Visibility == Visibility.Visible && DriveSync.Current is { } sync)
+            DriveCacheText.Text = $"Copie dei blocchi su Drive su questo PC: {DriveUi.Size(sync.CacheSize())}. " +
+                                  "Svuotando la cache si riscaricano quando li apri (quelle con modifiche da caricare restano).";
         else
         {
             GoogleStatus.Text = "Non collegato";
             GoogleDetail.Text = g.IsConfigured
-                ? $"Accedi con l'account @{GoogleClientConfig.SchoolDomain}: si apre il browser. Il salvataggio dei blocchi appunti su Drive arriverà presto."
+                ? $"Accedi con l'account @{GoogleClientConfig.SchoolDomain}: si apre il browser. Poi i blocchi appunti nuovi vanno su Google Drive."
                 : g.ConfigError ?? "";
             GoogleButton.Content = "Accedi con Google";
             GoogleButton.Style = (Style)FindResource("BigAccent");
@@ -163,8 +185,8 @@ public partial class SettingsWindow : Window
         if (g.IsSignedIn)
         {
             GoogleButton.IsEnabled = false;
-            var warning = await g.SignOutAsync(CancellationToken.None);
-            ShowGoogleMessage(warning ?? "Sei uscito da Google: Ardesia non può più accedere al tuo Drive.", warning != null);
+            var (done, warning) = SignOut != null ? await SignOut() : (true, await g.SignOutAsync(CancellationToken.None));
+            if (done) ShowGoogleMessage(warning ?? "Sei uscito da Google: Ardesia non può più accedere al tuo Drive.", warning != null);
             UpdateGoogle();
             return;
         }
@@ -191,6 +213,14 @@ public partial class SettingsWindow : Window
         if (!IsLoaded) return; // finestra chiusa durante l'accesso
         UpdateGoogle();
         Activate(); // il browser era davanti
+    }
+
+    void ClearDriveCache_Click(object sender, RoutedEventArgs e)
+    {
+        if (DriveSync.Current is not { } sync) return;
+        var freed = sync.ClearCache(_openDriveId);
+        ShowGoogleMessage($"Cache svuotata: liberati {DriveUi.Size(freed)}.", false);
+        UpdateGoogle();
     }
 
     void ClearRecent_Click(object sender, RoutedEventArgs e)

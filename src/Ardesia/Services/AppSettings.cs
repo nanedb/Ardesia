@@ -81,6 +81,7 @@ public class AppSettings
         RecentFiles.Insert(0, path);
         if (RecentFiles.Count > 10) RecentFiles.RemoveRange(10, RecentFiles.Count - 10);
         LastFile = path;
-        LastSaveFolder = Path.GetDirectoryName(path);
+        // la cartella della cache di Drive non è un posto in cui proporre di salvare
+        if (!Google.DriveSync.TryParseCachePath(path, out _, out _)) LastSaveFolder = Path.GetDirectoryName(path);
     }
 }

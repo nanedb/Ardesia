@@ -103,6 +103,11 @@
                             </StackPanel>
                         </DockPanel>
                         <TextBlock x:Name="GoogleMessage" Style="{StaticResource Hint}" Margin="0,10,0,0" Visibility="Collapsed" />
+                        <DockPanel x:Name="DriveCachePanel" Margin="0,14,0,0" Visibility="Collapsed">
+                            <Button x:Name="ClearCacheButton" DockPanel.Dock="Right" Content="Svuota la cache" Style="{StaticResource BigPlain}"
+                                    VerticalAlignment="Center" Click="ClearDriveCache_Click" />
+                            <TextBlock x:Name="DriveCacheText" Style="{StaticResource Hint}" VerticalAlignment="Center" Margin="0,0,14,0" />
+                        </DockPanel>
 
                         <Border Height="1" Background="{StaticResource LineBrush}" Margin="0,24,0,20" />
 
@@ -138,7 +143,7 @@
                     <StackPanel Margin="8,18,8,18">
                         <TextBlock x:Name="NotebookHint" Style="{StaticResource Hint}" Margin="0,0,0,18" />
 
-                        <TextBlock Style="{StaticResource GroupTitle}" Text="PDF per la classe" />
+                        <TextBlock x:Name="ClassPdfTitle" Style="{StaticResource GroupTitle}" Text="PDF per la classe" />
                         <c:ClassPdfPanel x:Name="ClassPdf" />
                         <Button x:Name="UpdateNowButton" Content="Aggiorna ora il PDF" Style="{StaticResource BigPlain}"
                                 HorizontalAlignment="Left" Margin="0,14,0,0" Click="UpdateNow_Click" />

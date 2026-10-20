@@ -1,7 +1,7 @@
 <Window x:Class="Ardesia.StartWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Ardesia" SizeToContent="Height" Width="560" ResizeMode="NoResize"
+        Title="Ardesia" SizeToContent="Height" Width="580" ResizeMode="NoResize"
         WindowStartupLocation="CenterScreen"
         FontFamily="Segoe UI" FontSize="14" Foreground="{StaticResource TextBrush}" Background="White">
     <Window.Resources>
@@ -43,10 +43,29 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <Style x:Key="LinkButton" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="Transparent" CornerRadius="4" Padding="8,5">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource HoverBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
-    <StackPanel>
-        <Border Background="{StaticResource AccentBrush}" Padding="28,22">
+    <DockPanel>
+        <Border DockPanel.Dock="Top" Background="{StaticResource AccentBrush}" Padding="28,22">
             <StackPanel Orientation="Horizontal">
                 <Border Width="44" Height="44" CornerRadius="8" Background="#FF2F3B3A" Margin="0,0,16,0">
                     <TextBlock Text="A" Foreground="White" FontFamily="Georgia" FontSize="28" FontWeight="Bold"
@@ -59,7 +78,10 @@
             </StackPanel>
         </Border>
 
-        <StackPanel Margin="28,22,28,18">
+        <Button DockPanel.Dock="Bottom" Content="Esci" IsCancel="True" Style="{StaticResource PlainButton}" HorizontalAlignment="Right" Margin="28,0,28,18" />
+
+        <ScrollViewer VerticalScrollBarVisibility="Auto" PanningMode="VerticalOnly">
+        <StackPanel Margin="28,22,28,10">
             <Border x:Name="MessageBorder" Background="#FFFFF4CE" CornerRadius="6" Padding="12,10" Margin="0,0,0,16" Visibility="Collapsed">
                 <TextBlock x:Name="MessageText" TextWrapping="Wrap" FontSize="13" />
             </Border>
@@ -70,7 +92,7 @@
                                Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center" Margin="0,0,16,0" />
                     <StackPanel>
                         <TextBlock Text="Crea un nuovo blocco appunti" FontSize="16" FontWeight="SemiBold" />
-                        <TextBlock Text="Scegli dove salvarlo e con che nome (ad esempio nella cartella di Google Drive della classe)."
+                        <TextBlock x:Name="NewHint" Text="Scegli dove salvarlo e con che nome (ad esempio nella cartella di Google Drive della classe)."
                                    FontSize="12.5" Foreground="{StaticResource SubtleTextBrush}" TextWrapping="Wrap" />
                     </StackPanel>
                 </DockPanel>
@@ -81,16 +103,26 @@
                     <TextBlock DockPanel.Dock="Left" Text="&#xE8E5;" FontFamily="{StaticResource IconFont}" FontSize="24"
                                Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center" Margin="0,0,16,0" />
                     <StackPanel>
-                        <TextBlock Text="Apri un blocco appunti esistente" FontSize="16" FontWeight="SemiBold" />
-                        <TextBlock Text="Cerca un file .ardesia sul computer o su Google Drive."
+                        <TextBlock x:Name="OpenTitle" Text="Apri un blocco appunti esistente" FontSize="16" FontWeight="SemiBold" />
+                        <TextBlock x:Name="OpenHint" Text="Cerca un file .ardesia sul computer o su Google Drive."
                                    FontSize="12.5" Foreground="{StaticResource SubtleTextBrush}" TextWrapping="Wrap" />
                     </StackPanel>
                 </DockPanel>
             </Button>
 
-            <StackPanel x:Name="RecentPanel" Margin="0,8,0,0">
-                <TextBlock Text="Recenti" FontWeight="SemiBold" Margin="0,0,0,6" />
-                <ItemsControl x:Name="RecentList">
+            <!-- Google Drive: «Accedi con Google» oppure i propri blocchi su Drive (docs/google-drive.md §7) -->
+            <StackPanel x:Name="DrivePanel" Margin="0,8,0,0" Visibility="Collapsed">
+                <DockPanel Margin="0,0,0,6">
+                    <TextBlock DockPanel.Dock="Left" Text="&#xE753;" FontFamily="{StaticResource IconFont}" FontSize="16"
+                               Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <Button x:Name="AllDriveButton" DockPanel.Dock="Right" Content="Tutti i blocchi su Drive…" Click="AllDrive_Click"
+                            Style="{StaticResource LinkButton}" Visibility="Collapsed" />
+                    <TextBlock Text="Su Google Drive" FontWeight="SemiBold" VerticalAlignment="Center" />
+                </DockPanel>
+                <TextBlock x:Name="DriveText" FontSize="12.5" Foreground="{StaticResource SubtleTextBrush}" TextWrapping="Wrap" Margin="10,0,0,6" />
+                <Button x:Name="SignInButton" Content="Accedi con Google" Style="{StaticResource AccentButton}" HorizontalAlignment="Left"
+                        Margin="10,2,0,6" Padding="20,9" Click="SignIn_Click" Visibility="Collapsed" />
+                <ItemsControl x:Name="DriveList">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <Button Style="{StaticResource RecentButton}" Tag="{Binding Path}" Click="Recent_Click">
@@ -103,9 +135,31 @@
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
+                <Button x:Name="NewLocalButton" Content="Nuovo blocco appunti sul computer…" Click="NewLocal_Click"
+                        Style="{StaticResource LinkButton}" HorizontalAlignment="Left" Margin="2,4,0,0" Visibility="Collapsed" />
             </StackPanel>
 
-            <Button Content="Esci" IsCancel="True" Style="{StaticResource PlainButton}" HorizontalAlignment="Right" Margin="0,12,0,0" />
+            <StackPanel x:Name="RecentPanel" Margin="0,14,0,0">
+                <TextBlock Text="Recenti" FontWeight="SemiBold" Margin="0,0,0,6" />
+                <ItemsControl x:Name="RecentList">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Button Style="{StaticResource RecentButton}" Tag="{Binding Path}" Click="Recent_Click">
+                                <DockPanel>
+                                    <TextBlock DockPanel.Dock="Left" Text="{Binding Icon}" FontFamily="{StaticResource IconFont}" FontSize="14"
+                                               Foreground="{StaticResource SubtleTextBrush}" VerticalAlignment="Center" Margin="0,0,10,0" />
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Name}" FontSize="14" />
+                                        <TextBlock Text="{Binding Folder}" FontSize="11.5" Foreground="{StaticResource SubtleTextBrush}"
+                                                   TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+                                </DockPanel>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
         </StackPanel>
-    </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
 </Window>

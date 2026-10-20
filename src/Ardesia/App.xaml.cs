@@ -67,6 +67,27 @@ public partial class App : Application
             return;
         }
 
+        // Prova di Google Drive (fase 2): Drive finto in memoria, poi l'account vero (--finto: solo la prima parte, senza finestra).
+        int pdr = Array.IndexOf(e.Args, "--prova-drive");
+        if (pdr >= 0)
+        {
+            var log = pdr + 1 < e.Args.Length && !e.Args[pdr + 1].StartsWith("--") ? e.Args[pdr + 1] : null;
+            if (e.Args.Contains("--finto"))
+            {
+                ShutdownMode = ShutdownMode.OnExplicitShutdown;
+                Dispatcher.InvokeAsync(async () =>
+                {
+                    int failures = await DriveTestWindow.RunFakeOnlyAsync(log ?? Path.Combine(Path.GetTempPath(), "ardesia-drive.log"));
+                    Shutdown(failures == 0 ? 0 : 1);
+                });
+                return;
+            }
+            var win = new DriveTestWindow(log);
+            MainWindow = win;
+            win.Show();
+            return;
+        }
+
         // Prova del grafico di Ardesia: parser e calcoli, senza finestre; scrive il registro e esce.
         int pf = Array.IndexOf(e.Args, "--prova-grafico");
         if (pf >= 0)
@@ -121,13 +142,19 @@ public partial class App : Application
         else
         {
             // 1) si riapre l'ultimo blocco appunti; 2) se non c'è, prima di tutto si sceglie o si crea il file.
-            if (file == null && settings.LastFile is { } last && File.Exists(last)) file = last;
+            //    Un blocco su Google Drive (copia in cache) si riapre se si è collegati con il suo account: se la copia
+            //    manca o è vecchia, si scarica.
+            bool onDrive = Services.Google.DriveSync.TryParseCachePath(settings.LastFile, out _, out _);
+            if (file == null && settings.LastFile is { } last && (onDrive ? Services.Google.DriveSync.IsCurrentAccountPath(last) : File.Exists(last)))
+                file = last;
             if (file == null)
             {
                 ShutdownMode = ShutdownMode.OnExplicitShutdown;
-                var message = settings.LastFile != null
-                    ? $"Non trovo l'ultimo blocco appunti aperto:\n{settings.LastFile}\n\nSe si trova su Google Drive, controlla che Google Drive per desktop sia avviato."
-                    : null;
+                var message = settings.LastFile == null ? null
+                    : onDrive
+                        ? $"L'ultimo blocco appunti aperto, «{Services.Google.DriveSync.Describe(settings.LastFile)?.Title}», è su Google Drive: " +
+                          $"accedi a Google{(Services.Google.DriveSync.Describe(settings.LastFile)?.Email is { } who ? $" con {who}" : "")} per riaprirlo."
+                        : $"Non trovo l'ultimo blocco appunti aperto:\n{settings.LastFile}\n\nSe si trova su Google Drive, controlla che Google Drive per desktop sia avviato.";
                 var start = new StartWindow(settings, message);
                 if (start.ShowDialog() != true || start.ResultPath == null)
                 {
