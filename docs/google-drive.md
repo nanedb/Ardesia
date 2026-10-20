@@ -1,6 +1,6 @@
 # Blocchi appunti su Google Drive (senza Drive per desktop) – piano
 
-Stato: **fase 1 (accesso) fatta il 19/10/2026**; per le fasi seguenti si aspettano gli account
+Stato: **fase 1 (accesso) fatta il 19/10/2026, rilasciata nella 0.6.0 (20/10/2026)**; per le fasi seguenti si aspettano gli account
 `@liceofoscarini.it` degli alunni (l'amministratore li sta creando), che servono solo per il PDF condiviso (fase 4).
 Domande aperte risolte.
 
