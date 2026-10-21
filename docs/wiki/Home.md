@@ -53,6 +53,8 @@ Questa guida è per i **colleghi docenti**: spiega come si usa Ardesia, non come
 
 Gli installatori di ogni versione sono nella pagina delle versioni (*Releases*) del progetto su GitHub: **<https://github.com/nanedb/Ardesia/releases>**. Vedi [Installazione](Installazione.md).
 
+Questa guida si scarica anche in un unico PDF, da stampare o passare ai colleghi: **<https://github.com/nanedb/Ardesia/raw/main/docs/wiki/Ardesia-guida.pdf>**.
+
 ## A chi chiedere
 
 Ardesia è scritta da **Giovanni Dal Bo** per la nostra scuola. Per problemi, idee e richieste scrivetegli nella **chat del Dipartimento** o via e-mail a **giovanni.dalbo@liceofoscarini.it**. Se potete, dite su quale PC o LIM è successo e che cosa stavate facendo; uno screenshot aiuta molto.
