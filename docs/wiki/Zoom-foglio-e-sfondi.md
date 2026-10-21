@@ -27,7 +27,7 @@ Lo zoom cambia solo la vista: lo spessore dei tratti e la grandezza dei testi re
 
 Dalla scheda **Visualizza**:
 
-- **Sfondo della pagina**: Bianco, Righe strette, Righe larghe, Quadretti 5 mm, Quadretti 1 cm, Puntini;
+- **Sfondo della pagina**: Bianco, Righe strette, Righe larghe, Quadretti 5 mm, Quadretti 1 cm (quello delle pagine nuove), Quadretti 1,5 cm, Puntini;
 - **Colore della pagina**: Bianco, Avorio, Azzurro chiaro, Verde chiaro, **Ardesia** (grigio scuro) e **Lavagna verde**. Sugli sfondi scuri conviene usare penne chiare (bianca, gialla…);
 - **A tutta la sezione**: applica lo sfondo e il colore della pagina corrente a tutte le pagine della sezione.
 

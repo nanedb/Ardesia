@@ -72,6 +72,7 @@ public partial class MainWindow : Window
         Editor.FingerPans = _settings.FingerPans;
         ActivatePen(0);
         SetSimpleRibbon(_settings.SimpleRibbon);
+        VersionText.Text = "Ardesia " + AppVersion;
         PreviewKeyDown += Window_PreviewKeyDown;
         SourceInitialized += (_, _) => FitToScreen();
         Closing += Window_Closing;
@@ -443,8 +444,11 @@ public partial class MainWindow : Window
     {
         // Percorso completo: si vede subito in quale cartella (es. di Google Drive) si sta lavorando.
         var name = DriveWindowTitle() ?? _path ?? "non salvato";
-        Title = $"{(_dirty ? "● " : "")}{_nb.Title} – {name} – Ardesia";
+        Title = $"{(_dirty ? "● " : "")}{_nb.Title} – {name} – Ardesia {AppVersion}";
     }
+
+    /// <summary>Versione dell'app (da &lt;Version&gt; nel .csproj), es. «0.6.0».</summary>
+    static readonly string AppVersion = typeof(MainWindow).Assembly.GetName().Version?.ToString(3) ?? "";
 
     void NotebookTitleBox_TextChanged(object sender, TextChangedEventArgs e) => UpdateTitle();
 
@@ -1771,6 +1775,8 @@ public partial class MainWindow : Window
                 foreach (TabItem ti in Ribbon.Items)
                     if (string.Equals(ti.Header as string, tab, StringComparison.OrdinalIgnoreCase))
                         Ribbon.SelectedItem = ti;
+            // --tab Semplificata: la barra semplificata (le impostazioni della prova non si salvano)
+            if (string.Equals(tab, "Semplificata", StringComparison.OrdinalIgnoreCase)) SetSimpleRibbon(true);
             // --tab Impostazioni / «Impostazioni blocco»: si fotografa la finestra Impostazioni invece del foglio
             Window shot = this;
             if (tab != null && tab.StartsWith("Impostazioni", StringComparison.OrdinalIgnoreCase))

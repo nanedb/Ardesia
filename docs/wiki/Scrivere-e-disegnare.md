@@ -84,6 +84,10 @@ Con lo strumento **Seleziona** (la freccia):
 
 Con **Seleziona** si usano anche i comandi del [grafico di funzione](Grafico-di-funzione.md) (cursori, spostamento degli assi).
 
+## Inserisci spazio
+
+Per fare posto tra due righe già scritte: scegli **Inserisci spazio** (le due righe con le frecce), tocca tra le due righe e trascina **in giù**: tutto ciò che comincia sotto quel punto (tratti, testi, immagini, grafici) scende di quanto trascini. Trascinando **in su** lo spazio si toglie, ma niente sale sopra ciò che resta fermo. Ctrl+Z annulla. Ricliccando il pulsante (o con Esc) si torna allo strumento di prima.
+
 ## Sposta pagina
 
 Lo strumento **Sposta pagina** (la mano) fa scorrere il foglio trascinando; con **due dita** si fa lo zoom. Vedi [Zoom, foglio infinito e sfondi](Zoom-foglio-e-sfondi.md). Sulle LIM che distinguono penna e dito c'è un'opzione più comoda: [Il dito sposta la pagina](Uso-sulle-LIM.md#il-dito-sposta-la-pagina).

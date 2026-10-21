@@ -65,6 +65,8 @@
                              Foreground="White" CaretBrush="White" Background="Transparent" BorderThickness="0,0,0,1"
                              BorderBrush="#60FFFFFF" FontSize="15" MinWidth="160" MaxWidth="520" Padding="2,1"
                              ToolTip="Nome del blocco appunti" TextChanged="NotebookTitleBox_TextChanged" />
+                    <TextBlock x:Name="VersionText" Foreground="#A0FFFFFF" FontSize="11" VerticalAlignment="Center" Margin="12,2,0,0"
+                               ToolTip="Versione di Ardesia" />
                 </StackPanel>
             </DockPanel>
         </Border>
@@ -87,11 +89,12 @@
                         <ToggleButton Style="{StaticResource IconToggle}" Tag="Tool:Text" ToolTip="Testo"><TextBlock Style="{StaticResource SmallGlyph}" Text="&#xE8D2;" FontSize="17" /></ToggleButton>
                         <ToggleButton Style="{StaticResource IconToggle}" Tag="Tool:Hand" ToolTip="Sposta pagina (due dita per lo zoom)"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconHand}" /></ToggleButton>
                         <ToggleButton Style="{StaticResource IconToggle}" Tag="FingerPan" ToolTip="Il dito sposta la pagina, la penna scrive (solo per le LIM che li distinguono, es. Newline)"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconFinger}" /></ToggleButton>
-                        <Border Style="{StaticResource BarSeparator}" />
-                        <StackPanel x:Name="PensSimple" Orientation="Horizontal" VerticalAlignment="Center" />
-                        <Border Style="{StaticResource BarSeparator}" />
+                        <ToggleButton Style="{StaticResource IconToggle}" Tag="Tool:Space" ToolTip="Inserisci spazio: tocca tra due righe e trascina in giù (in su per toglierlo)"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconInsertSpace}" /></ToggleButton>
+                        <!-- le gomme prima delle penne, come nel gruppo «Strumenti» della barra completa -->
                         <ToggleButton Style="{StaticResource IconToggle}" Tag="Tool:EraserStroke" ToolTip="Gomma (tratti interi)"><TextBlock Style="{StaticResource SmallGlyph}" Text="&#xE75C;" FontSize="17" /></ToggleButton>
                         <ToggleButton Style="{StaticResource IconToggle}" Tag="Tool:EraserPoint" ToolTip="Gomma precisa (la freccetta sceglie la misura)"><Grid Width="32" Height="32"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconPointEraser}" HorizontalAlignment="Center" VerticalAlignment="Center" /><Button Style="{StaticResource PenChevron}" Width="13" Height="13" Click="EraserSize_Click" ToolTip="Misura della gomma" /></Grid></ToggleButton>
+                        <Border Style="{StaticResource BarSeparator}" />
+                        <StackPanel x:Name="PensSimple" Orientation="Horizontal" VerticalAlignment="Center" />
                         <Border Style="{StaticResource BarSeparator}" />
                         <Button x:Name="ShapesButton" Style="{StaticResource IconButton}" Click="ShapesButton_Click" ToolTip="Forme"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconTriangle}" /></Button>
                         <Popup x:Name="ShapesPopup" PlacementTarget="{Binding ElementName=ShapesButton}" Placement="Bottom" StaysOpen="False" AllowsTransparency="True">
@@ -262,6 +265,10 @@
                             <ToggleButton Style="{StaticResource RibbonLargeToggle}" Tag="Tool:Hand" c:Rb.Label="Sposta pagina" ToolTip="Trascina per scorrere, due dita per lo zoom">
                                 <Path Style="{StaticResource IconPath}" Data="{StaticResource IconHand}" />
                             </ToggleButton>
+                            <ToggleButton Style="{StaticResource RibbonLargeToggle}" Tag="Tool:Space" c:Rb.Label="Inserisci spazio"
+                                          ToolTip="Tocca tra due righe e trascina in giù: tutto ciò che sta sotto scende. Trascinando in su lo spazio si toglie.">
+                                <Path Style="{StaticResource IconPath}" Data="{StaticResource IconInsertSpace}" />
+                            </ToggleButton>
                             <ToggleButton Style="{StaticResource RibbonLargeToggle}" Tag="Tool:EraserStroke" c:Rb.Label="Gomma" ToolTip="Cancella tratti interi">
                                 <TextBlock Style="{StaticResource Glyph}" Text="&#xE75C;" />
                             </ToggleButton>
@@ -312,6 +319,7 @@
                             <ToggleButton Style="{StaticResource RibbonLargeToggle}" Tag="Bg:LinesWide" c:Rb.Label="Righe larghe"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconBgLinesWide}" /></ToggleButton>
                             <ToggleButton Style="{StaticResource RibbonLargeToggle}" Tag="Bg:GridSmall" c:Rb.Label="Quadretti 5 mm"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconBgGridSmall}" /></ToggleButton>
                             <ToggleButton Style="{StaticResource RibbonLargeToggle}" Tag="Bg:GridLarge" c:Rb.Label="Quadretti 1 cm"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconBgGridLarge}" /></ToggleButton>
+                            <ToggleButton Style="{StaticResource RibbonLargeToggle}" Tag="Bg:GridXLarge" c:Rb.Label="Quadretti 1,5 cm"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconBgGridXLarge}" /></ToggleButton>
                             <ToggleButton Style="{StaticResource RibbonLargeToggle}" Tag="Bg:Dots" c:Rb.Label="Puntini"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconBgDots}" StrokeThickness="2" /></ToggleButton>
                         </StackPanel>
                     </HeaderedContentControl>

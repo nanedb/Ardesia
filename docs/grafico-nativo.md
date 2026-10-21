@@ -160,6 +160,14 @@ ha prove sue, indipendenti da Windows.
   (`FingerGraphGesture`, un solo «Annulla»). Il tocco breve resta un tocco. Provato dall'utente sul laptop: funziona; con
   «Il dito sposta la pagina» spento (Promethean) il tocco sul grafico non muove ancora gli assi.
 
+### 21/10/2026
+
+- Segnalato dall'utente sulla Promethean: il pizzico sul grafico selezionato non funzionava (i gesti passavano solo
+  da «Il dito sposta la pagina», che lì è spento). Ora (`IsGraphTouch`) con lo strumento «Seleziona» un tocco che
+  comincia dentro il grafico selezionato muove gli assi (un dito) o li zooma (due dita) anche con l'opzione spenta;
+  sulla Promethean vale anche per la penna, che arriva come tocco. Provato col tocco simulato (`TouchInject.ps1`,
+  supporto puntatore acceso solo per la prova); da provare in aula.
+
 Un elemento «grafico» disegnato da Ardesia direttamente sul foglio, vettoriale, che segue lo zoom
 della pagina e resta **sotto l'inchiostro**. Affianca GeoGebra, che resta per geometria e casi avanzati.
 
