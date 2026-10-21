@@ -180,6 +180,16 @@ crea/elenca/aggiorna/scarica un file col tipo di Ardesia, condivisione col domin
   il PDF). La parte vera crea un PDF vero (`PdfExporter`), controlla nome, cartella, legame e condivisione
   (`DriveApi.PermissionsAsync`), lo aggiorna (stesso ID, revisione nuova), lo rinomina col blocco, controlla che nel
   conflitto resti all'originale e alla fine cestina blocco e PDF.
+- **Provata il 20–21/10/2026** con `giovanni.dalbo@liceofoscarini.it`: `--prova-drive` tutta OK (49 finte + parte vera,
+  condivisione «domain liceofoscarini.it reader», non cercabile). Nell'app vera: nuovo blocco in PROVA/Prova, «Aggiorna
+  ora» → «Su Google Drive, aggiornato oggi alle 18:45», «Copia il link», «Apri il PDF su Drive» apre il PDF nel browser
+  (dopo la conferma dell'identità chiesta da Google); conflitto vero con due Ardesia aperte sullo stesso blocco: messaggio
+  con la frase sul PDF, per la copia «PDF per la classe (spento)…», eliminando la copia nessuna domanda sul PDF;
+  rinomina del blocco → PDF rinominato su Drive con lo stesso ID; «Elimina il blocco appunti…» → seconda domanda (No
+  predefinito), con Sì blocco e PDF nel cestino. Non provati dal vivo: condivisione rifiutata (l'amministratore la
+  permette) e apertura del link da un account di alunno (gli account non ci sono ancora).
+- Visto nelle prove: due Ardesia aperte sullo stesso PC e sullo stesso blocco su Drive (es. un doppio clic sull'icona)
+  si comportano come due PC e producono un conflitto «tieni entrambi». Niente si perde.
 
 ### Scelte dell'utente (17/10/2026)
 
