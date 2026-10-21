@@ -49,9 +49,7 @@ Un blocco appunti deve avere almeno una sezione.
 
 ## Riordinare trascinando
 
-Sezioni e pagine si possono anche **trascinare** con il mouse nell'elenco per cambiarne l'ordine o la posizione.
-
-> ⚠ Da verificare: il trascinamento nell'elenco funziona anche col dito/penna sulla LIM?
+Sezioni e pagine si possono anche **trascinare** con il mouse nell'elenco per cambiarne l'ordine o la posizione. Col dito sulla LIM è più sicuro usare le voci del menu (*Sposta su*, *Sposta giù*, *Sposta nella sezione*…), che si apre tenendo premuto.
 
 ## Tasti utili nell'elenco
 

@@ -6,7 +6,7 @@ No. Ardesia salva da sola ogni modifica dopo un secondo e mezzo e alla chiusura,
 
 ### All'avvio Ardesia dice che non trova l'ultimo blocco appunti.
 
-Il file è stato spostato o rinominato, oppure è su Google Drive e **Google Drive per desktop** non è ancora partito. Avvia Drive (o aspetta che si sincronizzi) e riapri Ardesia, oppure scegli il file dalla schermata iniziale con *Apri un blocco appunti esistente*.
+Il file è stato spostato o rinominato, oppure è su `G:` e **Google Drive per desktop** non è ancora partito. Avvia Drive (o aspetta che si sincronizzi) e riapri Ardesia, oppure scegli il file dalla schermata iniziale con *Apri un blocco appunti esistente*.
 
 ### Ho cancellato per sbaglio una cosa sul foglio.
 
@@ -34,17 +34,31 @@ I comandi del grafico funzionano **solo con lo strumento Seleziona** (la freccia
 
 ### Un collega mi dice che i grafici sono spariti dal blocco appunti.
 
-Probabilmente il blocco è stato aperto e salvato con **Ardesia 0.3.2 o precedente**, che non conosce i grafici e li cancella. Aggiorna Ardesia su tutti i PC. Se il file è su Google Drive, si può recuperare una **versione precedente** del file dal sito di Drive (clic destro sul file → *Gestisci versioni*).
-
-> ⚠ Da verificare: voce esatta del menu di Drive per le versioni precedenti dei file non Google.
+Probabilmente il blocco è stato aperto e salvato con **Ardesia 0.3.2 o precedente**, che non conosce i grafici e li cancella. Aggiorna Ardesia su tutti i PC. Se il file è su Google Drive, si può recuperare una **versione precedente** dal sito di Drive (vedi [Versioni precedenti](Google-Drive.md#versioni-precedenti)).
 
 ### Posso usare Ardesia senza internet?
 
-Sì, tutto funziona offline **tranne GeoGebra**. Il [grafico di funzione](Grafico-di-funzione.md) e la scrittura a mano delle funzioni funzionano senza rete.
+Sì, tutto funziona offline **tranne GeoGebra**. Il [grafico di funzione](Grafico-di-funzione.md) e la scrittura a mano delle funzioni funzionano senza rete. Con i blocchi su [Google Drive](Google-Drive.md) si continua a lavorare anche se la rete cade: le modifiche restano sul PC e vanno su Drive quando torna.
 
 ### Come do gli appunti agli alunni?
 
-Con il [PDF per la classe](PDF.md#il-pdf-per-la-classe): tieni il blocco in una cartella di Google Drive condivisa con la classe e chiudi Ardesia a fine lezione. Oppure esporta un PDF della pagina o della sezione (Ctrl+P).
+Con il [PDF per la classe](PDF.md#il-pdf-per-la-classe). Se il blocco è su [Google Drive](Google-Drive.md), *File → PDF per la classe… → Copia il link per gli alunni* e incolla il link su Classroom una volta sola: il PDF si aggiorna da solo quando chiudi Ardesia e il link resta quello. Oppure esporta un PDF della pagina o della sezione (Ctrl+P).
+
+### Gli alunni non riescono ad aprire il link del PDF.
+
+Devono essere entrati in Google con l'**account della scuola** (@liceofoscarini.it), non con quello personale. Se nelle impostazioni del PDF Ardesia dice che Google non le ha permesso di condividerlo, condividilo a mano come spiegato lì, oppure premi *Riprova a condividere*. Vedi [Il PDF per la classe su Drive](Google-Drive.md#il-pdf-per-la-classe-su-drive).
+
+### Ho modificato lo stesso blocco su due LIM: che cosa succede?
+
+Niente si perde: Ardesia tiene la versione già su Drive e salva le modifiche dell'altro PC in una **copia** accanto («… (modifiche da LIM-AULA5, …)»). Vedi [Stesso blocco su due PC](Google-Drive.md#stesso-blocco-su-due-pc).
+
+### Ho chiuso Ardesia e su Drive non ci sono le ultime modifiche.
+
+Probabilmente mancava la rete o hai premuto *Esci senza aspettare*: le modifiche sono **su quel PC** e vanno su Drive la prossima volta che apri Ardesia lì. Per non pensarci, alla chiusura aspetta che sparisca «Carico su Google Drive…».
+
+### Non trovo in «Apri da Drive» un blocco che ho su Drive.
+
+Ardesia vede solo i blocchi **creati da lei** su Drive con il tuo account. Un `.ardesia` caricato a mano o condiviso da un collega si apre da `G:` (Drive per desktop) o scaricandolo e usando *File → Apri…*.
 
 ### Come escludo le verifiche dal PDF per la classe?
 
@@ -56,13 +70,11 @@ No, Ardesia esiste solo per Windows. Per Mac, iPad e telefoni ci sono i PDF.
 
 ### Posso passare un blocco appunti a un collega?
 
-Sì: è un unico file `.ardesia`, che contiene tutto (anche immagini e grafici). Copialo o condividilo su Drive; il collega lo apre con Ardesia (*File → Apri…* o doppio clic). Meglio che non lo modifichiate in due contemporaneamente.
+Sì: è un unico file `.ardesia`, che contiene tutto (anche immagini e grafici). Copialo o mandalo al collega (per un blocco su Drive: *File → Salva una copia sul computer…*); il collega lo apre con Ardesia (*File → Apri…* o doppio clic).
 
 ### Posso importare i miei blocchi di OneNote?
 
-No, Ardesia non legge i file di OneNote. Si può esportare da OneNote in PDF o copiare e incollare testi e immagini.
-
-> ⚠ Da verificare: confermare che non è prevista un'importazione da OneNote.
+No, Ardesia non legge i file di OneNote e non è prevista un'importazione. Si possono copiare e incollare testi e immagini da OneNote, oppure esportare da OneNote in PDF le pagine da conservare.
 
 ### Ardesia funziona sull'Android della lavagna?
 
@@ -78,8 +90,8 @@ No: Ardesia si installa solo per il tuo utente. Vedi [Installazione](Installazio
 
 ### Ardesia si è chiusa per un errore. Ho perso il lavoro?
 
-Quasi certamente no: tutto ciò che era già stato salvato in automatico è nel file, e al momento dell'errore Ardesia prova a salvare una copia di sicurezza in `%AppData%\Ardesia\Recupero` (il messaggio d'errore dice dove). Segnala l'errore a Giovanni.
+Quasi certamente no: tutto ciò che era già stato salvato in automatico è nel file, e al momento dell'errore Ardesia prova a salvare una copia di sicurezza in `%AppData%\Ardesia\Recupero` (il messaggio d'errore dice dove). Segnala l'errore a Giovanni (chat del Dipartimento o giovanni.dalbo@liceofoscarini.it).
 
 ### Dove sono le mie impostazioni?
 
-Nel file `%AppData%\Ardesia\settings.json` del tuo utente Windows (penne, ultimo file, barra semplificata, «Il dito sposta la pagina»). Le impostazioni del PDF per la classe sono invece dentro il blocco appunti. Vedi [Impostazioni](Impostazioni.md).
+Nel file `%AppData%\Ardesia\settings.json` del tuo utente Windows (penne, ultimo file, barra semplificata, «Il dito sposta la pagina»); l'accesso a Google è cifrato in `%LocalAppData%\Ardesia`. Le impostazioni del PDF per la classe sono invece dentro il blocco appunti. Vedi [Impostazioni](Impostazioni.md).

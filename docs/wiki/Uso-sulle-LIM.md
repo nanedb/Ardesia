@@ -59,8 +59,8 @@ con la larghezza del contatto in millimetri, se la lavagna la comunica. In fondo
 - **Schermo intero** (F11) e **barra semplificata** lasciano più spazio al foglio.
 - Nascondi le colonne di sezioni e pagine con ☰ quando scrivi, riaprile per cambiare pagina.
 - Per i menu col dito: **tieni premuto** finché compare il cerchietto, poi **alza il dito**: il menu si apre al rilascio.
-- Comandi del **grafico** (cursori, doppio clic per le funzioni): solo con lo strumento **Seleziona**; con la penna sul grafico si scrive.
-- Alla fine della lezione **chiudi Ardesia**: così il [PDF per la classe](PDF.md#il-pdf-per-la-classe) si aggiorna.
+- Comandi del **grafico** (cursori, doppio clic per le funzioni, dita sugli assi): solo con lo strumento **Seleziona**; con la penna sul grafico si scrive. Se il doppio tocco non apre le funzioni, usa la pressione prolungata → *Funzioni del grafico…*.
+- Alla fine della lezione **chiudi Ardesia**: così il [PDF per la classe](PDF.md#il-pdf-per-la-classe) si aggiorna e, per i blocchi su Drive, le ultime modifiche vanno su Drive. Se compare «Carico su Google Drive…», aspetta quei pochi secondi.
 - Su un PC condiviso entra in Windows **con il tuo utente**: Ardesia riapre il tuo ultimo blocco e le tue penne.
-
-> ⚠ Da verificare sulle LIM: doppio tocco sul grafico, cursori del grafico col dito, scrittura a mano delle funzioni (vedi [Scrivere a mano le funzioni](Scrittura-a-mano-delle-funzioni.md#se-il-pulsante-è-spento)).
+- Con i [blocchi su Google Drive](Google-Drive.md) ritrovi lo stesso blocco su ogni LIM. La prima volta su ogni LIM serve l'accesso a Google, che apre il browser: fallo con calma prima della lezione.
+- La [scrittura a mano delle funzioni](Scrittura-a-mano-delle-funzioni.md) sulla lavagna non è ancora affidabile: controlla sempre che cosa ha letto Ardesia.

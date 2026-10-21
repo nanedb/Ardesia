@@ -19,7 +19,7 @@
 
 **Condividere**
 - [PDF e PDF per la classe](PDF.md)
-- [Google Drive (in arrivo)](Google-Drive.md)
+- [Google Drive](Google-Drive.md)
 
 **Altro**
 - [Impostazioni](Impostazioni.md)

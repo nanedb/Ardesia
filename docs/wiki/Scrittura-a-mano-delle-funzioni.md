@@ -35,4 +35,4 @@ Nella finestrella **Funzioni del grafico** (che si apre anche con un doppio clic
 
 Il riconoscimento usa un componente di Windows (il vecchio «Pannello di input matematico»). Se su un PC manca, il pulsante *✍ Scrivi a mano* è grigio e spiega: *«Su questo PC Windows non ha il riconoscimento delle formule scritte a mano: scrivi la funzione con la tastiera.»* Tutto il resto del grafico funziona normalmente.
 
-> ⚠ Da verificare sui PC delle LIM (Promethean e Newline/OPS) se il componente c'è, e provare la scrittura vera col dito e con la penna delle due lavagne.
+> **Sulle LIM** il riconoscimento è ancora da migliorare: la scrittura sulla lavagna è più grande e meno regolare che su un tablet, e capita che una funzione venga letta male. Controlla sempre la finestrella prima di premere *Disegna* e, se serve, correggi con la tastiera. Se ti capita spesso con una certa funzione, segnalalo a Giovanni (meglio con una foto di ciò che avevi scritto).

@@ -63,7 +63,7 @@ Se una riga non va, la finestrella la segna **in rosso** e spiega che cosa manca
 
 Si apre con un **doppio clic** sul grafico, con lo strumento **Seleziona**, oppure dal menu del grafico (*Funzioni del grafico…*), oppure premendo **Grafico** con il grafico selezionato.
 
-> ⚠ Da verificare: il doppio tocco col dito e con la penna delle LIM.
+> Sulla LIM, se il doppio tocco non apre la finestrella, tieni premuto sul grafico e scegli *Funzioni del grafico…* dal menu.
 
 - Ogni funzione ha la sua **riga**: la **casella da spuntare** mostra o nasconde la funzione nel grafico, il **trattino colorato** è il suo colore, **✕** la toglie.
 - Sotto ogni riga compare la **formula composta** (frazioni, esponenti, radici), per controllare di aver scritto giusto.
@@ -116,7 +116,8 @@ Con lo strumento **Seleziona** e il grafico selezionato (da solo):
 
 | Gesto | Effetto |
 |---|---|
-| **Trascinare dentro** il grafico (il puntatore diventa una manina) | Sposta gli assi: si vede un'altra zona del piano |
+| **Trascinare dentro** il grafico, col mouse o con un dito (il puntatore diventa una manina) | Sposta gli assi: si vede un'altra zona del piano |
+| **Due dita** dentro il grafico (pizzico) | Zoom degli assi |
 | **Trascinare il bordo** del grafico | Sposta il grafico sul foglio |
 | **Maniglie** della selezione | Ingrandiscono o rimpiccioliscono il riquadro del grafico |
 | **Rotellina** del mouse | Zoom degli assi attorno al puntatore |
@@ -124,7 +125,9 @@ Con lo strumento **Seleziona** e il grafico selezionato (da solo):
 
 Dal menu del grafico anche: **Ingrandisci il grafico**, **Rimpicciolisci il grafico**, **Vista standard** (torna alla vista iniziale).
 
-> Non ancora disponibile: spostare e ingrandire gli assi **con le dita o con la penna**. Oggi, col dito o con la penna, trascinando un grafico selezionato si sposta il grafico intero sul foglio; per gli assi si usano le voci del menu (*Ingrandisci*, *Rimpicciolisci*, *Vista standard*). Arriverà anche una barretta di comandi sotto il grafico selezionato.
+I gesti con le dita valgono su tutte le LIM, anche con [«Il dito sposta la pagina»](Uso-sulle-LIM.md#il-dito-sposta-la-pagina) spento; sulle Promethean, dove la penna arriva come un dito, anche la penna sposta gli assi. Fuori dal grafico, o con il grafico non selezionato, le dita fanno quello che fanno sempre. Un gesto si annulla con un solo **Annulla**.
+
+> Non ancora disponibile: una barretta di comandi (+, −, vista standard) sotto il grafico selezionato. Per ora ci sono le voci del menu (*Ingrandisci*, *Rimpicciolisci*, *Vista standard*).
 
 ## Il menu del grafico
 

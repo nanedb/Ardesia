@@ -4,7 +4,7 @@
 
 La finestra ha quattro parti:
 
-1. **La barra colorata in alto** (color petrolio): a sinistra il menu **File**, al centro il **nome del blocco appunti**, a destra lo stato del salvataggio («Salvato alle 10:32») e i pulsanti **Salva**, **Annulla**, **Ripeti**, **☰ Mostra/nascondi sezioni e pagine** e **Schermo intero** (F11).
+1. **La barra colorata in alto** (color petrolio): a sinistra il menu **File**, al centro il **nome del blocco appunti** e, più piccolo, il **numero della versione** di Ardesia; a destra lo stato del salvataggio («Salvato alle 10:32», con una nuvola per i blocchi su [Google Drive](Google-Drive.md#il-salvataggio)), il **nome di chi è collegato a Google** (un clic: *Esci da Google*) e i pulsanti **Salva**, **Annulla**, **Ripeti**, **☰ Mostra/nascondi sezioni e pagine** e **Schermo intero** (F11).
 2. **La barra degli strumenti**, in due versioni: *completa* (a schede, come in Office) o *semplificata* (una riga sola).
 3. Le colonne delle **sezioni** e delle **pagine** (nascondibili).
 4. Il **foglio** della pagina, con lo zoom attuale in basso a destra («100%»).
@@ -54,12 +54,11 @@ Ha quattro schede. All'avvio è aperta **Disegna**.
 
 Con il pulsante **Barra semplificata** (in alto a destra della barra completa) gli strumenti si riducono a **una sola riga**, che lascia più spazio al foglio. Contiene, da sinistra:
 
+![La barra semplificata](immagini/barra-semplificata.png)
+
 Annulla, Ripeti · Seleziona, Testo, Sposta pagina, Il dito sposta la pagina, Inserisci spazio, Gomma, Gomma precisa · le penne (con il **+**) · Forme (un pulsante che apre le cinque forme), Righello, Goniometro, Compasso · Inserisci immagine, **Grafico**, Nuova pagina, Esporta in PDF.
 
 Il pulsante **Barra completa** (a destra) riporta le schede. La scelta resta memorizzata su quel PC.
-
-> ⚠ Da verificare: aggiungere un'istantanea della barra semplificata.
-
 Nella barra semplificata non ci sono GeoGebra, gli sfondi e i comandi del testo: per quelli si torna alla barra completa (GeoGebra si apre anche dal [menu contestuale](Testo-immagini-e-appunti.md#il-menu-contestuale) di una casella di testo).
 
 ## Schermo intero
