@@ -10,7 +10,7 @@
     <AssemblyName>Ardesia</AssemblyName>
     <Product>Ardesia</Product>
     <Description>Blocco appunti per lavagne interattive (LIM)</Description>
-    <Version>0.6.1</Version>
+    <Version>0.7.0</Version>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\Ardesia.ico</ApplicationIcon>
     <NeutralLanguage>it-IT</NeutralLanguage>

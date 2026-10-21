@@ -134,6 +134,13 @@ public partial class App : Application
             }
         }
 
+        // Ardesia si apre una volta sola: un secondo avvio passa il file a quella già aperta e si chiude.
+        if (snapshot == null && !SingleInstance.TryClaim(file, request => Dispatcher.BeginInvoke(() => OnOtherInstance(request))))
+        {
+            Shutdown();
+            return;
+        }
+
         var settings = AppSettings.Load();
         if (snapshot != null)
         {
@@ -170,5 +177,21 @@ public partial class App : Application
         MainWindow = window;
         if (snapshot != null) window.ScheduleSnapshot(snapshot, demo, tab);
         window.Show();
+    }
+
+    /// <summary>Un secondo avvio di Ardesia: si viene in primo piano e, se ha passato un file, lo si apre.</summary>
+    void OnOtherInstance(string file)
+    {
+        if (MainWindow is Ardesia.MainWindow main && main.IsVisible)
+        {
+            main.BringForward(file.Length > 0 ? file : null);
+            return;
+        }
+        // ancora sulla schermata iniziale (o su un'altra finestra): basta portarla davanti
+        if (Windows.OfType<Window>().LastOrDefault(w => w.IsVisible) is { } top)
+        {
+            if (top.WindowState == WindowState.Minimized) top.WindowState = WindowState.Normal;
+            top.Activate();
+        }
     }
 }

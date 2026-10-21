@@ -201,6 +201,24 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// Un secondo avvio di Ardesia (Services/SingleInstance): la finestra viene in primo piano e, se è stato aperto un
+    /// file .ardesia, lo si apre qui (salvando prima quello aperto, come sempre). Con una finestrella aperta si porta
+    /// davanti solo quella.
+    /// </summary>
+    public void BringForward(string? file)
+    {
+        if (WindowState == WindowState.Minimized) WindowState = WindowState.Maximized;
+        Activate();
+        if (OwnedWindows.OfType<Window>().LastOrDefault(w => w.IsVisible) is { } dialog)
+        {
+            dialog.Activate();
+            return;
+        }
+        if (file == null || (_path != null && string.Equals(Path.GetFullPath(_path), file, StringComparison.OrdinalIgnoreCase))) return;
+        if (ConfirmClose()) TryOpen(file);
+    }
+
     void Open()
     {
         if (StartWindow.PickNotebookFile(this, _settings) is not { } path) return;

@@ -2,7 +2,7 @@
 ; Compilare con:  ISCC.exe installer\Ardesia.iss   (dopo "dotnet publish", vedi build-release.ps1)
 
 #define AppName "Ardesia"
-#define AppVersion "0.6.1"
+#define AppVersion "0.7.0"
 #define AppExe "Ardesia.exe"
 
 [Setup]

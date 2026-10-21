@@ -2,7 +2,7 @@
 
 Stato: **fase 1 (accesso) fatta il 19/10/2026, rilasciata nella 0.6.0 (20/10/2026)**; **fase 2 (Drive di base) scritta e
 provata il 20/10/2026**; **fase 3 (robustezza) scritta il 20/10/2026**; **fase 4 (PDF per la classe su Drive) scritta il
-20/10/2026**; le fasi 2–4 escono insieme. Per provare il link del PDF con un alunno vero si aspettano gli account
+20/10/2026**; le fasi 2–4 sono uscite insieme nella **0.7.0** (21/10/2026). Per provare il link del PDF con un alunno vero si aspettano gli account
 `@liceofoscarini.it` degli alunni (l'amministratore li sta creando).
 Domande aperte risolte.
 
@@ -190,7 +190,8 @@ crea/elenca/aggiorna/scarica un file col tipo di Ardesia, condivisione col domin
   predefinito), con Sì blocco e PDF nel cestino. Non provati dal vivo: condivisione rifiutata (l'amministratore la
   permette) e apertura del link da un account di alunno (gli account non ci sono ancora).
 - Visto nelle prove: due Ardesia aperte sullo stesso PC e sullo stesso blocco su Drive (es. un doppio clic sull'icona)
-  si comportano come due PC e producono un conflitto «tieni entrambi». Niente si perde.
+  si comportavano come due PC e producevano un conflitto «tieni entrambi». Dalla 0.7.0 Ardesia si apre una volta sola
+  (`Services/SingleInstance.cs`): un secondo avvio porta in primo piano quella aperta e le passa il file.
 
 ### Scelte dell'utente (17/10/2026)
 
