@@ -165,7 +165,7 @@ crea/elenca/aggiorna/scarica un file col tipo di Ardesia, condivisione col domin
 - **Eliminare** (§2.2): dopo la prima domanda, se il blocco ha un PDF (da `sync.json`, dall'elenco di Drive o dal blocco
   aperto): «Eliminare anche il PDF per la classe? Gli alunni che hanno il link non potranno più aprirlo.» Sì = elimina
   anche il PDF, No = tieni il PDF (**predefinito**). Il PDF va nel cestino prima del blocco; le cartelle mai.
-- **Conflitti** (scelta mia, ragionevole; da confermare con l'utente): il PDF **resta legato al blocco originale**. La
+- **Conflitti** (confermato dall'utente il 21/10/2026): il PDF **resta legato al blocco originale**. La
   copia «(modifiche da …)» nasce senza `pdfClasse` e con `copiaDi` = ID dell'originale; un PDF rifatto qui con le
   modifiche della copia **non** si carica sul PDF dell'originale (si scarta), perché ormai l'originale è la versione
   dell'altro PC, che aggiornerà il PDF quando chiude. Aprendo la copia, il suo `ClassPdfDriveId` (ereditato) si toglie e
