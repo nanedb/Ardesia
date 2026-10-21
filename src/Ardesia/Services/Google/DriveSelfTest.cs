@@ -436,6 +436,10 @@ public static class DriveSelfTest
               && refused[0].Contains("a mano") && e2.ClassPdfShareError != null && !sync.HasWork
               && sync.ClassPdfStatus(id2).ShareError != null,
             "Condivisione rifiutata: avviso chiaro una volta, PDF caricato, si condivide a mano", refused.FirstOrDefault() ?? "nessun avviso");
+        sync.RetryShare(id2); // «Riprova a condividere»: ora l'amministratore la permette
+        await sync.FlushAsync(TimeSpan.FromSeconds(3));
+        check(pdf2!.Shares.SequenceEqual(new[] { "liceofoscarini.it" }) && sync.Entry(id2) is { ClassPdfShared: true, ClassPdfShareError: null },
+            "«Riprova a condividere»: ora condiviso col dominio", string.Join(", ", pdf2.Shares));
 
         // PDF cestinato dal sito di Drive: al prossimo aggiornamento se ne crea uno nuovo, legato al blocco
         pdf2!.Trashed = true;

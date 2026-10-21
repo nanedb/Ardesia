@@ -82,9 +82,11 @@ public partial class ClassPdfPanel : UserControl
         DriveStatus.Text = text;
 
         bool refused = info?.ShareError != null;
+        RetryShareButton.Visibility = refused ? Visibility.Visible : Visibility.Collapsed;
         DriveNote.Text = refused
             ? $"Google non ha permesso ad Ardesia di condividerlo con la scuola ({info!.ShareError}). Condividilo a mano: «Apri il PDF su " +
-              $"Drive», poi «Condividi» e, in «Accesso generale», «{GoogleClientConfig.SchoolDomain}» (chiunque abbia il link)."
+              $"Drive», poi «Condividi» e, in «Accesso generale», «{GoogleClientConfig.SchoolDomain}» (chiunque abbia il link). " +
+              "Se l'amministratore ora lo permette, «Riprova a condividere»."
             : has
                 ? $"Lo apre chi ha il link e un account @{GoogleClientConfig.SchoolDomain}: gli alunni, anche a casa. Il link non cambia " +
                   "mai: basta incollarlo una volta su Classroom."
@@ -105,6 +107,12 @@ public partial class ClassPdfPanel : UserControl
         {
             ShowMessage($"Non è stato possibile copiare il link ({ex.Message}). Eccolo: {link}", error: true);
         }
+    }
+
+    void RetryShare_Click(object sender, RoutedEventArgs e)
+    {
+        if (_driveId == null || DriveSync.Current is not { } sync) return;
+        sync.RetryShare(_driveId); // l'esito arriva nello stato qui sopra (e, se rifiutata di nuovo, con l'avviso)
     }
 
     void OpenPdf_Click(object sender, RoutedEventArgs e)

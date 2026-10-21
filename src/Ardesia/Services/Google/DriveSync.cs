@@ -641,6 +641,23 @@ public sealed class DriveSync : IDisposable
         Pump();
     }
 
+    /// <summary>
+    /// «Riprova a condividere» (impostazioni del blocco): dopo un rifiuto si ritenta la condivisione col dominio, per
+    /// esempio quando l'amministratore l'ha permessa.
+    /// </summary>
+    public void RetryShare(string id)
+    {
+        if (_disposed || Entry(id) is not { ClassPdfId: not null } e) return;
+        e.ClassPdfShareError = null;
+        e.ClassPdfShared = false;
+        var rt = RuntimeOf(id);
+        rt.PdfNextTry = DateTime.MinValue;
+        rt.PdfBlocked = false;
+        SaveData(_folder, _data);
+        StatusChanged?.Invoke(id);
+        Pump();
+    }
+
     /// <summary>Carica appena possibile (cambio di blocco, uscita).</summary>
     public void UploadSoon(string id)
     {

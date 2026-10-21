@@ -151,11 +151,12 @@ crea/elenca/aggiorna/scarica un file col tipo di Ardesia, condivisione col domin
   Nel blocco (`notebook.json`) c'è `ClassPdfDriveId`, tenuto uguale a quello che sa Drive (`MainWindow.SyncClassPdfId`).
 - **Condivisione rifiutata** (amministratore): il PDF resta caricato, evento `DriveSync.ClassPdfShareRefused` → un avviso
   una volta («condividilo a mano: Apri il PDF su Drive › Condividi › Accesso generale › liceofoscarini.it»), lo stesso
-  scritto in rosso nelle impostazioni del blocco; niente nuovi tentativi automatici.
+  scritto in rosso nelle impostazioni del blocco; niente nuovi tentativi automatici, ma lì c'è «Riprova a condividere»
+  (`DriveSync.RetryShare`, per quando l'amministratore la permette; scelta dell'utente 21/10/2026).
 - **Rinomina**: cambiato il nome del blocco, dopo il caricamento del blocco si rinomina anche il PDF (`RenameAsync`, solo
-  metadati); ID, cartella e link restano. Anche col PDF spento.
+  metadati); ID, cartella e link restano. Anche col PDF spento (confermato dall'utente 21/10/2026).
 - **PDF cestinato o cancellato dal sito di Drive**: al prossimo aggiornamento se ne crea uno nuovo (link nuovo) e si
-  rilega al blocco.
+  rilega al blocco (confermato dall'utente 21/10/2026).
 - **Spento** per un blocco (Impostazioni › Questo blocco appunti): non si aggiorna più, ma il PDF su Drive resta.
 - **Impostazioni › Questo blocco appunti › PDF per la classe** (`Controls/ClassPdfPanel`, anche in «PDF per la classe…»)
   per un blocco su Drive: niente percorso del file; stato («Su Google Drive, aggiornato oggi alle 10:32», «da caricare»,
@@ -174,9 +175,9 @@ crea/elenca/aggiorna/scarica un file col tipo di Ardesia, condivisione col domin
   copia, con un link che nessuno ha, sarebbe solo confusione.
 - Alla chiusura (`FinishDriveOnExit`) la coda carica anche il PDF (`HasWork`, byte nel «Carico su Google Drive… (…)»);
   «Esci da Google» e «Svuota la cache» tengono i PDF da caricare.
-- Prove: `--prova-drive --finto` ora 49 prove (fase 4: creato accanto al blocco e legato, condiviso col dominio, link,
+- Prove: `--prova-drive --finto` ora 50 prove (fase 4: creato accanto al blocco e legato, condiviso col dominio, link,
   aggiornato nello stesso file dopo il blocco, rinomina, un altro PC lo ritrova e lo aggiorna, l'elenco sa del PDF,
-  condivisione rifiutata con un solo avviso, PDF cestinato dal sito → nuovo, conflitto, eliminazione tenendo o eliminando
+  condivisione rifiutata con un solo avviso e «Riprova a condividere», PDF cestinato dal sito → nuovo, conflitto, eliminazione tenendo o eliminando
   il PDF). La parte vera crea un PDF vero (`PdfExporter`), controlla nome, cartella, legame e condivisione
   (`DriveApi.PermissionsAsync`), lo aggiorna (stesso ID, revisione nuova), lo rinomina col blocco, controlla che nel
   conflitto resti all'originale e alla fine cestina blocco e PDF.

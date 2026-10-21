@@ -17,7 +17,9 @@
                     <Button x:Name="CopyLinkButton" Content="Copia il link per gli alunni" Style="{StaticResource PlainButton}"
                             Click="CopyLink_Click" Margin="0,0,8,6" />
                     <Button x:Name="OpenPdfButton" Content="Apri il PDF su Drive" Style="{StaticResource PlainButton}"
-                            Click="OpenPdf_Click" Margin="0,0,0,6" />
+                            Click="OpenPdf_Click" Margin="0,0,8,6" />
+                    <Button x:Name="RetryShareButton" Content="Riprova a condividere" Style="{StaticResource PlainButton}"
+                            Click="RetryShare_Click" Margin="0,0,0,6" Visibility="Collapsed" />
                 </WrapPanel>
                 <TextBlock x:Name="DriveNote" TextWrapping="Wrap" FontSize="12.5" Foreground="{StaticResource SubtleTextBrush}" />
             </StackPanel>
