@@ -2139,11 +2139,20 @@ public partial class PageEditor : UserControl
         FingerPans && _node != null && !e.StylusDevice.Inverted &&
         e.StylusDevice.TabletDevice?.Type == TabletDeviceType.Touch;
 
+    /// <summary>
+    /// Tocco sul grafico selezionato con «Il dito sposta la pagina» spento (es. Promethean): con «Seleziona» un gesto
+    /// che comincia dentro il grafico muove o zooma gli assi come con l'opzione accesa; il resto non cambia.
+    /// </summary>
+    bool IsGraphTouch(StylusEventArgs e) =>
+        !FingerPans && _node != null && _tool == EditorTool.Select && !e.StylusDevice.Inverted &&
+        e.StylusDevice.TabletDevice?.Type == TabletDeviceType.Touch &&
+        (_fingers.Count > 0 ? _fingerGraph != null : SelectedGraphAt(e.GetPosition(Ink), out bool onEdge) != null && !onEdge);
+
     void SetupFingerPan()
     {
         ContentHost.PreviewStylusDown += (_, e) =>
         {
-            if (!IsFingerPan(e)) return;
+            if (!IsFingerPan(e) && !IsGraphTouch(e)) return;
             var src = e.OriginalSource as DependencyObject;
             if (IsWithin(src, TitleArea) || FindAncestor<DraggableTool>(src) != null) return;
             if (_tool == EditorTool.Text && FindAncestor<TextBoxBase>(src) != null) return;
