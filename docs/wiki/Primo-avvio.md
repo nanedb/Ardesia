@@ -24,12 +24,12 @@ La finestra di Ardesia si apre **ingrandita** e non diventa mai più grande dell
 
 - Ogni modifica (un tratto, un testo, una pagina nuova…) viene salvata **circa un secondo e mezzo dopo**. In alto a destra, nella barra colorata, compare **«Salvato alle 10:32»** (per i blocchi su Drive, accanto a una nuvola: **«Su Drive · salvato alle 10:32»**, vedi [Google Drive](Google-Drive.md#il-salvataggio)).
 - Alla chiusura Ardesia salva ancora, **senza domande**.
-- Il pulsante con il dischetto (o **Ctrl+S**) salva subito, ma di solito non serve.
+- **Ctrl+S** (o *File → Salva*) salva subito, ma di solito non serve: per questo nella barra in alto non c'è un pulsante Salva.
 - Il salvataggio è «sicuro»: Ardesia scrive prima un file temporaneo e solo alla fine sostituisce il vecchio, quindi anche un'interruzione improvvisa non lascia un file rovinato.
 - Se il salvataggio non riesce (cartella non più raggiungibile, disco pieno, Drive scollegato) compare **«Salvataggio automatico non riuscito»** e, alla chiusura, Ardesia chiede se salvare altrove.
 - In caso di errore imprevisto del programma, Ardesia prova a salvare una **copia di sicurezza** nella cartella `%AppData%\Ardesia\Recupero` e lo dice nel messaggio d'errore.
 
-Per tornare indietro su una modifica c'è **Annulla** (Ctrl+Z) e **Ripeti** (Ctrl+Y), fino a 100 passi. Annulla vale per le modifiche sul foglio della **pagina aperta**: quando si passa a un'altra pagina la cronologia ricomincia da capo. Eliminare una sezione o una pagina **non si può annullare** (per questo Ardesia chiede conferma).
+Per tornare indietro su una modifica c'è **Annulla** (Ctrl+Z) e **Ripeti** (Ctrl+Y), a sinistra nella scheda *Disegna* (e nella barra semplificata), fino a 100 passi. Annulla vale per le modifiche sul foglio della **pagina aperta**: quando si passa a un'altra pagina la cronologia ricomincia da capo. Eliminare una sezione o una pagina **non si può annullare** (per questo Ardesia chiede conferma).
 
 ## Il nome del blocco appunti
 
@@ -44,9 +44,11 @@ Dal menu **File** (in alto a sinistra):
 | **Nuovo blocco appunti** | Come nella schermata iniziale: chiede posizione e nome, poi lo apre. Da collegati a Google si chiama **Nuovo blocco appunti su Drive…** e c'è anche **Nuovo blocco appunti sul computer…** |
 | **Apri da Drive…** | Solo da collegati a Google: l'elenco dei tuoi blocchi su Drive (vedi [Google Drive](Google-Drive.md#aprire-un-blocco-da-drive)) |
 | **Apri…** (Ctrl+O) | Apre un altro file `.ardesia` dal computer (da collegati: *Apri dal computer…*) |
+| **Accedi a Google Drive…** | Solo da scollegati: come il pulsante **Accedi a Google** in alto a destra (vedi [Google Drive](Google-Drive.md#accedere-con-google)) |
 | **Recenti** | Gli ultimi blocchi aperti; quelli su Drive hanno accanto «(Google Drive · classe / materia)» |
 | **Salva** (Ctrl+S) | Salva subito |
 | **Salva con nome…** | Salva una copia con un altro nome o in un'altra cartella e continua a lavorare su quella. Per un blocco su Drive c'è invece **Salva una copia sul computer…** |
+| **Copia in un altro blocco appunti…** | Copia tutto il blocco in uno nuovo o in uno esistente (vedi [Copiare in un altro blocco appunti](Blocchi-appunti-sezioni-e-pagine.md#copiare-in-un-altro-blocco-appunti)) |
 | **Esporta in PDF…** (Ctrl+P) | Vedi [PDF](PDF.md) |
 | **PDF per la classe…** | Vedi [PDF per la classe](PDF.md#il-pdf-per-la-classe) |
 | **Apri la cartella del blocco appunti** | Apre in Esplora file la cartella che contiene il file. Per un blocco su Drive: **Apri la cartella su Google Drive** (nel browser) |

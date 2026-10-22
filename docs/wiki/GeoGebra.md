@@ -6,9 +6,12 @@ Per la **geometria**, le costruzioni e i casi più avanzati Ardesia apre **GeoGe
 
 ## Aprire GeoGebra
 
-- **Inserisci → GeoGebra**: apre GeoGebra vuoto.
-- Con una **casella di testo selezionata** che contiene delle funzioni (una per riga), GeoGebra si apre con quelle funzioni già disegnate. Lo stesso dal menu contestuale della casella: **Disegna il grafico con GeoGebra**.
-- Da un grafico di Ardesia: menu del grafico → **Apri in GeoGebra** (le funzioni passano a GeoGebra e i parametri diventano cursori di GeoGebra, con lo stesso valore).
+Il pulsante **GeoGebra** è in *Inserisci* e nella barra semplificata (accanto a **Grafico**). Prende le funzioni da quello che è selezionato:
+
+- **niente**: GeoGebra si apre vuoto;
+- una **casella di testo** con delle funzioni (una per riga): GeoGebra si apre con quelle funzioni già disegnate. Lo stesso dal menu contestuale della casella: **Disegna il grafico con GeoGebra**;
+- delle **funzioni scritte a mano**: Ardesia le legge come per il [grafico di Ardesia](Scrittura-a-mano-delle-funzioni.md), te le fa controllare nella finestrella e poi **Apri in GeoGebra**. Anche dal menu contestuale della scrittura;
+- un **grafico di Ardesia**: le sue funzioni passano a GeoGebra e i parametri diventano cursori di GeoGebra, con lo stesso valore. Lo stesso dal menu del grafico → **Apri in GeoGebra**.
 
 Nella finestra di GeoGebra lavori come al solito (scrivi nella colonna Algebra, costruisci, sposti, ingrandisci). In basso c'è il suggerimento *«Scrivi le funzioni a sinistra… poi premi «Inserisci nella pagina».»*
 

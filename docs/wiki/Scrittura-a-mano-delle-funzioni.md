@@ -6,7 +6,7 @@ Alla LIM è naturale **scrivere la funzione con la penna**, come alla lavagna. A
 
 1. Scrivi la funzione sul foglio con una penna, per esempio `y = x² − 4`. Più funzioni vanno **una sotto l'altra**, ben separate.
 2. Prendi lo strumento **Seleziona** e **circonda** con il lazo ciò che hai scritto.
-3. Premi **Grafico** (scheda *Inserisci* o barra semplificata), oppure, dal menu contestuale (pressione prolungata sulla scrittura), **Disegna il grafico della funzione scritta**.
+3. Premi **Grafico** (scheda *Inserisci* o barra semplificata), oppure, dal menu contestuale (pressione prolungata sulla scrittura), **Disegna il grafico della funzione scritta**. Con **GeoGebra** (o *Disegna il grafico con GeoGebra*) le funzioni lette vanno invece in [GeoGebra](GeoGebra.md).
 4. Dopo un attimo (circa un secondo o due per riga) si apre la finestrella **Funzioni del grafico** con l'avviso *«Ho letto così quello che hai scritto: controlla, correggi se serve, poi «Disegna».»* e una riga per ogni funzione letta, con sotto la formula composta.
 5. Controlla: se qualcosa non va, correggilo con la tastiera, oppure riscrivilo con **✍ Scrivi a mano** (sotto).
 6. Premi **Disegna**: il grafico compare **accanto alla scrittura**, che resta sul foglio com'era.

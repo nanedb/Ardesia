@@ -68,6 +68,14 @@ Dopo aver disegnato una forma lo strumento resta attivo, così se ne possono tra
 
 Per linee dritte appoggiate a un bordo c'è anche il [righello](Righello-goniometro-e-compasso.md).
 
+## Linee tratteggiate
+
+Il pulsante **Linea tratteggiata** (l'ultimo del gruppo **Forme**, e nella barra semplificata accanto al pulsante delle forme) fa tratteggiare **penne, matita, forme, linee raddrizzate, righello e compasso**; gli evidenziatori restano continui. Resta acceso finché non lo spegni, anche cambiando penna.
+
+- Mentre scrivi la scia è continua: il **tratteggio compare quando stacchi la penna**.
+- Con lo strumento **Seleziona**, il pulsante tratteggia (o rende di nuovo continui) i **tratti selezionati**.
+- Il tratteggio si salva nel blocco appunti e resta nel PDF. Le versioni di Ardesia precedenti alla 0.7.1 mostrano queste linee continue.
+
 ## Seleziona: spostare, ingrandire, cambiare colore
 
 Con lo strumento **Seleziona** (la freccia):

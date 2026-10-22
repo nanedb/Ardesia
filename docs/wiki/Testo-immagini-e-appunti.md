@@ -64,7 +64,7 @@ e in più, a seconda dell'oggetto:
 | Oggetto | Voci in più |
 |---|---|
 | Casella di testo | **Disegna il grafico di questa funzione** · **Disegna il grafico con GeoGebra** |
-| Tratti scritti a mano | **Disegna il grafico della funzione scritta** (vedi [Scrivere a mano le funzioni](Scrittura-a-mano-delle-funzioni.md)) |
+| Tratti scritti a mano | **Disegna il grafico della funzione scritta** · **Disegna il grafico con GeoGebra** (vedi [Scrivere a mano le funzioni](Scrittura-a-mano-delle-funzioni.md)) |
 | Grafico di Ardesia | Funzioni del grafico…, le opzioni da spuntare, zoom, Vista standard, Apri in GeoGebra (vedi [Grafico di funzione](Grafico-di-funzione.md#il-menu-del-grafico)) |
 | Grafico GeoGebra | **Modifica il grafico in GeoGebra** |
 

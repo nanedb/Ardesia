@@ -4,16 +4,16 @@
 
 Questa guida è per i **colleghi docenti**: spiega come si usa Ardesia, non come è fatta dentro.
 
-> **Versione descritta:** Ardesia 0.7.0 (ottobre 2026). Il numero della versione installata si legge in alto, accanto al nome del blocco appunti.
+> **Versione descritta:** Ardesia 0.7.1 (ottobre 2026). Il numero della versione installata si legge in alto, accanto al nome del blocco appunti.
 
 ![La finestra di Ardesia](immagini/finestra-principale.png)
 
 ## Che cosa sa fare
 
-- **Blocchi appunti** organizzati come in OneNote: sezioni, sottosezioni, pagine e sottopagine, senza limiti.
+- **Blocchi appunti** organizzati come in OneNote: sezioni, sottosezioni, pagine e sottopagine, senza limiti; una pagina, una sezione o un blocco intero si **copiano** in un altro blocco.
 - **Si salva da sola**: ogni modifica viene salvata dopo un attimo, senza domande.
 - **Penne configurabili**, evidenziatori e **matite** dalla 3H alla 3B; gomma per tratti interi, gomma precisa e, sulle LIM che lo permettono, **il palmo della mano come gomma**.
-- **Linee dritte** tenendo ferma la penna un istante, **forme** (linea, freccia, rettangolo, ellisse, triangolo).
+- **Linee dritte** tenendo ferma la penna un istante, **forme** (linea, freccia, rettangolo, ellisse, triangolo) e **linee tratteggiate**.
 - **Righello, goniometro e compasso** da usare sul foglio come quelli veri.
 - **Caselle di testo, immagini**, copia e incolla, menu che si apre tenendo premuto il dito.
 - **Foglio infinito** verso destra e verso il basso, con zoom e sei sfondi (righe, quadretti, puntini…) su sei colori, compresa la «lavagna» scura.

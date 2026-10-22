@@ -6,9 +6,9 @@ I blocchi salvati sul computer (o su `G:` con Drive per desktop) **restano dove 
 
 ## Accedere con Google
 
-1. Nella schermata iniziale premi **Accedi con Google** (oppure *File → Impostazioni… → Questo PC*, riquadro **Google Drive**).
+1. Premi **Accedi a Google** in alto a destra (oppure **Accedi con Google** nella schermata iniziale, *File → Accedi a Google Drive…*, o *File → Impostazioni… → Questo PC*, riquadro **Google Drive**).
 2. Si apre il **browser** sulla pagina di Google: scegli il tuo account **@liceofoscarini.it** e consenti l'accesso. Sono accettati solo gli account della scuola.
-3. Torna in Ardesia: in alto a destra compare il tuo **nome**.
+3. Torna in Ardesia: in alto a destra, al posto di «Accedi a Google», compare il tuo **nome**. Un clic sul nome apre **Nuovo blocco appunti su Drive…**, **Apri da Drive…**, **Esci da Google** e **Impostazioni…**.
 
 Che cosa vede Ardesia: **solo i file che crea lei** sul tuo Drive. Il resto del Drive non lo vede e non lo tocca.
 
@@ -18,9 +18,9 @@ L'accesso si fa **una volta per PC**: Ardesia lo ricorda, cifrato e leggibile so
 
 ## Creare un blocco su Drive
 
-Da collegati, **Crea un nuovo blocco appunti** (schermata iniziale) o *File → Nuovo blocco appunti su Drive…* apre la finestra **«Nuovo blocco appunti su Google Drive»**:
+Da collegati, **Crea un nuovo blocco appunti** (schermata iniziale), *File → Nuovo blocco appunti su Drive…* o il menu del tuo nome in alto a destra apre la finestra **«Nuovo blocco appunti su Google Drive»**:
 
-- **Classe** (per esempio `2BO`), **Materia** (per esempio `Fisica`) e **Nome del blocco appunti**. Ardesia propone le classi e le materie che hai già usato;
+- **Classe** (per esempio `2BO`), **Materia** (per esempio `Fisica`) e **Nome del blocco appunti**. Ardesia propone, come pulsanti da toccare, le classi e le materie dove hai già dei blocchi (le cartelle rimaste vuote non compaiono);
 - sotto si vede dove andrà: «Su Drive: Il mio Drive › Ardesia › 2BO › Fisica › 2BO Fisica 26-27»;
 - **Crea**. Le cartelle che mancano le crea Ardesia.
 
@@ -31,7 +31,7 @@ Per creare un blocco su Drive serve la rete. I caratteri che Drive o Windows non
 ## Aprire un blocco da Drive
 
 - Nella schermata iniziale, sotto **Su Google Drive**, ci sono i tuoi ultimi blocchi su Drive; **Tutti i blocchi su Drive…** li mostra tutti.
-- Da Ardesia aperta: *File → Apri da Drive…*.
+- Da Ardesia aperta: *File → Apri da Drive…*, o il menu del tuo nome in alto a destra.
 
 La finestra **«I tuoi blocchi appunti su Google Drive»** ha una casella per **cercare** per nome, classe o materia; per ogni blocco dice la cartella, quando è stato modificato e se risulta aperto su un altro PC. **Apri**, **Nuovo blocco appunti…**, **Elimina…**.
 
