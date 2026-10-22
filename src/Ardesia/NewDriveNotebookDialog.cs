@@ -179,10 +179,19 @@ public sealed class NewDriveNotebookDialog : Window
         var subj = _subject.Text.Trim();
         if (_listing != null)
         {
-            FillChips(_classChips, _listing.Classes, _class);
+            // Solo le cartelle con dentro almeno un blocco: quelle rimaste vuote (blocchi eliminati, prove come
+            // «PROVA») non si propongono.
+            var nb = _listing.Notebooks;
+            bool Used(string? c, string? s) => nb.Any(n => string.Equals(n.Class, c, StringComparison.CurrentCultureIgnoreCase)
+                                                          && (s == null || string.Equals(n.Subject, s, StringComparison.CurrentCultureIgnoreCase)));
+            FillChips(_classChips, _listing.Classes.Where(c => Used(c, null)), _class);
             // prima le materie della classe scritta, poi le altre
-            var own = cls.Length > 0 && _listing.SubjectsByClass.TryGetValue(cls, out var list) ? list : new List<string>();
-            FillChips(_subjectChips, own.Concat(_listing.Subjects.Where(s => !own.Contains(s, StringComparer.CurrentCultureIgnoreCase))), _subject);
+            var own = cls.Length > 0 && _listing.SubjectsByClass.TryGetValue(cls, out var list)
+                ? list.Where(s => Used(cls, s)).ToList()
+                : new List<string>();
+            FillChips(_subjectChips, own.Concat(_listing.Subjects.Where(s => !own.Contains(s, StringComparer.CurrentCultureIgnoreCase)
+                                                                            && nb.Any(n => string.Equals(n.Subject, s, StringComparison.CurrentCultureIgnoreCase)))),
+                _subject);
         }
         // Nome proposto «2BO Fisica 26-27», finché l'utente non lo cambia a mano.
         var proposal = string.Join(" ", new[] { cls, subj, DriveSync.SchoolYear(DateTime.Today) }.Where(s => s.Length > 0));

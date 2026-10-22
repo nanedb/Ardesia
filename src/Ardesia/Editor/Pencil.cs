@@ -89,14 +89,28 @@ public static class Pencil
         }
     }
 
-    /// <summary>Trasforma un tratto "matita" generico (es. caricato da file) nel tipo che lo disegna con la grana.</summary>
-    public static Stroke Upgrade(Stroke s) =>
-        s is not PencilStroke && GradeOf(s.DrawingAttributes) != null
-            ? new PencilStroke(s.StylusPoints.Clone(), s.DrawingAttributes.Clone())
-            : s;
+    /// <summary>Il tipo di tratto che disegna questi attributi: tratteggiato, a matita o normale.</summary>
+    static Type KindOf(DrawingAttributes da) =>
+        Dash.IsDashed(da) ? typeof(DashedStroke) : GradeOf(da) != null ? typeof(PencilStroke) : typeof(Stroke);
 
-    public static bool NeedsUpgrade(StrokeCollection strokes) =>
-        strokes.Any(s => s is not PencilStroke && GradeOf(s.DrawingAttributes) != null);
+    /// <summary>Tratto nuovo del tipo giusto per gli attributi (tratteggio, matita).</summary>
+    public static Stroke Create(StylusPointCollection points, DrawingAttributes da)
+    {
+        var kind = KindOf(da);
+        return kind == typeof(DashedStroke) ? new DashedStroke(points, da)
+            : kind == typeof(PencilStroke) ? new PencilStroke(points, da)
+            : new Stroke(points, da);
+    }
+
+    /// <summary>
+    /// Trasforma un tratto generico (es. caricato da file, o spezzato dalla gomma precisa) nel tipo che lo disegna
+    /// con la grana della matita o col tratteggio.
+    /// </summary>
+    public static Stroke Upgrade(Stroke s) =>
+        s.GetType() != KindOf(s.DrawingAttributes) ? Create(s.StylusPoints.Clone(), s.DrawingAttributes.Clone()) : s;
+
+    public static bool NeedsUpgrade(IEnumerable<Stroke> strokes) =>
+        strokes.Any(s => s.GetType() != KindOf(s.DrawingAttributes));
 
     public static void UpgradeAll(StrokeCollection strokes)
     {
@@ -121,6 +135,74 @@ public sealed class PencilStroke : Stroke
     }
 
     public override Stroke Clone() => new PencilStroke(StylusPoints.Clone(), DrawingAttributes.Clone());
+}
+
+/// <summary>
+/// Linea tratteggiata: vale per penne, matita, forme, linee raddrizzate e col righello. Come la durezza della matita,
+/// è salvata nei DrawingAttributes del tratto (quindi nel file .ardesia); le versioni vecchie la mostrano continua.
+/// </summary>
+public static class Dash
+{
+    public static readonly Guid Property = new("b3d4a7e1-5c2f-4e8a-9d61-0f7c3a2e9b54");
+
+    public static bool IsDashed(DrawingAttributes da) =>
+        da.ContainsPropertyData(Property) && da.GetPropertyData(Property) is true;
+
+    public static void Set(DrawingAttributes da, bool dashed)
+    {
+        if (dashed) da.AddPropertyData(Property, true);
+        else if (da.ContainsPropertyData(Property)) da.RemovePropertyData(Property);
+    }
+
+    /// <summary>
+    /// Trattini e spazi in multipli dello spessore, come vuole WPF: trattini lunghi circa 4 volte lo spessore (almeno
+    /// 10 px) e spazi 2,5 volte (almeno 7 px), misurati compresi i capi arrotondati.
+    /// </summary>
+    public static DoubleCollection Pattern(double width)
+    {
+        double w = Math.Max(width, 0.5);
+        double dash = Math.Max(4 * w, 10), gap = Math.Max(2.5 * w, 7);
+        return new DoubleCollection { (dash - w) / w, (gap + w) / w };
+    }
+}
+
+public sealed class DashedStroke : Stroke
+{
+    public DashedStroke(StylusPointCollection points, DrawingAttributes da) : base(points, da)
+    {
+    }
+
+    protected override void DrawCore(DrawingContext dc, DrawingAttributes da)
+    {
+        // spessore costante (la pressione non conta): trattini tutti uguali
+        int? grade = Pencil.GradeOf(da);
+        Brush brush = grade is { } g ? Pencil.BrushFor(da.Color, g) : new SolidColorBrush(da.Color);
+        var points = da.FitToCurve ? GetBezierStylusPoints() : StylusPoints;
+        double w = Math.Max(da.Width, da.Height);
+        if (points.Count == 1)
+        {
+            dc.DrawEllipse(brush, null, (Point)points[0], w / 2, w / 2);
+            return;
+        }
+        var geo = new StreamGeometry();
+        using (var ctx = geo.Open())
+        {
+            ctx.BeginFigure((Point)points[0], false, false);
+            ctx.PolyLineTo(points.Skip(1).Select(p => (Point)p).ToList(), true, true);
+        }
+        geo.Freeze();
+        var pen = new Pen(brush, w)
+        {
+            DashStyle = new DashStyle(Dash.Pattern(w), 0),
+            DashCap = PenLineCap.Round,
+            StartLineCap = PenLineCap.Round,
+            EndLineCap = PenLineCap.Round,
+            LineJoin = PenLineJoin.Round,
+        };
+        dc.DrawGeometry(null, pen, geo);
+    }
+
+    public override Stroke Clone() => new DashedStroke(StylusPoints.Clone(), DrawingAttributes.Clone());
 }
 
 /// <summary>

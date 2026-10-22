@@ -39,15 +39,6 @@
                                        Foreground="White" VerticalAlignment="Center" Margin="6,2,0,0" />
                         </StackPanel>
                     </Button>
-                    <Button Style="{StaticResource HeaderButton}" Click="Save_Click" ToolTip="Salva (Ctrl+S)">
-                        <TextBlock Style="{StaticResource HeaderGlyph}" Text="&#xE74E;" />
-                    </Button>
-                    <Button Style="{StaticResource HeaderButton}" Click="Undo_Click" ToolTip="Annulla (Ctrl+Z)">
-                        <TextBlock Style="{StaticResource HeaderGlyph}" Text="&#xE7A7;" />
-                    </Button>
-                    <Button Style="{StaticResource HeaderButton}" Click="Redo_Click" ToolTip="Ripeti (Ctrl+Y)">
-                        <TextBlock Style="{StaticResource HeaderGlyph}" Text="&#xE7A6;" />
-                    </Button>
                     <Button Style="{StaticResource HeaderButton}" Click="ToggleNav_Click" ToolTip="Mostra/nascondi sezioni e pagine">
                         <TextBlock Style="{StaticResource HeaderGlyph}" Text="&#xE700;" />
                     </Button>
@@ -94,6 +85,9 @@
                         <ToggleButton Style="{StaticResource IconToggle}" Tag="Tool:EraserStroke" ToolTip="Gomma (tratti interi)"><TextBlock Style="{StaticResource SmallGlyph}" Text="&#xE75C;" FontSize="17" /></ToggleButton>
                         <ToggleButton Style="{StaticResource IconToggle}" Tag="Tool:EraserPoint" ToolTip="Gomma precisa (la freccetta sceglie la misura)"><Grid Width="32" Height="32"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconPointEraser}" HorizontalAlignment="Center" VerticalAlignment="Center" /><Button Style="{StaticResource PenChevron}" Width="13" Height="13" Click="EraserSize_Click" ToolTip="Misura della gomma" /></Grid></ToggleButton>
                         <Border Style="{StaticResource BarSeparator}" />
+                        <Button Style="{StaticResource IconButton}" Click="InsertGraph_Click" ToolTip="Grafico di funzione: disegna le funzioni della casella di testo o della scrittura a mano selezionata (una per riga)"><ContentControl ContentTemplate="{StaticResource GraphIcon}" Width="22" Height="22" Focusable="False" /></Button>
+                        <Button Style="{StaticResource IconButton}" Click="InsertGeoGebra_Click" ToolTip="Grafico con GeoGebra (serve internet): prende le funzioni dalla casella di testo, dalla scrittura a mano o dal grafico selezionato"><ContentControl ContentTemplate="{StaticResource GeoGebraIcon}" Width="22" Height="22" Focusable="False" /></Button>
+                        <Border Style="{StaticResource BarSeparator}" />
                         <StackPanel x:Name="PensSimple" Orientation="Horizontal" VerticalAlignment="Center" />
                         <Border Style="{StaticResource BarSeparator}" />
                         <Button x:Name="ShapesButton" Style="{StaticResource IconButton}" Click="ShapesButton_Click" ToolTip="Forme"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconTriangle}" /></Button>
@@ -109,12 +103,12 @@
                                 </StackPanel>
                             </Border>
                         </Popup>
+                        <ToggleButton Style="{StaticResource IconToggle}" Tag="Dashed" ToolTip="Linea tratteggiata (penne, matita, forme, righello, compasso)"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconDashed}" StrokeThickness="2" /></ToggleButton>
                         <ToggleButton Style="{StaticResource IconToggle}" Tag="Ruler" ToolTip="Righello"><TextBlock Style="{StaticResource SmallGlyph}" Text="&#xED5E;" FontSize="17" /></ToggleButton>
                         <ToggleButton Style="{StaticResource IconToggle}" Tag="Protractor" ToolTip="Goniometro"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconProtractor}" /></ToggleButton>
                         <ToggleButton Style="{StaticResource IconToggle}" Tag="Tool:Compass" ToolTip="Compasso (ricliccalo o premi Esc per chiuderlo)"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconCompass}" /></ToggleButton>
                         <Border Style="{StaticResource BarSeparator}" />
                         <Button Style="{StaticResource IconButton}" Click="InsertImage_Click" ToolTip="Inserisci immagine"><TextBlock Style="{StaticResource SmallGlyph}" Text="&#xE8B9;" FontSize="17" /></Button>
-                        <Button Style="{StaticResource IconButton}" Click="InsertGraph_Click" ToolTip="Grafico di funzione (prende le funzioni dalla casella di testo selezionata, una per riga)"><TextBlock Style="{StaticResource SmallGlyph}" Text="&#xE9D2;" FontSize="17" /></Button>
                         <Button Style="{StaticResource IconButton}" Click="NewPage_Click" ToolTip="Nuova pagina (Ctrl+N)"><TextBlock Style="{StaticResource SmallGlyph}" Text="&#xE7C3;" FontSize="17" /></Button>
                         <Button Style="{StaticResource IconButton}" Click="ExportPdf_Click" ToolTip="Esporta in PDF (Ctrl+P)"><TextBlock Style="{StaticResource SmallGlyph}" Text="&#xE749;" FontSize="17" /></Button>
                     </StackPanel>
@@ -203,20 +197,11 @@
                             </Button>
                             <Button Style="{StaticResource RibbonLargeButton}" c:Rb.Label="Grafico" Click="InsertGraph_Click"
                                     ToolTip="Grafico di funzione disegnato sul foglio: se è selezionata una casella di testo, ne disegna le funzioni (una per riga). Doppio clic su un grafico per cambiare le funzioni, clic destro per zeri, derivata, segno…">
-                                <TextBlock Style="{StaticResource Glyph}" Text="&#xE9D2;" />
+                                <ContentControl ContentTemplate="{StaticResource GraphIcon}" Width="28" Height="28" Focusable="False" />
                             </Button>
                             <Button Style="{StaticResource RibbonLargeButton}" c:Rb.Label="GeoGebra" Click="InsertGeoGebra_Click"
                                     ToolTip="Grafico con GeoGebra (serve internet), per la geometria e i casi più avanzati: se è selezionata una casella di testo, ne disegna le funzioni. Doppio clic su un grafico GeoGebra per modificarlo.">
-                                <!-- icona nello stile del logo di GeoGebra: ellisse inclinata con cinque punti -->
-                                <Canvas Width="28" Height="28" RenderTransformOrigin="0.5,0.5">
-                                    <Canvas.RenderTransform><RotateTransform Angle="-18" /></Canvas.RenderTransform>
-                                    <Ellipse Canvas.Left="3" Canvas.Top="6" Width="22" Height="16" Stroke="#333333" StrokeThickness="1.6" />
-                                    <Ellipse Canvas.Left="0.2" Canvas.Top="9.6" Width="6" Height="6" Fill="#99CCFF" Stroke="#333333" StrokeThickness="1.2" />
-                                    <Ellipse Canvas.Left="8.2" Canvas.Top="3.3" Width="6" Height="6" Fill="#99CCFF" Stroke="#333333" StrokeThickness="1.2" />
-                                    <Ellipse Canvas.Left="19.4" Canvas.Top="5.9" Width="6" Height="6" Fill="#99CCFF" Stroke="#333333" StrokeThickness="1.2" />
-                                    <Ellipse Canvas.Left="21.3" Canvas.Top="13.7" Width="6" Height="6" Fill="#99CCFF" Stroke="#333333" StrokeThickness="1.2" />
-                                    <Ellipse Canvas.Left="7.2" Canvas.Top="18.5" Width="6" Height="6" Fill="#99CCFF" Stroke="#333333" StrokeThickness="1.2" />
-                                </Canvas>
+                                <ContentControl ContentTemplate="{StaticResource GeoGebraIcon}" Width="28" Height="28" Focusable="False" />
                             </Button>
                         </StackPanel>
                     </HeaderedContentControl>
@@ -254,6 +239,18 @@
             <!-- Disegna -->
             <TabItem Header="Disegna">
                 <StackPanel Orientation="Horizontal">
+                    <!-- Annulla e Ripeti a sinistra, come nella barra semplificata -->
+                    <HeaderedContentControl Header="Modifica" Style="{StaticResource RibbonGroup}">
+                        <StackPanel Orientation="Horizontal">
+                            <Button Style="{StaticResource RibbonLargeButton}" c:Rb.Label="Annulla" Click="Undo_Click" ToolTip="Annulla (Ctrl+Z)">
+                                <TextBlock Style="{StaticResource Glyph}" Text="&#xE7A7;" />
+                            </Button>
+                            <Button Style="{StaticResource RibbonLargeButton}" c:Rb.Label="Ripeti" Click="Redo_Click" ToolTip="Ripeti (Ctrl+Y)">
+                                <TextBlock Style="{StaticResource Glyph}" Text="&#xE7A6;" />
+                            </Button>
+                        </StackPanel>
+                    </HeaderedContentControl>
+
                     <HeaderedContentControl Header="Strumenti" Style="{StaticResource RibbonGroup}">
                         <StackPanel Orientation="Horizontal">
                             <ToggleButton Style="{StaticResource RibbonLargeToggle}" Tag="Tool:Select" c:Rb.Label="Seleziona" ToolTip="Seleziona: tocca un oggetto o circondalo; poi sposta, ridimensiona, cambia colore">
@@ -289,6 +286,7 @@
                             <ToggleButton Style="{StaticResource IconToggle}" Tag="Shape:Rectangle" ToolTip="Rettangolo (Maiusc: quadrato)"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconRect}" /></ToggleButton>
                             <ToggleButton Style="{StaticResource IconToggle}" Tag="Shape:Ellipse" ToolTip="Ellisse (Maiusc: cerchio)"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconEllipse}" /></ToggleButton>
                             <ToggleButton Style="{StaticResource IconToggle}" Tag="Shape:Triangle" ToolTip="Triangolo isoscele"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconTriangle}" /></ToggleButton>
+                            <ToggleButton Style="{StaticResource IconToggle}" Tag="Dashed" ToolTip="Linea tratteggiata: vale per penne, matita, forme, righello e compasso (con «Seleziona» tratteggia i tratti selezionati)"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconDashed}" StrokeThickness="2" /></ToggleButton>
                         </UniformGrid>
                     </HeaderedContentControl>
 

@@ -22,10 +22,17 @@ public partial class App : Application
         {
             ex.Handled = true;
             var saved = (MainWindow as MainWindow)?.EmergencySave();
-            MessageBox.Show(
-                "Si è verificato un errore imprevisto:\n\n" + ex.Exception.Message +
-                (saved != null ? $"\n\nUna copia di sicurezza del blocco appunti è stata salvata in:\n{saved}" : ""),
-                "Ardesia", MessageBoxButton.OK, MessageBoxImage.Error);
+            var text = ex.Exception.Message +
+                       (saved != null ? $"\n\nUna copia di sicurezza del blocco appunti è stata salvata in:\n{saved}" : "");
+            try
+            {
+                Controls.AppMessage.Show(null, text, Controls.MessageIcon.Error, "Si è verificato un errore imprevisto");
+            }
+            catch
+            {
+                // se non si riesce a mostrare nemmeno la finestrella di Ardesia, quella di Windows
+                MessageBox.Show("Si è verificato un errore imprevisto:\n\n" + text, "Ardesia", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         };
 
         // Icona per tutte le finestre dell'app. BitmapFrame (non BitmapImage, che legge solo la prima immagine,
@@ -98,6 +105,16 @@ public partial class App : Application
             // accanto al registro, l'immagine di un grafico con formule difficili, per controllare la legenda a occhio
             Editor.Graph.GraphSelfTest.RenderLegendSample(Path.ChangeExtension(log, ".png"));
             Shutdown(failures == 0 ? 0 : 1);
+            return;
+        }
+
+        // Prova di «Copia in un altro blocco appunti»: senza finestre; scrive il registro e esce.
+        int pc = Array.IndexOf(e.Args, "--prova-copia");
+        if (pc >= 0)
+        {
+            var log = pc + 1 < e.Args.Length && !e.Args[pc + 1].StartsWith("--") ? e.Args[pc + 1]
+                : Path.Combine(Path.GetTempPath(), "ardesia-copia.log");
+            Shutdown(NotebookCopy.SelfTest(log) == 0 ? 0 : 1);
             return;
         }
 

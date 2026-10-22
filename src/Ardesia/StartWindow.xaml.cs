@@ -185,8 +185,7 @@ public partial class StartWindow : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Impossibile creare il file:\n{dlg.FileName}\n\n{ex.Message}", "Ardesia",
-                MessageBoxButton.OK, MessageBoxImage.Error);
+            Controls.AppMessage.Show(owner, $"{dlg.FileName}\n\n{ex.Message}", Controls.MessageIcon.Error, "Impossibile creare il file");
             return null;
         }
         return dlg.FileName;

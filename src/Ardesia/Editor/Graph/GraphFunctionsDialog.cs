@@ -39,7 +39,9 @@ public sealed class GraphFunctionsDialog : Window
 
     /// <param name="note">Avviso in evidenza sopra le righe (per esempio dopo il riconoscimento della scrittura).</param>
     /// <param name="startWriting">Apre subito la striscia per scrivere a mano.</param>
-    public GraphFunctionsDialog(IEnumerable<GraphFunctionData> functions, string? note = null, bool startWriting = false)
+    /// <param name="okText">Testo del pulsante di conferma (per GeoGebra «Apri in GeoGebra»).</param>
+    public GraphFunctionsDialog(IEnumerable<GraphFunctionData> functions, string? note = null, bool startWriting = false,
+        string okText = "Disegna")
     {
         Title = "Funzioni del grafico";
         SizeToContent = SizeToContent.WidthAndHeight;
@@ -132,7 +134,7 @@ public sealed class GraphFunctionsDialog : Window
         root.Children.Add(_check);
 
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 16, 0, 0) };
-        var ok = new Button { Content = "Disegna", IsDefault = false, Margin = new Thickness(0, 0, 8, 0), MinWidth = 90 };
+        var ok = new Button { Content = okText, IsDefault = false, Margin = new Thickness(0, 0, 8, 0), MinWidth = 90 };
         if (Application.Current.TryFindResource("AccentButton") is Style accent) ok.Style = accent;
         ok.Click += (_, _) => { DialogResult = true; };
         var cancel = new Button { Content = "Annulla", IsCancel = true, MinWidth = 90 };

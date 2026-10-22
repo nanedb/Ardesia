@@ -9,6 +9,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using Ardesia.Controls;
 using Ardesia.Editor;
 using Ardesia.Models;
 using Ardesia.Services;
@@ -195,8 +196,7 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             if (!quiet)
-                MessageBox.Show(this, $"Impossibile aprire il file:\n{path}\n\n{ex.Message}", "Ardesia",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                AppMessage.Show(this, $"{path}\n\n{ex.Message}", MessageIcon.Error, "Impossibile aprire il file");
             return false;
         }
     }
@@ -248,8 +248,7 @@ public partial class MainWindow : Window
             if (quiet)
                 StatusText.Text = "Salvataggio automatico non riuscito";
             else
-                MessageBox.Show(this, $"Impossibile salvare il file:\n{_path}\n\n{ex.Message}", "Ardesia",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                AppMessage.Show(this, $"{_path}\n\n{ex.Message}", MessageIcon.Error, "Impossibile salvare il file");
             return false;
         }
     }
@@ -299,20 +298,18 @@ public partial class MainWindow : Window
             if (_driveId != null) DriveSync.Current?.UploadSoon(_driveId); // cambio di blocco: si carica subito
             // Il PDF per la classe si rifà qui: se non riesce bisogna dirlo, perché la barra di stato sparisce con la finestra.
             if (UpdateClassPdf() is not { } error) return true;
-            return MessageBox.Show(this,
-                error + "\n\nIl blocco appunti è salvato; manca solo il PDF per la classe.\n\n" +
-                "Sì = esci lo stesso    No = resta nell'app (poi File → PDF per la classe… → Aggiorna ora)",
-                "Ardesia – PDF per la classe", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes;
+            return AppMessage.Ask(this,
+                error + "\n\nIl blocco appunti è salvato; manca solo il PDF per la classe. Per riprovare: File › PDF per la classe… › Aggiorna ora.",
+                "Continua lo stesso", "Resta qui", "PDF per la classe non aggiornato", MessageIcon.Warning);
         }
-        var r = MessageBox.Show(this,
-            $"Non è stato possibile salvare «{_nb.Title}»" + (_path != null ? $" in:\n{_path}" : ".") +
-            "\n\nVuoi scegliere un'altra posizione in cui salvarlo?\n\n" +
-            "Sì = scegli dove salvare    No = esci senza salvare    Annulla = resta nell'app",
-            "Ardesia", MessageBoxButton.YesNoCancel, MessageBoxImage.Warning);
+        var r = AppMessage.Choose(this,
+            (_path != null ? _path + "\n\n" : "") + "Puoi salvarlo in un'altra posizione.",
+            $"Non è stato possibile salvare «{_nb.Title}»", MessageIcon.Warning, 0,
+            "Salva in un'altra posizione…", "Continua senza salvare", "Resta qui");
         return r switch
         {
-            MessageBoxResult.Yes => SaveAs(),
-            MessageBoxResult.No => true,
+            0 => SaveAs(),
+            1 => true,
             _ => false,
         };
     }
@@ -365,7 +362,7 @@ public partial class MainWindow : Window
     {
         if (_path == null)
         {
-            MessageBox.Show(this, "Salva prima il blocco appunti.", "Ardesia", MessageBoxButton.OK, MessageBoxImage.Information);
+            AppMessage.Show(this, "Salva prima il blocco appunti.");
             return;
         }
         var before = (_nb.ClassPdfDisabled, _nb.ClassPdfPath, string.Join(",", _nb.ClassPdfExcluded));
@@ -602,8 +599,8 @@ public partial class MainWindow : Window
         string what = isSection
             ? $"la sezione «{n.DisplayTitle}» e tutte le sue pagine"
             : count > 0 ? $"la pagina «{n.DisplayTitle}» e le sue {count} sottopagine" : $"la pagina «{n.DisplayTitle}»";
-        if (MessageBox.Show(this, $"Vuoi eliminare {what}?\n\nL'operazione non si può annullare.", "Elimina",
-                MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
+        if (!AppMessage.Ask(this, "L'operazione non si può annullare.", isSection ? "Elimina la sezione" : "Elimina la pagina", "Annulla",
+                $"Vuoi eliminare {what}?", MessageIcon.Warning, safeDefault: true)) return;
 
         var siblings = _nb.SiblingsOf(n);
         int index = siblings.IndexOf(n);
@@ -611,8 +608,7 @@ public partial class MainWindow : Window
 
         if (isSection && _nb.AllSections().Count() == 1)
         {
-            MessageBox.Show(this, "Il blocco appunti deve contenere almeno una sezione.", "Ardesia",
-                MessageBoxButton.OK, MessageBoxImage.Information);
+            AppMessage.Show(this, "Il blocco appunti deve contenere almeno una sezione.");
             return;
         }
 
@@ -726,6 +722,7 @@ public partial class MainWindow : Window
         menu.Items.Add(Item("Porta al livello superiore", () => Structure(() => _nb.Outdent(s)), s.Parent != null));
         menu.Items.Add(new Separator());
         menu.Items.Add(Item("Esporta la sezione in PDF…", () => ExportPdf(ExportScope.Section)));
+        menu.Items.Add(Item("Copia la sezione in un altro blocco appunti…", () => CopyToNotebook(s)));
         menu.Items.Add(new Separator());
         menu.Items.Add(Item("Elimina la sezione", () => DeleteNode(s)));
         return menu;
@@ -761,6 +758,8 @@ public partial class MainWindow : Window
         menu.Items.Add(moveTo);
         menu.Items.Add(new Separator());
         menu.Items.Add(Item("Esporta la pagina in PDF…", () => ExportPdf(ExportScope.Page)));
+        menu.Items.Add(Item(p.Pages.Count > 0 ? "Copia la pagina (con le sottopagine) in un altro blocco appunti…" : "Copia la pagina in un altro blocco appunti…",
+            () => CopyToNotebook(p)));
         menu.Items.Add(new Separator());
         menu.Items.Add(Item("Elimina la pagina", () => DeleteNode(p)));
         return menu;
@@ -913,6 +912,13 @@ public partial class MainWindow : Window
             case "Protractor":
                 Editor.ProtractorVisible = t.IsChecked == true;
                 break;
+            case "Dashed":
+                // con gli strumenti che non disegnano si passa alla penna, come per colori e spessori
+                if (Editor.Tool is not (EditorTool.Pen or EditorTool.Pencil or EditorTool.Shape or EditorTool.Compass or EditorTool.Select))
+                    Editor.Tool = EditorTool.Pen;
+                Editor.Dashed = t.IsChecked == true;
+                StatusText.Text = Editor.Dashed ? "Linea tratteggiata" : "Linea continua";
+                break;
             case "FingerPan":
                 Editor.FingerPans = _settings.FingerPans = t.IsChecked == true;
                 _settings.Save();
@@ -960,6 +966,7 @@ public partial class MainWindow : Window
                     "Protractor" => Editor.ProtractorVisible,
                     "Nav" => !_navHidden,
                     "FingerPan" => Editor.FingerPans,
+                    "Dashed" => Editor.Dashed,
                     _ => false,
                 };
             }
@@ -1055,7 +1062,7 @@ public partial class MainWindow : Window
         }
         catch (IOException ex)
         {
-            MessageBox.Show(this, ex.Message, "Ardesia", MessageBoxButton.OK, MessageBoxImage.Error);
+            AppMessage.Show(this, ex.Message, MessageIcon.Error);
         }
     }
 
@@ -1244,8 +1251,7 @@ public partial class MainWindow : Window
         {
             if (_settings.Pens.Count >= MaxPens)
             {
-                MessageBox.Show(this, $"Puoi tenere al massimo {MaxPens} penne nella barra. Rimuovine una prima di aggiungerne un'altra.",
-                    "Ardesia", MessageBoxButton.OK, MessageBoxImage.Information);
+                AppMessage.Show(this, $"Puoi tenere al massimo {MaxPens} penne nella barra. Rimuovine una prima di aggiungerne un'altra.");
                 return;
             }
             var menu = new ContextMenu { PlacementTarget = b, Placement = PlacementMode.Bottom, FontSize = 14 };
@@ -1577,25 +1583,60 @@ public partial class MainWindow : Window
 
     // ═══════════════════════════ Account Google ═══════════════════════════
 
-    /// <summary>Nome di chi è collegato a Google nella barra in alto; nascosto se nessuno è collegato.</summary>
+    /// <summary>Nome di chi è collegato a Google nella barra in alto; se nessuno è collegato, «Accedi a Google».</summary>
     void UpdateAccountButton()
     {
         var g = GoogleAccountService.Current;
-        AccountButton.Visibility = g.IsSignedIn ? Visibility.Visible : Visibility.Collapsed;
-        AccountName.Text = g.DisplayName ?? "";
-        AccountButton.ToolTip = g.IsSignedIn ? $"Collegato a Google come {g.Email}" : null;
+        AccountButton.Visibility = Visibility.Visible;
+        AccountName.Text = g.IsSignedIn ? g.DisplayName ?? g.Email ?? "" : "Accedi a Google";
+        AccountButton.ToolTip = g.IsSignedIn
+            ? $"Collegato a Google come {g.Email}"
+            : "Accedi con l'account Google della scuola per salvare i blocchi appunti su Google Drive";
+    }
+
+    bool _signingIn;
+
+    /// <summary>«Accedi a Google» dalla barra in alto o dal menu File: l'accesso si completa nel browser.</summary>
+    async void SignInGoogle()
+    {
+        if (_signingIn || GoogleAccountService.Current.IsSignedIn) return;
+        _signingIn = true;
+        AccountButton.IsEnabled = false;
+        var oldStatus = StatusText.Text;
+        StatusText.Text = "Completa l'accesso nella pagina di Google che si è aperta nel browser…";
+        var error = await DriveUi.SignInAsync(this);
+        _signingIn = false;
+        AccountButton.IsEnabled = true;
+        UpdateAccountButton();
+        if (error != null)
+        {
+            StatusText.Text = oldStatus;
+            AppMessage.Show(this, error, MessageIcon.Warning, "Accesso a Google non riuscito");
+            return;
+        }
+        StatusText.Text = "Collegato a Google: in File trovi «Nuovo blocco appunti su Drive…»";
+        StatusText.ToolTip = null;
+        _ = DriveSync.Current; // riprende i caricamenti rimasti in coda per questo account
     }
 
     void AccountButton_Click(object sender, RoutedEventArgs e)
     {
         var g = GoogleAccountService.Current;
+        if (!g.IsSignedIn)
+        {
+            SignInGoogle();
+            return;
+        }
         var menu = new ContextMenu { PlacementTarget = AccountButton, Placement = PlacementMode.Bottom, FontSize = 14 };
         menu.Items.Add(new MenuItem { Header = $"Collegato a Google come {g.Email}", IsEnabled = false });
+        menu.Items.Add(new Separator());
+        menu.Items.Add(Item("Nuovo blocco appunti su Drive…", () => NewNotebook()));
+        menu.Items.Add(Item("Apri da Drive…", OpenFromDrive));
         menu.Items.Add(new Separator());
         menu.Items.Add(Item("Esci da Google", async () =>
         {
             var (_, warning) = await SignOutGoogleAsync();
-            if (warning != null) MessageBox.Show(this, warning, "Ardesia", MessageBoxButton.OK, MessageBoxImage.Warning);
+            if (warning != null) AppMessage.Show(this, warning, MessageIcon.Warning);
             CloseDriveNotebookIfSignedOut();
         }));
         menu.Items.Add(Item("Impostazioni…", () => OpenSettings()));
@@ -1611,6 +1652,8 @@ public partial class MainWindow : Window
         if (google) menu.Items.Add(Item("Nuovo blocco appunti sul computer…", () => NewNotebook(onComputer: true)));
         if (google) menu.Items.Add(Item("Apri da Drive…", OpenFromDrive));
         menu.Items.Add(Item(google ? "Apri dal computer…   (Ctrl+O)" : "Apri…   (Ctrl+O)", Open));
+        // da scollegati: l'accesso a Google, per avere anche i blocchi su Drive
+        if (!google && _settings.Persist) menu.Items.Add(Item("Accedi a Google Drive…", SignInGoogle, !_signingIn));
         var recent = new MenuItem { Header = "Recenti" };
         foreach (var f in _settings.RecentFiles.Where(p => DriveIdOf(p) != null ? DriveSync.IsCurrentAccountPath(p) : File.Exists(p)))
         {
@@ -1627,6 +1670,7 @@ public partial class MainWindow : Window
         menu.Items.Add(Item("Salva   (Ctrl+S)", () => Save()));
         if (_driveId != null) menu.Items.Add(Item("Salva una copia sul computer…", SaveCopyToComputer));
         else menu.Items.Add(Item("Salva con nome…", () => SaveAs()));
+        menu.Items.Add(Item("Copia in un altro blocco appunti…", () => CopyToNotebook(null)));
         menu.Items.Add(new Separator());
         menu.Items.Add(Item("Esporta in PDF…   (Ctrl+P)", () => ExportPdf(ExportScope.Page)));
         menu.Items.Add(Item(_nb.ClassPdfDisabled ? "PDF per la classe (spento)…" : "PDF per la classe…", ClassPdfSettings, _path != null));
@@ -1675,7 +1719,7 @@ public partial class MainWindow : Window
         }
         if (pages.Count == 0)
         {
-            MessageBox.Show(this, "Non ci sono pagine da esportare.", "Ardesia", MessageBoxButton.OK, MessageBoxImage.Information);
+            AppMessage.Show(this, "Non ci sono pagine da esportare.");
             return;
         }
 
@@ -1697,7 +1741,7 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             Mouse.OverrideCursor = null;
-            MessageBox.Show(this, $"Esportazione non riuscita:\n\n{ex.Message}", "Ardesia", MessageBoxButton.OK, MessageBoxImage.Error);
+            AppMessage.Show(this, ex.Message, MessageIcon.Error, "Esportazione non riuscita");
             return;
         }
         finally
@@ -1783,6 +1827,22 @@ public partial class MainWindow : Window
 
     // ═══════════════════════════ Istantanea (test visivi) ═══════════════════════════
 
+    /// <summary>Istantanea del contenuto di una finestra (senza la cornice di Windows), in PNG.</summary>
+    static void SaveWindowPng(Window w, string pngPath)
+    {
+        var root = (FrameworkElement)w.Content;
+        var dpi = VisualTreeHelper.GetDpi(w);
+        // il margine del contenuto sposta il disegno: va contato, o si perde il bordo destro e il fondo
+        var m = root.Margin;
+        var bmp = new RenderTargetBitmap((int)((root.ActualWidth + m.Left + m.Right) * dpi.DpiScaleX), (int)((root.ActualHeight + m.Top + m.Bottom) * dpi.DpiScaleY),
+            dpi.PixelsPerInchX, dpi.PixelsPerInchY, PixelFormats.Pbgra32);
+        bmp.Render(root);
+        var enc = new PngBitmapEncoder();
+        enc.Frames.Add(BitmapFrame.Create(bmp));
+        using var fs = File.Create(pngPath);
+        enc.Save(fs);
+    }
+
     public void ScheduleSnapshot(string pngPath, bool demo, string? tab)
     {
         ContentRendered += async (_, _) =>
@@ -1810,6 +1870,46 @@ public partial class MainWindow : Window
                 dlg.Show();
                 shot = dlg;
             }
+            // --tab Copia: «Copia in un altro blocco appunti», con un blocco esistente scelto e «Sostituisci»
+            if (string.Equals(tab, "Copia", StringComparison.OrdinalIgnoreCase))
+            {
+                var dlg = new CopyToNotebookDialog(NotebookCopy.Describe(_nb, _section), drive: true) { Owner = this };
+                dlg.ShowForSnapshot("«2BO Fisica 26-27» (Google Drive)");
+                shot = dlg;
+            }
+            // --tab Messaggi: le domande e gli avvisi principali, uno per file (accanto a pngPath: messaggio-1.png, …)
+            if (string.Equals(tab, "Messaggi", StringComparison.OrdinalIgnoreCase))
+            {
+                var samples = new (string Text, string Heading, MessageIcon Icon, string[] Buttons)[]
+                {
+                    ("Va nel cestino di Google Drive: lo puoi recuperare da lì per 30 giorni. Le cartelle di classe e materia restano.",
+                        "Eliminare il blocco appunti «2BO Fisica 26-27»?", MessageIcon.Warning, new[] { "Elimina", "Annulla" }),
+                    ("Gli alunni che hanno il link non potranno più aprirlo.", "Eliminare anche il PDF per la classe?",
+                        MessageIcon.Question, new[] { "Elimina anche il PDF", "Tieni il PDF" }),
+                    ("L'operazione non si può annullare.", "Vuoi eliminare la sezione «Algebra» e tutte le sue pagine?",
+                        MessageIcon.Warning, new[] { "Elimina la sezione", "Annulla" }),
+                    ("Questo blocco appunti risulta aperto anche sul PC LIM-AULA12 (ultima attività alle 10:42). Se lo modifichi qui e là, le modifiche non si uniscono.",
+                        "Blocco aperto su un altro PC", MessageIcon.Warning, new[] { "Aprilo lo stesso", "Annulla" }),
+                    ("G:\\Il mio Drive\\Fisica 2BO.ardesia\n\nPuoi salvarlo in un'altra posizione.", "Non è stato possibile salvare «Fisica 2BO»",
+                        MessageIcon.Warning, new[] { "Salva in un'altra posizione…", "Continua senza salvare", "Resta qui" }),
+                    ("Ho copiato la sezione «Geometria» in «2BO Fisica 26-27».", "Copia fatta", MessageIcon.Info, new[] { "Apri «2BO Fisica 26-27»", "Resta qui" }),
+                    ("Il file non è un blocco appunti di Ardesia valido.", "Impossibile aprire il file", MessageIcon.Error, new[] { "OK" }),
+                };
+                var dir = Path.GetDirectoryName(Path.GetFullPath(pngPath))!;
+                for (int i = 0; i < samples.Length; i++)
+                {
+                    var (text, heading, icon, buttons) = samples[i];
+                    var dlg = AppMessage.ShowForSnapshot(this, text, heading, icon, buttons);
+                    await Task.Delay(500);
+                    SaveWindowPng(dlg, Path.Combine(dir, $"messaggio-{i + 1}.png"));
+                    dlg.Close();
+                }
+            }
+            // --tab Messaggio: una domanda nello stile di Ardesia (come «Elimina il blocco appunti»)
+            if (string.Equals(tab, "Messaggio", StringComparison.OrdinalIgnoreCase))
+                shot = AppMessage.ShowForSnapshot(this,
+                    "Va nel cestino di Google Drive: lo puoi recuperare da lì per 30 giorni. Le cartelle di classe e materia restano.",
+                    "Eliminare il blocco appunti «2BO Fisica 26-27»?", MessageIcon.Warning, "Elimina", "Annulla");
             // --tab «Scrivi a mano»: la finestrella dopo una lettura dal foglio, con due funzioni scritte nella striscia
             // e lette davvero dal riconoscimento di Windows
             bool writing = tab != null && tab.StartsWith("Scrivi", StringComparison.OrdinalIgnoreCase);
@@ -1824,16 +1924,7 @@ public partial class MainWindow : Window
                 shot = dlg;
             }
             await Task.Delay(writing ? 4000 : 600);
-            var root = (FrameworkElement)shot.Content;
-            var dpi = VisualTreeHelper.GetDpi(shot);
-            // il margine del contenuto sposta il disegno: va contato, o si perde il bordo destro e il fondo
-            var m = root.Margin;
-            var bmp = new RenderTargetBitmap((int)((root.ActualWidth + m.Left + m.Right) * dpi.DpiScaleX), (int)((root.ActualHeight + m.Top + m.Bottom) * dpi.DpiScaleY),
-                dpi.PixelsPerInchX, dpi.PixelsPerInchY, PixelFormats.Pbgra32);
-            bmp.Render(root);
-            var enc = new PngBitmapEncoder();
-            enc.Frames.Add(BitmapFrame.Create(bmp));
-            using (var fs = File.Create(pngPath)) enc.Save(fs);
+            SaveWindowPng(shot, pngPath);
 
             if (demo)
             {

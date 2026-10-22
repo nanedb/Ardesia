@@ -48,7 +48,7 @@ public partial class MainWindow
         StatusText.MouseLeftButtonUp += (_, _) =>
         {
             if (_driveId != null && DriveSync.Current?.ConflictMessage(_driveId) is { } m)
-                MessageBox.Show(this, m, "Ardesia – Conflitto su Google Drive", MessageBoxButton.OK, MessageBoxImage.Information);
+                AppMessage.Show(this, m, MessageIcon.Info, "Conflitto su Google Drive");
         };
         _ = DriveSync.Current; // riprende i caricamenti rimasti in coda dall'ultima volta
     }
@@ -82,7 +82,7 @@ public partial class MainWindow
         else
             Dispatcher.BeginInvoke(() =>
             {
-                if (IsVisible) MessageBox.Show(this, f.Message, "Ardesia – Conflitto su Google Drive", MessageBoxButton.OK, MessageBoxImage.Information);
+                if (IsVisible) AppMessage.Show(this, f.Message, MessageIcon.Info, "Conflitto su Google Drive");
             });
     }
 
@@ -100,9 +100,8 @@ public partial class MainWindow
         {
             var d = DriveSync.Describe(path);
             if (!quiet)
-                MessageBox.Show(this, $"«{d?.Title}» è su Google Drive: per aprirlo accedi a Google" +
-                                      (d?.Email is { } who ? $" con {who}" : "") + " (File › Impostazioni › Google Drive).",
-                    "Ardesia", MessageBoxButton.OK, MessageBoxImage.Information);
+                AppMessage.Show(this, $"«{d?.Title}» è su Google Drive: per aprirlo accedi a Google" +
+                                      (d?.Email is { } who ? $" con {who}" : "") + " («Accedi a Google» in alto a destra).");
             return false;
         }
         var title = sync.Entry(id)?.Title;
@@ -125,8 +124,7 @@ public partial class MainWindow
         catch (Exception ex)
         {
             if (!quiet)
-                MessageBox.Show(this, $"Impossibile aprire il blocco appunti da Google Drive.\n\n{ex.Message}", "Ardesia",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                AppMessage.Show(this, ex.Message, MessageIcon.Error, "Impossibile aprire il blocco appunti da Google Drive");
             return false;
         }
     }
@@ -138,10 +136,10 @@ public partial class MainWindow
     bool ConfirmOpenElsewhere(DriveLock lk)
     {
         Window owner = Application.Current.Windows.OfType<BusyDialog>().FirstOrDefault(w => w.IsVisible) ?? (Window)this;
-        return MessageBox.Show(owner,
+        return AppMessage.Ask(owner,
             $"Questo blocco appunti risulta aperto anche sul PC {lk.Pc} (ultima attività alle {lk.At:HH:mm}). " +
-            "Se lo modifichi qui e là, le modifiche non si uniscono.\n\nSì = aprilo lo stesso    No = annulla",
-            "Ardesia – Blocco aperto su un altro PC", MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No) == MessageBoxResult.Yes;
+            "Se lo modifichi qui e là, le modifiche non si uniscono.",
+            "Aprilo lo stesso", "Annulla", "Blocco aperto su un altro PC", MessageIcon.Warning, safeDefault: true);
     }
 
     /// <summary>
@@ -160,8 +158,7 @@ public partial class MainWindow
             StatusText.ToolTip = "Le versioni precedenti restano nella cronologia del file su Google Drive.";
         }
         if (r?.Conflict is { } conflict)
-            Dispatcher.BeginInvoke(() => MessageBox.Show(this, conflict, "Ardesia – Conflitto su Google Drive",
-                MessageBoxButton.OK, MessageBoxImage.Information));
+            Dispatcher.BeginInvoke(() => AppMessage.Show(this, conflict, MessageIcon.Info, "Conflitto su Google Drive"));
     }
 
     /// <summary>
@@ -187,11 +184,11 @@ public partial class MainWindow
             flushed = false;
         }
         foreach (var note in _exitDriveNotes)
-            MessageBox.Show(this, note, "Ardesia – Google Drive", MessageBoxButton.OK, MessageBoxImage.Information);
+            AppMessage.Show(this, note, MessageIcon.Info, "Google Drive");
         if (!flushed && sync.HasPending)
-            MessageBox.Show(this,
+            AppMessage.Show(this,
                 "Le ultime modifiche sono salvate su questo PC ma non ancora su Google Drive. Verranno caricate la prossima " +
-                "volta che apri Ardesia su questo PC.", "Ardesia", MessageBoxButton.OK, MessageBoxImage.Warning);
+                "volta che apri Ardesia su questo PC.", MessageIcon.Warning);
     }
 
     // ───────────── PDF per la classe su Drive (fase 4, §6) ─────────────
@@ -242,7 +239,7 @@ public partial class MainWindow
         else
             Dispatcher.BeginInvoke(() =>
             {
-                if (IsVisible) MessageBox.Show(this, message, "Ardesia – PDF per la classe", MessageBoxButton.OK, MessageBoxImage.Warning);
+                if (IsVisible) AppMessage.Show(this, message, MessageIcon.Warning, "PDF per la classe");
             });
     }
 
@@ -358,8 +355,7 @@ public partial class MainWindow
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, $"Impossibile salvare la copia:\n{dlg.FileName}\n\n{ex.Message}", "Ardesia",
-                MessageBoxButton.OK, MessageBoxImage.Error);
+            AppMessage.Show(this, $"{dlg.FileName}\n\n{ex.Message}", MessageIcon.Error, "Impossibile salvare la copia");
         }
     }
 
@@ -399,10 +395,10 @@ public partial class MainWindow
             {
                 flushed = false;
             }
-            if (!flushed && MessageBox.Show(this,
+            if (!flushed && !AppMessage.Ask(this,
                     "Alcune modifiche non sono ancora su Google Drive. Restano su questo PC e verranno caricate quando accedi " +
-                    "di nuovo con questo account.\n\nUscire lo stesso da Google?",
-                    "Ardesia", MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No) != MessageBoxResult.Yes)
+                    "di nuovo con questo account.",
+                    "Esci lo stesso da Google", "Resta collegato", null, MessageIcon.Warning, safeDefault: true))
             {
                 DriveNotebookChanged(); // si resta: il lucchetto torna
                 return (false, null);

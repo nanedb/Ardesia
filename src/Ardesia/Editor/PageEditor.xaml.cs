@@ -9,6 +9,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using Ardesia.Controls;
 using Ardesia.Editor.Graph;
 using Ardesia.Models;
 using WpfPath = System.Windows.Shapes.Path;
@@ -420,24 +421,69 @@ public partial class PageEditor : UserControl
     {
         Ink.SetPencilMode(_tool == EditorTool.Pencil ? Pencil.BrushFor(Pencil.ColorOf(_pencilGrade), _pencilGrade) : null);
         Ink.LiveEnabled = _tool is EditorTool.Pen or EditorTool.Highlighter or EditorTool.Pencil;
-        Ink.DefaultDrawingAttributes = _tool switch
+        var da = _tool switch
         {
             EditorTool.Highlighter => HighlighterAttributes(),
             EditorTool.Pencil => Pencil.Attributes(_pencilGrade, _pencilWidth),
             _ => PenAttributes(),
         };
+        if (_tool == EditorTool.Pencil) Dash.Set(da, _dashed);
+        Ink.DefaultDrawingAttributes = da;
         _compass.PencilColor = _penColor;
     }
 
-    DrawingAttributes PenAttributes() => new()
+    DrawingAttributes PenAttributes()
     {
-        Color = _penColor,
-        Width = _penWidth,
-        Height = _penWidth,
-        FitToCurve = true,
-        IgnorePressure = false,
-        StylusTip = StylusTip.Ellipse,
-    };
+        var da = new DrawingAttributes
+        {
+            Color = _penColor,
+            Width = _penWidth,
+            Height = _penWidth,
+            FitToCurve = true,
+            IgnorePressure = false,
+            StylusTip = StylusTip.Ellipse,
+        };
+        Dash.Set(da, _dashed);
+        return da;
+    }
+
+    bool _dashed;
+
+    /// <summary>
+    /// Linea tratteggiata per penne, matita, forme, righello e compasso (non per gli evidenziatori). Con «Seleziona»
+    /// e dei tratti selezionati, cambiarla tratteggia (o rende continui) quelli.
+    /// </summary>
+    public bool Dashed
+    {
+        get => _dashed;
+        set
+        {
+            _dashed = value;
+            if (_tool == EditorTool.Select && RedashSelection(value)) return;
+            ApplyDrawingAttributes();
+        }
+    }
+
+    /// <summary>Tratteggia (o rende continui) i tratti selezionati, evidenziatori esclusi; falso se non ce ne sono.</summary>
+    bool RedashSelection(bool dashed)
+    {
+        var selected = Ink.GetSelectedStrokes().Where(s => !s.DrawingAttributes.IsHighlighter).ToList();
+        if (selected.Count == 0) return false;
+        var elements = Ink.GetSelectedElements();
+        var result = new StrokeCollection(Ink.GetSelectedStrokes().Where(s => s.DrawingAttributes.IsHighlighter));
+        foreach (var s in selected)
+        {
+            var da = s.DrawingAttributes.Clone();
+            Dash.Set(da, dashed);
+            var replacement = Pencil.Create(s.StylusPoints.Clone(), da);
+            Ink.Strokes.Replace(s, new StrokeCollection { replacement });
+            result.Add(replacement);
+        }
+        Ink.Select(result, elements);
+        MarkChanged();
+        CommitPending();
+        return true;
+    }
 
     /// <summary>Diametri (in pixel) della gomma precisa: piccola, media, grande.</summary>
     public static readonly double[] EraserSizes = { 8, 22, 50 };
@@ -607,8 +653,8 @@ public partial class PageEditor : UserControl
 
     void Strokes_Changed(object? sender, StrokeCollectionChangedEventArgs e)
     {
-        // La gomma precisa spezza i tratti in tratti "normali": quelli a matita vanno ripristinati.
-        if (!_loading && e.Added.Any(s => s is not PencilStroke && Pencil.GradeOf(s.DrawingAttributes) != null))
+        // La gomma precisa spezza i tratti in tratti "normali": quelli a matita o tratteggiati vanno ripristinati.
+        if (!_loading && Pencil.NeedsUpgrade(e.Added))
             Dispatcher.BeginInvoke(() =>
             {
                 if (Pencil.NeedsUpgrade(Ink.Strokes)) Pencil.UpgradeAll(Ink.Strokes);
@@ -733,8 +779,7 @@ public partial class PageEditor : UserControl
         }
         catch
         {
-            MessageBox.Show(Window.GetWindow(this), "Il formato dell'immagine non è supportato.", "Ardesia",
-                MessageBoxButton.OK, MessageBoxImage.Warning);
+            AppMessage.Show(Window.GetWindow(this), "Il formato dell'immagine non è supportato.", MessageIcon.Warning);
             return;
         }
         var id = Guid.NewGuid().ToString("N");
@@ -753,14 +798,19 @@ public partial class PageEditor : UserControl
     }
 
     /// <summary>
-    /// Apre GeoGebra: con un grafico, per modificarlo; altrimenti per uno nuovo, prendendo le funzioni
-    /// dalla casella di testo selezionata (o in scrittura), e lo mette accanto ad essa.
+    /// Apre GeoGebra: con un grafico, per modificarlo; altrimenti per uno nuovo, prendendo le funzioni dal grafico di
+    /// Ardesia selezionato, dalla casella di testo selezionata (o in scrittura) o dalla scrittura a mano selezionata,
+    /// e lo mette accanto.
     /// </summary>
     public void OpenGraph(GraphImage? existing = null, FunctionGraph? from = null)
     {
         if (_notebook == null || _node == null) return;
         CommitPending();
-        existing ??= from == null ? Ink.GetSelectedElements().OfType<GraphImage>().FirstOrDefault() : null;
+        if (existing == null && from == null)
+        {
+            existing = Ink.GetSelectedElements().OfType<GraphImage>().FirstOrDefault();
+            if (existing == null) from = Ink.GetSelectedElements().OfType<FunctionGraph>().FirstOrDefault();
+        }
 
         // le funzioni vengono da un grafico di Ardesia («Apri in GeoGebra») o dalla casella di testo selezionata
         FrameworkElement? source = null;
@@ -775,8 +825,28 @@ public partial class PageEditor : UserControl
             source = box;
             formulas = new TextRange(box.Document.ContentStart, box.Document.ContentEnd).Text;
         }
+        else if (existing == null && Ink.GetSelectedStrokes().Count > 0)
+        {
+            // scritta a mano: prima si legge (come per il grafico di Ardesia), poi GeoGebra
+            OpenGraphFromHandwriting(Ink.GetSelectedStrokes().Clone());
+            return;
+        }
+        OpenGeoGebra(existing, formulas, from?.State.Params, source, null);
+    }
 
-        var win = new GeoGebraWindow(existing?.State, formulas, from?.State.Params) { Owner = Window.GetWindow(this) };
+    async void OpenGraphFromHandwriting(StrokeCollection strokes)
+    {
+        if (await AskHandwrittenFunctions(strokes, "Apri in GeoGebra") is not { } functions) return;
+        var b = strokes.GetBounds();
+        OpenGeoGebra(null, string.Join("\n", functions.Select(f => f.Text)), null, null, new Point(b.Right + 24, b.Top));
+    }
+
+    /// <summary>Finestra di GeoGebra e, se si preme «Inserisci nella pagina», il grafico sul foglio.</summary>
+    void OpenGeoGebra(GraphImage? existing, string? formulas, IReadOnlyList<GraphParameter>? parameters, FrameworkElement? source,
+        Point? at)
+    {
+        if (_notebook == null) return;
+        var win = new GeoGebraWindow(existing?.State, formulas, parameters) { Owner = Window.GetWindow(this) };
         if (win.ShowDialog() != true || win.Png is not { } png || win.State is not { } state) return;
 
         BitmapSource bmp;
@@ -811,7 +881,7 @@ public partial class PageEditor : UserControl
 
         double scale = Math.Min(1, Math.Min(720 / w, 540 / h));
         var graph = ElementFactory.CreateGraph(bmp, id, state, w * scale, h * scale);
-        var pos = VisibleOrigin();
+        var pos = at ?? VisibleOrigin();
         if (source != null && Ink.Children.Contains(source))
         {
             double sx = InkCanvas.GetLeft(source), sy = InkCanvas.GetTop(source);
@@ -881,11 +951,24 @@ public partial class PageEditor : UserControl
     /// </summary>
     async void InsertGraphFromHandwriting(StrokeCollection strokes)
     {
+        if (await AskHandwrittenFunctions(strokes, "Disegna") is not { } functions) return;
+        var state = new GraphState();
+        state.SetFunctions(functions);
+        var b = strokes.GetBounds();
+        PlaceNewGraph(state, new Point(b.Right + 24, b.Top));
+    }
+
+    /// <summary>
+    /// Legge le funzioni scritte a mano (una per riga) e le fa controllare nella finestrella «Funzioni del grafico»;
+    /// null se il docente annulla o non c'è il riconoscitore.
+    /// </summary>
+    async Task<IReadOnlyList<GraphFunctionData>?> AskHandwrittenFunctions(StrokeCollection strokes, string okText)
+    {
         var owner = Window.GetWindow(this);
         if (!HandwritingMath.IsAvailable)
         {
-            MessageBox.Show(owner, HandwritingMath.NotAvailableMessage, "Ardesia", MessageBoxButton.OK, MessageBoxImage.Information);
-            return;
+            AppMessage.Show(owner, HandwritingMath.NotAvailableMessage);
+            return null;
         }
         IReadOnlyList<string> texts;
         Mouse.OverrideCursor = Cursors.Wait;
@@ -903,15 +986,11 @@ public partial class PageEditor : UserControl
         }
 
         string note = texts.Count > 0
-            ? "Ho letto così quello che hai scritto: controlla, correggi se serve, poi «Disegna»."
+            ? $"Ho letto così quello che hai scritto: controlla, correggi se serve, poi «{okText}»."
             : "Non sono riuscito a leggere la scrittura: scrivi la funzione qui sotto, oppure usa «Scrivi a mano».";
-        var dlg = new GraphFunctionsDialog(texts.Select(t => new GraphFunctionData { Text = t, Color = "" }), note) { Owner = owner };
-        if (dlg.ShowDialog() != true || dlg.Functions.Count == 0) return;
-
-        var state = new GraphState();
-        state.SetFunctions(dlg.Functions);
-        var b = strokes.GetBounds();
-        PlaceNewGraph(state, new Point(b.Right + 24, b.Top));
+        var dlg = new GraphFunctionsDialog(texts.Select(t => new GraphFunctionData { Text = t, Color = "" }), note, okText: okText)
+            { Owner = owner };
+        return dlg.ShowDialog() == true && dlg.Functions.Count > 0 ? dlg.Functions : null;
     }
 
     /// <summary>Mette sul foglio un grafico nuovo e lo seleziona.</summary>
@@ -1501,6 +1580,7 @@ public partial class PageEditor : UserControl
             {
                 // tratti scritti a mano: si leggono come funzioni
                 menu.Items.Add(MenuEntry("Disegna il grafico della funzione scritta", "", InsertGraph));
+                menu.Items.Add(MenuEntry("Disegna il grafico con GeoGebra", "", () => OpenGraph()));
                 menu.Items.Add(new Separator());
             }
             menu.Items.Add(MenuEntry("Taglia", "", () => Copy(cut: true), gesture: "Ctrl+X"));
@@ -1550,7 +1630,7 @@ public partial class PageEditor : UserControl
         }
         catch (IOException ex)
         {
-            MessageBox.Show(Window.GetWindow(this), ex.Message, "Ardesia", MessageBoxButton.OK, MessageBoxImage.Error);
+            AppMessage.Show(Window.GetWindow(this), ex.Message, MessageIcon.Error);
         }
     }
 
@@ -1959,6 +2039,7 @@ public partial class PageEditor : UserControl
                 : new SolidColorBrush(da.IsHighlighter ? Color.FromArgb(0x70, da.Color.R, da.Color.G, da.Color.B) : da.Color);
             _straightPreview.StrokeThickness = Math.Max(1, da.IsHighlighter ? da.Height : da.Width);
             _straightPreview.StrokeStartLineCap = _straightPreview.StrokeEndLineCap = da.IsHighlighter ? PenLineCap.Flat : PenLineCap.Round;
+            SetPreviewDash(_straightPreview, da);
             _straightPreview.Data = new LineGeometry(a, b);
             _straightPreview.Visibility = Visibility.Visible;
         };
@@ -2005,7 +2086,7 @@ public partial class PageEditor : UserControl
         da.FitToCurve = false;
         da.IgnorePressure = true;
         var pts = RulerPoints(_rulerStartX, da);
-        _rulerStroke = Pencil.GradeOf(da) != null ? new PencilStroke(pts, da) : new Stroke(pts, da);
+        _rulerStroke = Pencil.Create(pts, da);
         Ink.Strokes.Add(_rulerStroke);
         _drag = DragMode.RulerLine;
         StraightCancel();
@@ -2120,7 +2201,7 @@ public partial class PageEditor : UserControl
         da.FitToCurve = false;
         da.IgnorePressure = true;
         var line = new StylusPointCollection(new[] { new StylusPoint(start.X, start.Y), new StylusPoint(end.X, end.Y) });
-        return Pencil.GradeOf(da) != null ? new PencilStroke(line, da) : new Stroke(line, da);
+        return Pencil.Create(line, da);
     }
 
     // ───── «Il dito sposta la pagina»: sulle LIM che distinguono penna e dito (es. Newline) ─────
@@ -2558,7 +2639,17 @@ public partial class PageEditor : UserControl
         _shapePreview.Data = geo;
         _shapePreview.Stroke = new SolidColorBrush(_penColor);
         _shapePreview.StrokeThickness = _penWidth;
+        SetPreviewDash(_shapePreview, GeometryAttributes());
         _shapePreview.Visibility = Visibility.Visible;
+    }
+
+    /// <summary>Anteprima (forma, linea raddrizzata) tratteggiata come verrà il tratto.</summary>
+    static void SetPreviewDash(System.Windows.Shapes.Path preview, DrawingAttributes da)
+    {
+        bool dashed = Dash.IsDashed(da);
+        preview.StrokeDashArray = dashed ? Dash.Pattern(preview.StrokeThickness) : null;
+        preview.StrokeDashCap = dashed ? PenLineCap.Round : PenLineCap.Flat;
+        if (dashed) preview.StrokeStartLineCap = preview.StrokeEndLineCap = PenLineCap.Round;
     }
 
     void FinishShape()
@@ -2566,7 +2657,7 @@ public partial class PageEditor : UserControl
         if ((_shapeEnd - _dragStart).Length < 4) return;
         var strokes = new StrokeCollection();
         foreach (var poly in ShapeBuilder.Build(ShapeKind, _dragStart, _shapeEnd, _penWidth))
-            strokes.Add(new Stroke(new StylusPointCollection(poly.Select(q => new StylusPoint(q.X, q.Y))), GeometryAttributes()));
+            strokes.Add(Pencil.Create(new StylusPointCollection(poly.Select(q => new StylusPoint(q.X, q.Y))), GeometryAttributes()));
         Ink.Strokes.Add(strokes);
     }
 
@@ -2584,7 +2675,7 @@ public partial class PageEditor : UserControl
         if (_arcStroke == null)
         {
             var p0 = _compass.PencilPoint;
-            _arcStroke = new Stroke(new StylusPointCollection(new[] { new StylusPoint(p0.X, p0.Y) }), GeometryAttributes());
+            _arcStroke = Pencil.Create(new StylusPointCollection(new[] { new StylusPoint(p0.X, p0.Y) }), GeometryAttributes());
             Ink.Strokes.Add(_arcStroke);
         }
         int steps = Math.Max(1, (int)Math.Ceiling(Math.Abs(delta) / (Math.PI / 180)));
@@ -2783,10 +2874,17 @@ public partial class PageEditor : UserControl
         for (int i = 0; i <= 200; i++)
             pts.Add(new StylusPoint(80 + i * 3, 330 - 60 * Math.Sin(i / 16.0)));
         Ink.Strokes.Add(new Stroke(pts, da));
+        // triangolo e onda tratteggiati
+        _dashed = true;
+        var dashedWave = new StylusPointCollection();
+        for (int i = 0; i <= 120; i++)
+            dashedWave.Add(new StylusPoint(80 + i * 4, 420 - 30 * Math.Sin(i / 10.0)));
+        Ink.Strokes.Add(Pencil.Create(dashedWave, PenAttributes()));
         ShapeKind = ShapeKind.Triangle;
         _dragStart = new Point(760, 240);
         _shapeEnd = new Point(1000, 420);
         FinishShape();
+        _dashed = false;
         var rtb = CreateTextBoxAt(new Point(80, 470));
         ElementFactory.SetPlainText(rtb, "Teorema di Pitagora: a² + b² = c²");
         RulerVisible = true;

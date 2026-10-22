@@ -27,16 +27,24 @@ public sealed class DriveBrowserWindow : Window
     /// <summary>ID del blocco da aprire.</summary>
     public string? ResultId { get; private set; }
 
+    /// <summary>Nome del blocco scelto.</summary>
+    public string? ResultTitle { get; private set; }
+
     /// <summary>L'utente ha scelto «Nuovo blocco appunti…».</summary>
     public bool ResultNew { get; private set; }
 
     /// <summary>Elimina un blocco (conferme comprese); vero se è andato nel cestino. Di regola <see cref="DriveUi.ConfirmAndTrash"/>.</summary>
     public Func<DriveNotebook, bool>? Delete { get; init; }
 
-    public DriveBrowserWindow(DriveSync sync, string? openId)
+    readonly bool _pick;
+
+    /// <param name="pick">Solo per scegliere un blocco (es. dove copiare): «Scegli» invece di «Apri», senza «Nuovo» ed
+    /// «Elimina», e senza il blocco aperto.</param>
+    public DriveBrowserWindow(DriveSync sync, string? openId, bool pick = false)
     {
         _sync = sync;
         _openId = openId;
+        _pick = pick;
         Title = "Blocchi appunti su Google Drive – Ardesia";
         Width = 760;
         Height = Math.Min(680, SystemParameters.WorkArea.Height - 20);
@@ -51,7 +59,11 @@ public sealed class DriveBrowserWindow : Window
 
         var root = new DockPanel { Margin = new Thickness(28, 22, 28, 20) };
         var head = new StackPanel();
-        head.Children.Add(new TextBlock { Text = "I tuoi blocchi appunti su Google Drive", FontSize = 22, FontWeight = FontWeights.SemiBold });
+        head.Children.Add(new TextBlock
+        {
+            Text = pick ? "Scegli il blocco appunti su Google Drive" : "I tuoi blocchi appunti su Google Drive",
+            FontSize = 22, FontWeight = FontWeights.SemiBold,
+        });
         head.Children.Add(new TextBlock
         {
             Text = $"Qui ci sono i blocchi creati da Ardesia su Drive ({sync.Email}). Quelli su Google Drive per desktop (G:) " +
@@ -81,11 +93,14 @@ public sealed class DriveBrowserWindow : Window
         DockPanel.SetDock(create, Dock.Left);
         DockPanel.SetDock(_delete, Dock.Left);
         create.Margin = new Thickness(0);
-        buttons.Children.Add(create);
-        buttons.Children.Add(_delete);
-        var close = MakeButton("Chiudi", "PlainButton");
+        if (!pick)
+        {
+            buttons.Children.Add(create);
+            buttons.Children.Add(_delete);
+        }
+        var close = MakeButton(pick ? "Annulla" : "Chiudi", "PlainButton");
         close.IsCancel = true;
-        _open = MakeButton("Apri", "AccentButton");
+        _open = MakeButton(pick ? "Scegli" : "Apri", "AccentButton");
         _open.IsDefault = true;
         _open.Click += (_, _) => OpenSelected();
         DockPanel.SetDock(close, Dock.Right);
@@ -127,7 +142,7 @@ public sealed class DriveBrowserWindow : Window
         try
         {
             var listing = await _sync.ListAsync(CancellationToken.None);
-            _all = listing.Notebooks;
+            _all = _pick ? listing.Notebooks.Where(n => n.Id != _openId).ToList() : listing.Notebooks;
             _status.Text = listing.Offline
                 ? "Senza connessione: questi sono i blocchi già aperti su questo PC."
                 : _all.Count == 0 ? "Non ci sono ancora blocchi appunti di Ardesia sul tuo Drive." : "";
@@ -173,6 +188,7 @@ public sealed class DriveBrowserWindow : Window
     {
         if (Selected is not { } n) return;
         ResultId = n.Id;
+        ResultTitle = n.Title;
         DialogResult = true;
     }
 
@@ -213,16 +229,14 @@ public static class DriveUi
     /// </summary>
     public static bool ConfirmAndTrash(Window owner, DriveSync sync, string id, string title, string? classPdfId = null)
     {
-        if (MessageBox.Show(owner,
-                $"Eliminare il blocco appunti «{title}»?\n\nVa nel cestino di Google Drive: lo puoi recuperare da lì per 30 giorni. " +
-                "Le cartelle di classe e materia restano.\n\nSì = elimina    No = annulla",
-                "Ardesia – Elimina", MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No) != MessageBoxResult.Yes)
+        if (!AppMessage.Ask(owner,
+                "Va nel cestino di Google Drive: lo puoi recuperare da lì per 30 giorni. Le cartelle di classe e materia restano.",
+                "Elimina", "Annulla", $"Eliminare il blocco appunti «{title}»?", MessageIcon.Warning, safeDefault: true))
             return false;
         classPdfId = sync.Entry(id)?.ClassPdfId ?? classPdfId;
-        bool withPdf = classPdfId != null && MessageBox.Show(owner,
-            "Eliminare anche il PDF per la classe? Gli alunni che hanno il link non potranno più aprirlo.\n\n" +
-            "Sì = elimina anche il PDF    No = tieni il PDF",
-            "Ardesia – PDF per la classe", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) == MessageBoxResult.Yes;
+        bool withPdf = classPdfId != null && AppMessage.Ask(owner,
+            "Gli alunni che hanno il link non potranno più aprirlo.",
+            "Elimina anche il PDF", "Tieni il PDF", "Eliminare anche il PDF per la classe?", MessageIcon.Question, safeDefault: true);
         try
         {
             BusyDialog.Run(owner, $"Sposto «{title}» nel cestino di Google Drive…", async (_, ct) =>
@@ -238,10 +252,10 @@ public static class DriveUi
         }
         catch (Exception ex)
         {
-            MessageBox.Show(owner, (DriveApi.IsTransient(ex)
+            AppMessage.Show(owner, (DriveApi.IsTransient(ex)
                     ? "Senza connessione a Google Drive non si può eliminare un blocco appunti. Riprova quando c'è la rete."
                     : "Non è stato possibile eliminare il blocco appunti.") + "\n\n" + ex.Message,
-                "Ardesia", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageIcon.Warning);
             return false;
         }
     }
@@ -255,10 +269,9 @@ public static class DriveUi
         var cache = sync.CachePath(id);
         if (ex.HadPendingChanges && File.Exists(cache))
         {
-            var r = MessageBox.Show(ex.Message + "\n\nLe ultime modifiche fatte su questo PC non erano ancora state caricate. " +
-                                    "Vuoi salvarne una copia sul computer?",
-                "Ardesia", MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.Yes);
-            if (r == MessageBoxResult.Yes)
+            if (AppMessage.Ask(owner, ex.Message + "\n\nLe ultime modifiche fatte su questo PC non erano ancora state caricate: " +
+                                      "puoi salvarne una copia sul computer.",
+                    "Salva una copia sul computer…", "Non salvare", null, MessageIcon.Warning))
             {
                 var dlg = new SaveFileDialog
                 {
@@ -277,7 +290,7 @@ public static class DriveUi
         }
         else
         {
-            MessageBox.Show(ex.Message, "Ardesia", MessageBoxButton.OK, MessageBoxImage.Information);
+            AppMessage.Show(owner, ex.Message);
         }
         settings.RecentFiles.RemoveAll(p => DriveSync.TryParseCachePath(p, out _, out var other) && other == id);
         settings.Save();

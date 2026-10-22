@@ -32,6 +32,7 @@ Blocco appunti per **LIM** (lavagne interattive) in stile OneNote, per una scuol
 - All'avvio si riapre l'ultimo file; se manca, `StartWindow` chiede **prima** di creare/aprire un file (posizione e nome). Ogni modifica si salva da sola (~1,5 s) e all'uscita, **senza domande**.
 - Finestra principale ingrandita e mai più grande dello schermo (sulle LIM il ridimensionamento è alto).
 - Icone penne: simboli Segoe Fluent riempiti col colore della penna + profilo nero; barretta sotto = spessore, dello stesso colore.
+- Messaggi e domande **solo con `Controls/AppMessage`** (stile di Ardesia), mai `MessageBox` di Windows; niente spiegazioni «Sì = … No = …» nel testo: i pulsanti dicono che cosa fanno («Elimina», «Resta qui»). Per le scelte che cancellano il predefinito è quello sicuro (`safeDefault`).
 - Linea raddrizzata tenendo ferma la penna: **subito**, senza anteprima. Righello: linea dritta e appoggiata al bordo già mentre si disegna.
 
 ## Le LIM della scuola (misurate con «Prova tocco LIM»)
@@ -58,6 +59,8 @@ dotnet build                                   # se fallisce per file bloccato, 
 - `Ardesia.exe --snapshot out.png --demo [--tab Disegna]`: crea contenuti di prova, salva lo screenshot della finestra, salva/ricarica un `.ardesia` ed esporta un PDF nella stessa cartella, poi esce. Non tocca le impostazioni.
 - `--tab Impostazioni` / `--tab "Impostazioni blocco"`: fotografa la finestra Impostazioni (scheda Questo PC / Questo blocco appunti) invece del foglio.
 - `--tab Semplificata`: fotografa la barra semplificata (lo snapshot usa impostazioni nuove e non salvate, quindi `SimpleRibbon` di `settings.json` non conta).
+- `--tab Copia`: fotografa la finestrella «Copia in un altro blocco appunti»; `--tab Messaggio` una domanda di `AppMessage`.
+- `Ardesia.exe --prova-copia [registro.txt]`: prove di `Services/NotebookCopy.cs` (blocco, sezione, pagina; aggiungi/sostituisci; salvataggio e riapertura), senza finestre; codice d'uscita 1 se qualcosa non va.
 - `Ardesia.exe --prova-tocco`: apre solo la prova del tocco.
 - `Ardesia.exe --prova-google <client_secret….json>`: prova di accesso a Google e Drive (fase 0 del piano in `docs/google-drive.md`). Il JSON del client e lo screenshot «ID client OAuth.png» non vanno mai nel repository.
 - `Ardesia.exe --prova-drive [registro.txt] [--finto]`: fasi 2–4 di Drive (`DriveTestWindow`, `DriveSelfTest`). Prima 50 prove con un Drive finto in memoria (con `--finto` solo queste, senza finestra e senza rete: codice d'uscita 1 se qualcosa non va), poi con l'account vero (se non collegati apre il **browser**: avvisare l'utente) crea un blocco in `Ardesia/PROVA/Prova`, lo carica, rinomina, riscarica, prova PDF per la classe (condiviso col dominio, aggiornato nello stesso file, rinominato), lucchetto e conflitto (copia «modifiche da …») e mette tutto nel cestino (le cartelle restano). Per provare dal vivo un «secondo PC» sullo stesso computer: seconda Ardesia con le variabili d'ambiente `ARDESIA_PROVA_PC=LIM-AULA12` e `ARDESIA_PROVA_CACHE=<cartella nello scratchpad>` (togliere prima `LastFile` da `settings.json`, che è in comune). Le prove dal vivo nell'app vera lasciano blocchi in `Ardesia/PROVA/…`: dirlo all'utente.
@@ -75,7 +78,7 @@ dotnet build                                   # se fallisce per file bloccato, 
 - GeoGebra all'avvio apre la tastiera e un pannello Algebra largo: non ci sono parametri, la pagina simula il clic su «Chiudi» e il trascinamento del divisore (`closeKeyboard`, `narrowAlgebra`).
 - Col tocco un `ContextMenu` aperto durante la pressione si richiude al rilascio: il menu si apre **al rilascio** (cerchietto durante l'attesa).
 - Il disegno dal vivo di WPF tracciava la scia anche con la gomma: ora lo gestisce `ArdesiaDynamicRenderer` (`LiveEnabled`, `HideLiveStroke`).
-- La gomma precisa spezza i tratti matita in tratti normali: `Pencil.UpgradeAll` li ripristina.
+- La gomma precisa spezza i tratti matita in tratti normali: `Pencil.UpgradeAll` li ripristina. Lo stesso vale per i tratti **tratteggiati** (`Dash`, `DashedStroke` in `Pencil.cs`, proprietà nei DrawingAttributes): i tratti nuovi si fanno con `Pencil.Create`, che sceglie il tipo giusto. Mentre si scrive la scia è continua; il tratteggio compare al rilascio.
 
 ## GeoGebra
 
