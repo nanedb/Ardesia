@@ -87,6 +87,7 @@ public partial class MainWindow : Window
             Closed += (_, _) => GoogleAccountService.Current.Changed -= onAccount;
             UpdateAccountButton();
             InitDrive();
+            StartUpdateChecks();
         }
 
         Loaded += (_, _) =>
@@ -1581,6 +1582,77 @@ public partial class MainWindow : Window
     }
     // ═══════════════════════════ Menu File ═══════════════════════════
 
+    // ═══════════════════════════ Versioni nuove ═══════════════════════════
+
+    ReleaseInfo? _newRelease;
+
+    /// <summary>
+    /// Controllo delle versioni nuove poco dopo l'avvio (per non rallentarlo) e poi ogni 6 ore, perché le LIM restano
+    /// accese per giorni; GitHub viene interpellato al massimo una volta al giorno (Services/Updates.cs).
+    /// </summary>
+    void StartUpdateChecks()
+    {
+        var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(8) };
+        timer.Tick += async (_, _) =>
+        {
+            timer.Interval = TimeSpan.FromHours(6);
+            await CheckForUpdateAsync();
+        };
+        timer.Start();
+        Closed += (_, _) => timer.Stop();
+    }
+
+    async Task CheckForUpdateAsync()
+    {
+        ReleaseInfo? release;
+        try
+        {
+            release = await Updates.CheckAsync(_settings);
+        }
+        catch
+        {
+            return; // risposta strana o file di prova illeggibile: nessun avviso
+        }
+        _newRelease = release;
+        UpdateButton.Visibility = release != null ? Visibility.Visible : Visibility.Collapsed;
+        if (release == null) return;
+        UpdateText.Text = $"Nuova versione {release.Version}";
+        UpdateButton.ToolTip = $"È disponibile Ardesia {release.Version}: guarda le novità e aggiorna";
+    }
+
+    void UpdateButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_newRelease is not { } release) return;
+        bool installed = Updates.IsInstalled && release.SetupUrl != null;
+        var dlg = new UpdateDialog(release, installed) { Owner = this, WindowStartupLocation = WindowStartupLocation.CenterOwner };
+        dlg.ShowDialog();
+        if (!dlg.Accepted) return;
+        if (!installed)
+        {
+            try { Process.Start(new ProcessStartInfo(release.PageUrl) { UseShellExecute = true }); } catch { /* nessun browser */ }
+            return;
+        }
+        string setup;
+        try
+        {
+            setup = BusyDialog.Run(this, $"Scarico Ardesia {release.Version}…", (progress, ct) => Updates.DownloadSetupAsync(release, progress, ct));
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        catch (Exception ex)
+        {
+            AppMessage.Show(this, "Non sono riuscita a scaricare la versione nuova. Controlla la connessione a internet e riprova.\n\n" + ex.Message,
+                MessageIcon.Warning, "Aggiornamento non riuscito");
+            return;
+        }
+        // l'installer parte quando Ardesia si è chiusa del tutto (App.OnExit), dopo il salvataggio e i caricamenti su Drive
+        Updates.PendingSetup = setup;
+        Close();
+        if (IsVisible) Updates.PendingSetup = null; // chiusura annullata
+    }
+
     // ═══════════════════════════ Account Google ═══════════════════════════
 
     /// <summary>Nome di chi è collegato a Google nella barra in alto; se nessuno è collegato, «Accedi a Google».</summary>
@@ -1904,6 +1976,22 @@ public partial class MainWindow : Window
                     SaveWindowPng(dlg, Path.Combine(dir, $"messaggio-{i + 1}.png"));
                     dlg.Close();
                 }
+            }
+            // --tab Aggiornamento: le novità di una versione nuova (finta), come dopo il clic su «Nuova versione»
+            if (string.Equals(tab, "Aggiornamento", StringComparison.OrdinalIgnoreCase))
+            {
+                var release = new ReleaseInfo
+                {
+                    Version = "0.8.0",
+                    Notes = "## Novità\n- **Grafico di funzione**: i cursori dei parametri hanno minimo, massimo e passo.\n" +
+                            "- Il doppio tocco sul grafico apre «Funzioni del grafico» anche sulle LIM Promethean.\n" +
+                            "  - Con la penna e con il dito.\n## Correzioni\n- Il PDF per la classe si aggiorna anche se il nome del blocco contiene `/`.",
+                };
+                UpdateText.Text = "Nuova versione 0.8.0";
+                UpdateButton.Visibility = Visibility.Visible;
+                var dlg = new UpdateDialog(release, installed: true) { Owner = this, WindowStartupLocation = WindowStartupLocation.CenterOwner };
+                dlg.Show();
+                shot = dlg;
             }
             // --tab Messaggio: una domanda nello stile di Ardesia (come «Elimina il blocco appunti»)
             if (string.Equals(tab, "Messaggio", StringComparison.OrdinalIgnoreCase))

@@ -28,6 +28,16 @@
                     <TextBlock x:Name="DriveIcon" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Text="&#xE753;" FontSize="14"
                                Foreground="#E0FFFFFF" VerticalAlignment="Center" Margin="0,1,7,0" Visibility="Collapsed" />
                     <TextBlock x:Name="StatusText" Foreground="#E0FFFFFF" FontSize="12" VerticalAlignment="Center" Margin="0,0,12,0" />
+                    <!-- Versione nuova su GitHub (Services/Updates.cs): clic → novità e «Aggiorna adesso» -->
+                    <Button x:Name="UpdateButton" Style="{StaticResource HeaderButton}" Padding="10,0" Visibility="Collapsed"
+                            Click="UpdateButton_Click">
+                        <Border Background="#33FFFFFF" CornerRadius="4" Padding="8,3">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource HeaderGlyph}" Text="&#xE896;" Margin="0,0,7,0" />
+                                <TextBlock x:Name="UpdateText" Foreground="White" FontSize="13" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+                    </Button>
                     <!-- Chi è collegato a Google (visibile solo da collegati): clic → account ed «Esci» -->
                     <Button x:Name="AccountButton" Style="{StaticResource HeaderButton}" Padding="10,0" Visibility="Collapsed"
                             Click="AccountButton_Click">

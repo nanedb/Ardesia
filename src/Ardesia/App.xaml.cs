@@ -196,6 +196,12 @@ public partial class App : Application
         window.Show();
     }
 
+    protected override void OnExit(ExitEventArgs e)
+    {
+        Updates.LaunchPending(); // «Aggiorna adesso»: l'installer aspetta che Ardesia sia chiusa e poi la riapre
+        base.OnExit(e);
+    }
+
     /// <summary>Un secondo avvio di Ardesia: si viene in primo piano e, se ha passato un file, lo si apre.</summary>
     void OnOtherInstance(string file)
     {

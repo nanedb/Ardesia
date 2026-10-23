@@ -30,7 +30,11 @@ Che cosa viene installato:
 
 ### Aggiornare a una versione nuova
 
-Scarica il nuovo `ArdesiaSetup-X.Y.Z.exe` ed eseguilo: sostituisce la versione precedente. I tuoi blocchi appunti e le tue impostazioni (penne, ultimo file aperto…) restano.
+Dalla versione 0.7.2 Ardesia controlla da sola, una volta al giorno, se c'è una versione nuova. Quando c'è, in alto a destra compare il pulsante **«Nuova versione X.Y.Z»**: cliccalo quando vuoi, anche a fine lezione. Si apre una finestrella con le novità e il pulsante **«Aggiorna adesso»**: Ardesia scarica l'aggiornamento, salva, si chiude, si aggiorna e si riapre da sola in circa un minuto. Non servono le credenziali di amministratore. Se preferisci aspettare, premi «Più tardi»: il pulsante resta nella barra.
+
+Puoi anche aggiornare a mano: scarica il nuovo `ArdesiaSetup-X.Y.Z.exe` ed eseguilo, e sostituisce la versione precedente. In entrambi i casi i tuoi blocchi appunti e le tue impostazioni (penne, ultimo file aperto…) restano.
+
+Con la versione portatile «Nuova versione» apre la pagina da cui scaricare il file nuovo, da usare al posto del vecchio.
 
 > **Importante – aggiornate tutti i PC.** Le versioni **0.3.2 e precedenti** non conoscono il [grafico di funzione](Grafico-di-funzione.md): se aprono un blocco appunti che contiene grafici, **li cancellano al primo salvataggio**. Se usi i grafici, aggiorna Ardesia su **tutti** i PC dove apri quel blocco (casa, LIM delle varie aule, portatile). La versione è scritta **in alto, accanto al nome del blocco appunti** (per esempio «0.7.2»).
 

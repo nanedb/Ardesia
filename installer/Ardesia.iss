@@ -52,3 +52,31 @@ Root: HKCU; Subkey: "Software\Classes\Ardesia.Notebook\shell\open\command"; Valu
 
 [Run]
 Filename: "{app}\{#AppExe}"; Description: "Avvia Ardesia"; Flags: nowait postinstall skipifsilent
+; Aggiornamento avviato da Ardesia («Aggiorna adesso», /SILENT /AGGIORNA=1): alla fine la si riapre
+Filename: "{app}\{#AppExe}"; Flags: nowait; Check: IsUpdateFromArdesia
+
+[Code]
+function IsUpdateFromArdesia: Boolean;
+begin
+  Result := ExpandConstant('{param:AGGIORNA|0}') = '1';
+end;
+
+// Con /ATTENDI=<mutex> (vedi Services/SingleInstance.cs) si aspetta, al massimo un minuto, che l'Ardesia che ha
+// scaricato l'aggiornamento abbia finito di chiudersi: salvataggio, PDF per la classe e caricamenti su Drive.
+function InitializeSetup: Boolean;
+var
+  Mutex: String;
+  I: Integer;
+begin
+  Mutex := ExpandConstant('{param:ATTENDI|}');
+  if Mutex <> '' then
+  begin
+    I := 0;
+    while CheckForMutexes(Mutex) and (I < 120) do
+    begin
+      Sleep(500);
+      I := I + 1;
+    end;
+  end;
+  Result := True;
+end;

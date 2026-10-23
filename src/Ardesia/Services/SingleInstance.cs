@@ -16,6 +16,9 @@ public static class SingleInstance
     static readonly string Name = $"Ardesia-{Process.GetCurrentProcess().SessionId}-{Environment.UserName}";
     static Mutex? _mutex;
 
+    /// <summary>Il mutex tenuto finché Ardesia è aperta: l'installer di un aggiornamento aspetta che sia libero.</summary>
+    public static string MutexName => @"Local\" + Name;
+
     [DllImport("user32.dll")]
     static extern bool AllowSetForegroundWindow(int processId);
 
@@ -30,7 +33,7 @@ public static class SingleInstance
         if (Environment.GetEnvironmentVariable("ARDESIA_PROVA_CACHE") is { Length: > 0 }) return true;
         for (int attempt = 0; attempt < 2; attempt++)
         {
-            var mutex = new Mutex(true, @"Local\" + Name, out bool created);
+            var mutex = new Mutex(true, MutexName, out bool created);
             if (created)
             {
                 _mutex = mutex; // resta acquisito finché Ardesia è aperta

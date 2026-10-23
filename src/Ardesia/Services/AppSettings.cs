@@ -39,6 +39,10 @@ public class AppSettings
     public double EraserSize { get; set; } = 22;
     public List<PenPreset> Pens { get; set; } = PenPreset.Defaults();
 
+    /// <summary>Ultimo controllo delle versioni nuove su GitHub (ora UTC) e la release trovata (Services/Updates.cs).</summary>
+    public DateTime? UpdateCheckedAt { get; set; }
+    public ReleaseInfo? LatestRelease { get; set; }
+
     /// <summary>Se false le impostazioni non vengono scritte su disco (usato nei test).</summary>
     [System.Text.Json.Serialization.JsonIgnore] public bool Persist { get; set; } = true;
 
