@@ -8,6 +8,9 @@ $version = ([xml](Get-Content src\Ardesia\Ardesia.csproj)).Project.PropertyGroup
 $issVersion = (Select-String -Path installer\Ardesia.iss -Pattern '#define AppVersion "(.+)"').Matches[0].Groups[1].Value
 if ($version -ne $issVersion) { throw "Versione diversa: $version in Ardesia.csproj, $issVersion in installer\Ardesia.iss" }
 
+# client Google col secret, fuori dal repository: senza, Ardesia non potrebbe collegarsi a Drive
+if (-not (Test-Path google-client.json)) { throw "Manca google-client.json: salva qui il client OAuth scaricato dalla console di Google Cloud" }
+
 dotnet publish src\Ardesia -c Release -r win-x64 --self-contained true `
     -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
     -p:EnableCompressionInSingleFile=true -p:DebugType=none -o publish

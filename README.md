@@ -47,6 +47,8 @@ dotnet build
 dotnet run --project src/Ardesia
 ```
 
+Per collegarsi a Google Drive Ardesia usa un client OAuth di tipo «App desktop» creato nella console di Google Cloud. Il file JSON del client non è nel repository: salvato come `google-client.json` nella cartella principale, viene incorporato nell'eseguibile durante la compilazione (`build-release.ps1` si ferma se manca). In alternativa Ardesia lo cerca accanto all'eseguibile o in `%AppData%\Ardesia`; senza client tutto il resto funziona, ma non l'accesso a Google. Per un'altra scuola serve un client suo e il dominio va cambiato in `GoogleClientConfig.SchoolDomain`.
+
 ## Distribuzione
 
 ```
@@ -64,3 +66,7 @@ Entrambi includono .NET e non richiedono altro software. Servono Windows 10/11 a
 
 - `docs/wiki/`: la guida per i docenti (pagine della wiki, immagini e PDF). Come pubblicarla nella wiki e rifare il PDF (`python tools/guida-pdf.py`) è spiegato in [`docs/wiki/LEGGIMI.md`](docs/wiki/LEGGIMI.md).
 - `docs/google-drive.md`, `docs/grafico-nativo.md`: piani e note di lavoro su Google Drive e sul grafico di funzione.
+
+## Licenza
+
+Ardesia è distribuita con la [licenza MIT](LICENSE): si può usare, modificare e ridistribuire liberamente, mantenendo l'avviso di copyright.

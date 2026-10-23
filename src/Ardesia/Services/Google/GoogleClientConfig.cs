@@ -12,6 +12,12 @@ public sealed class GoogleClientConfig
     /// <summary>Dominio della scuola: l'app è «interna», vale solo per questi account.</summary>
     public const string SchoolDomain = "liceofoscarini.it";
 
+    /// <summary>
+    /// Nome della risorsa incorporata: il file google-client.json nella cartella principale del repository
+    /// (escluso da Git, vedi Ardesia.csproj). Senza quel file Ardesia si compila lo stesso, ma senza client Google.
+    /// </summary>
+    const string EmbeddedName = "google-client.json";
+
     public required string ClientId { get; init; }
     public required string ClientSecret { get; init; }
     public string AuthUri { get; init; } = "https://accounts.google.com/o/oauth2/v2/auth";
@@ -21,23 +27,23 @@ public sealed class GoogleClientConfig
 
     /// <summary>
     /// Legge il file indicato, o lo cerca accanto all'eseguibile e in %AppData%\Ardesia (utile per altre scuole);
-    /// se non c'è, usa il client di Ardesia incorporato (GoogleConfig).
+    /// se non c'è, usa il client di Ardesia incorporato nell'eseguibile.
     /// </summary>
     public static GoogleClientConfig Load(string? path = null)
     {
         path ??= Find();
-        if (path == null && GoogleConfig.ClientSecret.Length > 0)
-            return new GoogleClientConfig
-            {
-                ClientId = GoogleConfig.ClientId,
-                ClientSecret = GoogleConfig.ClientSecret,
-                ProjectId = GoogleConfig.ProjectId,
-                SourceFile = "(incorporato in Ardesia)",
-            };
-        if (path == null) throw new FileNotFoundException(
+        if (path != null) return Parse(File.ReadAllText(path), path);
+        using var stream = typeof(GoogleClientConfig).Assembly.GetManifestResourceStream(EmbeddedName);
+        if (stream == null) throw new FileNotFoundException(
             "Non trovo il file del client Google (google-client.json o client_secret_….json) " +
             "né accanto ad Ardesia né in " + AppSettings.Folder + ".");
-        using var doc = JsonDocument.Parse(File.ReadAllText(path));
+        using var reader = new StreamReader(stream);
+        return Parse(reader.ReadToEnd(), "(incorporato in Ardesia)");
+    }
+
+    static GoogleClientConfig Parse(string json, string source)
+    {
+        using var doc = JsonDocument.Parse(json);
         // La console scrive {"installed": {...}} per le app desktop, {"web": {...}} per le app web.
         if (!doc.RootElement.TryGetProperty("installed", out var c))
             throw new InvalidDataException(doc.RootElement.TryGetProperty("web", out _)
@@ -49,7 +55,7 @@ public sealed class GoogleClientConfig
             ClientId = Get("client_id"),
             ClientSecret = Get("client_secret"),
             ProjectId = Get("project_id"),
-            SourceFile = path,
+            SourceFile = source,
         };
         if (!cfg.ClientId.EndsWith(".apps.googleusercontent.com", StringComparison.Ordinal) || cfg.ClientSecret.Length == 0)
             throw new InvalidDataException("Nel file mancano l'ID client o il secret.");

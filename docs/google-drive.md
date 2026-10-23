@@ -24,8 +24,11 @@ crea/elenca/aggiorna/scarica un file col tipo di Ardesia, condivisione col domin
   `SendAsync` (richiesta autenticata, con 401 rinnova e riprova una volta), `SignOutAsync` (revoca + cancella il
   file; senza rete dimentica lo stesso e avvisa), evento `Changed`. L'access token resta solo in memoria.
 - Client: `GoogleClientConfig.Load` cerca `google-client.json` / `client_secret_*.json` accanto all'exe e in
-  `%AppData%\Ardesia` (per le prove: `%AppData%\Ardesia\google-client.json`), altrimenti usa `GoogleConfig.cs`
-  (**scelta dell'utente: ID client e secret incorporati nel codice**, così sulle LIM non serve copiare file).
+  `%AppData%\Ardesia` (per le prove: `%AppData%\Ardesia\google-client.json`), altrimenti usa il client
+  incorporato nell'eseguibile (**scelta dell'utente**, così sulle LIM non serve copiare file). Dal 23/10/2026, in
+  vista del repository pubblico, il secret non è più nel codice (prima era in `GoogleConfig.cs`, ora tolto):
+  `google-client.json` nella cartella principale, escluso da Git, diventa una risorsa incorporata
+  (`Ardesia.csproj`); `build-release.ps1` si ferma se manca.
 - Interfaccia: Impostazioni › Questo PC › «Google Drive» (stato, «Accedi con Google» / «Annulla» / «Esci»;
   valgono subito, anche con Annulla); nella barra in alto il nome di chi è collegato, con menu «Esci da Google».
 - Prova `Ardesia.exe --prova-accesso [registro.txt]` (`AccessTestWindow`): primo avvio → browser, accesso, file
@@ -362,9 +365,10 @@ app esterne «in prova»).
    `drive.file`, `openid`, `email`, `profile`.
 4. «Client» → «Crea client» → tipo **App desktop**, nome «Ardesia per Windows».
    Si ottengono *ID client* e *client secret*. Per le app desktop Google considera il secret **non segreto**
-   (sta comunque dentro l'eseguibile): va bene metterlo nel codice. Il repository è privato.
-5. Mandare a me ID client e secret: li metto in `Services/GoogleConfig.cs` (con la possibilità di sostituirli con
-   un file `google-client.json` accanto all'eseguibile, utile se un'altra scuola volesse usare Ardesia).
+   (sta comunque dentro l'eseguibile), ma non va nel repository.
+5. Scaricare il JSON del client e salvarlo come `google-client.json` nella cartella principale del repository:
+   la compilazione lo incorpora (si può sostituire con un file `google-client.json` accanto all'eseguibile,
+   utile se un'altra scuola volesse usare Ardesia).
 
 ### Cosa deve fare l'amministratore di Google Workspace
 
@@ -524,7 +528,7 @@ blocchi su Drive diventerà «Accedi a Google per riaprire …». `DriveLocator`
 
 | File nuovo | Contenuto |
 |---|---|
-| `Services/Google/GoogleConfig.cs` | ID client, secret, dominio `liceofoscarini.it`, eventuale `google-client.json` |
+| `Services/Google/GoogleClientConfig.cs` | ID client e secret (incorporati o da `google-client.json`), dominio `liceofoscarini.it` |
 | `Services/Google/GoogleAuth.cs` | PKCE, server loopback (`TcpListener`), scambio e rinnovo dei token, revoca |
 | `Services/Google/TokenStore.cs` | DPAPI via P/Invoke, `%LocalAppData%\Ardesia\google-account.bin` |
 | `Services/Google/DriveClient.cs` | `HttpClient`: list, get, create, update multipart/resumable, download, permissions, cartelle |

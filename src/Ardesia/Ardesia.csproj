@@ -20,6 +20,11 @@
     <Resource Include="Assets\Ardesia.ico" />
   </ItemGroup>
 
+  <!-- Client Google col secret: google-client.json nella cartella principale, escluso da Git e incorporato se c'è -->
+  <ItemGroup Condition="Exists('..\..\google-client.json')">
+    <EmbeddedResource Include="..\..\google-client.json" LogicalName="google-client.json" Link="google-client.json" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4258.31" />
   </ItemGroup>
