@@ -35,7 +35,7 @@ Ha quattro schede. All'avvio è aperta **Disegna**.
 ![Scheda Disegna](immagini/barra-disegna.png)
 
 - **Modifica**: Annulla, Ripeti.
-- **Strumenti**: Seleziona, Testo, Sposta pagina, Inserisci spazio, Gomma, Gomma precisa.
+- **Strumenti**: Seleziona, Testo, Sposta pagina, Inserisci spazio, Gomma, Gomma precisa, Laser.
 - **Penne**: le tue penne, evidenziatori e matite, più il pulsante **+** per aggiungerne. Vedi [Scrivere e disegnare](Scrivere-e-disegnare.md).
 - **Forme**: linea, freccia, rettangolo, ellisse, triangolo e **Linea tratteggiata** (vedi [Scrivere e disegnare](Scrivere-e-disegnare.md#linee-tratteggiate)).
 - **Geometria**: Righello, Goniometro, Compasso.
@@ -57,7 +57,7 @@ Con il pulsante **Barra semplificata** (in alto a destra della barra completa) g
 
 ![La barra semplificata](immagini/barra-semplificata.png)
 
-Annulla, Ripeti · Seleziona, Testo, Sposta pagina, Il dito sposta la pagina, Inserisci spazio, Gomma, Gomma precisa · **Grafico**, **GeoGebra** · le penne (con il **+**) · Forme (un pulsante che apre le cinque forme), Linea tratteggiata, Righello, Goniometro, Compasso · Inserisci immagine, Nuova pagina, Esporta in PDF.
+Annulla, Ripeti · Seleziona, Testo, Sposta pagina, Il dito sposta la pagina, Inserisci spazio, Gomma, Gomma precisa, Laser · **Grafico**, **GeoGebra** · le penne (con il **+**) · Forme (un pulsante che apre le cinque forme), Linea tratteggiata, Righello, Goniometro, Compasso · Inserisci immagine, Nuova pagina, Esporta in PDF.
 
 Il pulsante **Barra completa** (a destra) riporta le schede. La scelta resta memorizzata su quel PC.
 Nella barra semplificata non ci sono gli sfondi e i comandi del testo: per quelli si torna alla barra completa.

@@ -14,6 +14,24 @@ Il formato si cambia dalla scheda **Home**, gruppo *Testo*: tipo di carattere, d
 - Per **spostarlo**, con lo strumento **Seleziona** tocca il testo (o circondalo) e trascinalo.
 - Un testo incollato dagli appunti (Ctrl+V) diventa una casella di testo.
 
+### Formule in LaTeX
+
+In una casella di testo si possono scrivere formule in **LaTeX**, tra due **dollari**: quando premi **Invio**, la formula si trasforma e compare impaginata come sul libro, in riga col testo.
+
+| Scrivi | e dopo Invio diventa |
+|---|---|
+| `L'area è $\pi r^2$` | L'area è *π r²* |
+| `$x_{1,2} = \frac{-b \pm \sqrt{b^2-4ac}}{2a}$` | la formula risolutiva, con la frazione e la radice |
+| `$\lim_{x \to 0} \frac{\sin x}{x} = 1$` | il limite col «x → 0» sotto |
+
+- Si possono mettere più formule nella stessa riga, in mezzo alle parole. Vanno bene anche i doppi dollari `$$…$$`.
+- Una riga scritta **tutta in LaTeX** (per esempio `\int_0^1 x^2 \, dx`) diventa una formula anche senza dollari.
+- Si conoscono frazioni, radici, esponenti e pedici, lettere greche, simboli (`\leq`, `\in`, `\infty`, `\Rightarrow`…), limiti, somme e integrali, sistemi (`\begin{cases}…\end{cases}`), matrici (`pmatrix`), vettori (`\vec{v}`), `\mathbb{R}` e le funzioni anche all'italiana (`\sen`, `\tg`). Le parentesi diventano alte quanto serve.
+- Un comando scritto male resta in **rosso**: si vede subito l'errore di battitura.
+- Per **correggere** una formula: premi **Backspace** subito dopo la formula, oppure fai **doppio clic** sulla formula. Torna il testo con i dollari: correggi e premi di nuovo **Invio**.
+- Le formule cambiano dimensione e colore insieme al testo e nel PDF escono nitide.
+- Le versioni di Ardesia precedenti alla 0.8.0 mostrano il testo LaTeX al posto della formula, senza perderlo.
+
 Una casella di testo con delle funzioni, una per riga (per esempio `y = x² − 4`), si trasforma in grafico con **Grafico** o **GeoGebra**: vedi [Grafico di funzione](Grafico-di-funzione.md).
 
 ## Immagini

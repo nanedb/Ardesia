@@ -4,7 +4,7 @@
 
 Questa guida è per i **colleghi docenti**: spiega come si usa Ardesia, non come è fatta dentro.
 
-> **Versione descritta:** Ardesia 0.7.2 (ottobre 2026). Il numero della versione installata si legge in alto, accanto al nome del blocco appunti.
+> **Versione descritta:** Ardesia 0.8.0 (ottobre 2026). Il numero della versione installata si legge in alto, accanto al nome del blocco appunti.
 
 ![La finestra di Ardesia](immagini/finestra-principale.png)
 
@@ -15,7 +15,8 @@ Questa guida è per i **colleghi docenti**: spiega come si usa Ardesia, non come
 - **Penne configurabili**, evidenziatori e **matite** dalla 3H alla 3B; gomma per tratti interi, gomma precisa e, sulle LIM che lo permettono, **il palmo della mano come gomma**.
 - **Linee dritte** tenendo ferma la penna un istante, **forme** (linea, freccia, rettangolo, ellisse, triangolo) e **linee tratteggiate**.
 - **Righello, goniometro e compasso** da usare sul foglio come quelli veri.
-- **Caselle di testo, immagini**, copia e incolla, menu che si apre tenendo premuto il dito.
+- **Puntatore laser**: una scia luminosa che attira l'attenzione e svanisce da sola.
+- **Caselle di testo** con **formule in LaTeX** (`$\frac{1}{2}$` diventa una frazione vera), **immagini**, copia e incolla, menu che si apre tenendo premuto il dito.
 - **Foglio infinito** verso destra e verso il basso, con zoom e sei sfondi (righe, quadretti, puntini…) su sei colori, compresa la «lavagna» scura.
 - **Grafici di funzione** disegnati da Ardesia sul foglio: si scrive `y = x² − 4` (anche **a mano**!) e compare il grafico, con zeri, massimi e minimi, derivata, segno e **cursori** per i parametri.
 - **GeoGebra** integrato, per la geometria e i casi più avanzati (serve internet).

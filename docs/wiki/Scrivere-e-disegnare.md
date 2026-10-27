@@ -43,6 +43,12 @@ La matita disegna un tratto **grigio con la grana della grafite**, come sulla ca
 
 **Il palmo della mano come gomma.** Su alcune LIM (per esempio le **Promethean** della scuola) appoggiando il palmo e strofinando si cancella direttamente, **qualunque strumento sia attivo**: la gomma è grande quanto il contatto della mano. Lo stesso vale per il **retro della penna** sulle penne che hanno la gomma. Vedi [Uso sulle LIM](Uso-sulle-LIM.md).
 
+## Il puntatore laser
+
+Per **attirare l'attenzione** su una parte della lavagna senza scriverci sopra: scegli **Laser** (la penna col puntino rosso, accanto alle gomme) e passa con la penna o col dito sul punto che ti interessa. Compare una **scia bianca con un alone rosso** che segue la mano e **svanisce da sola** poco dopo che hai alzato la penna. Puoi fare più segni di seguito (per esempio cerchiare un numero e poi sottolinearne un altro): restano insieme e spariscono tutti insieme. La scia non si salva e non finisce nel PDF.
+
+Ricliccando il pulsante (o con Esc) si torna allo strumento di prima.
+
 ## Linee dritte tenendo ferma la penna
 
 Per tracciare un segmento senza righello:
