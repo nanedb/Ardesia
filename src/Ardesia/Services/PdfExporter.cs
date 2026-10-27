@@ -1,9 +1,11 @@
 using System.Globalization;
 using System.IO;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Ink;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Ardesia.Editor;
@@ -16,30 +18,192 @@ public static class PdfExporter
     const double A4Width = 794, A4Height = 1123; // in DIP (1/96")
     static readonly CultureInfo It = CultureInfo.GetCultureInfo("it-IT");
 
-    /// <summary>Esporta le pagine in un PDF: una pagina PDF per ogni pagina del blocco appunti, con segnalibri.</summary>
+    /// <summary>Esporta le pagine in un PDF vettoriale: una pagina PDF per ogni pagina del blocco appunti, con segnalibri.</summary>
+    /// <remarks>Le pagine non cambiate dall'ultima volta si prendono già pronte dalla cache (<see cref="PdfPageCache"/>).</remarks>
     public static void Export(Notebook nb, IReadOnlyList<NotebookNode> pages, string path, string title)
     {
-        var rendered = pages.Select(p => RenderPage(nb, p)).ToList();
-        PdfWriter.Write(path, rendered, title);
+        var parts = new List<(PdfPagePart Part, string Title)>();
+        foreach (var p in pages)
+        {
+            var key = PdfPageCache.Key(nb, p);
+            var part = PdfPageCache.Load(key);
+            if (part == null)
+            {
+                part = RenderPage(nb, p);
+                PdfPageCache.Store(key, part);
+            }
+            parts.Add((part, p.DisplayTitle));
+        }
+        PdfWriter.Write(path, parts, title);
+        PdfPageCache.CleanUp();
     }
 
-    static PdfWriter.ImagePage RenderPage(Notebook nb, NotebookNode node)
+    /// <summary>
+    /// Prova (<c>--prova-pdf blocco.ardesia uscita.pdf</c>): esporta tutte le pagine senza cache e poi con la cache,
+    /// e scrive tempi e pesi in <c>uscita.log</c>. Falso se qualcosa non va.
+    /// </summary>
+    public static bool SelfTest(string notebook, string pdf)
+    {
+        var log = new StringBuilder();
+        bool ok = true;
+        try
+        {
+            bool synthetic = notebook == "sintetico";
+            var nb = synthetic ? SyntheticNotebook() : NotebookStore.Load(notebook);
+            var pages = nb.AllPages().ToList();
+            log.AppendLine(synthetic ? $"{pages.Count} pagine di prova" : $"{pages.Count} pagine, file {new FileInfo(notebook).Length / 1024} KB");
+            if (synthetic)
+            {
+                // per confronto: le pagine come le disegna WPF (riferimento-N.png, 96 dpi)
+                for (int i = 0; i < pages.Count; i++)
+                {
+                    var visual = Build(nb, pages[i], out var size);
+                    var rtb = new RenderTargetBitmap((int)Math.Ceiling(size.Width), (int)Math.Ceiling(size.Height), 96, 96, PixelFormats.Pbgra32);
+                    rtb.Render(visual);
+                    using var fs = File.Create(Path.Combine(Path.GetDirectoryName(Path.GetFullPath(pdf))!, $"riferimento-{i + 1}.png"));
+                    var enc = new PngBitmapEncoder();
+                    enc.Frames.Add(BitmapFrame.Create(rtb));
+                    enc.Save(fs);
+                }
+            }
+            foreach (var p in pages)
+            {
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                var part = RenderPage(nb, p);
+                long bytes = part.Objects.Sum(o => (long)(o.Stream?.Length ?? 0) + o.Dict.Length);
+                log.AppendLine($"  «{p.DisplayTitle}»: {part.WidthPt:0}×{part.HeightPt:0} pt, {part.Objects.Count} oggetti, " +
+                               $"{bytes / 1024} KB, {sw.ElapsedMilliseconds} ms");
+                PdfPageCache.Store(PdfPageCache.Key(nb, p), part);
+            }
+            var t = System.Diagnostics.Stopwatch.StartNew();
+            Export(nb, pages, pdf, nb.Title);
+            log.AppendLine($"PDF con la cache: {new FileInfo(pdf).Length / 1024} KB in {t.ElapsedMilliseconds} ms");
+            // una pagina cambiata: solo quella si rifà
+            if (pages.Count > 0 && pages[0].Page is { } first)
+            {
+                first.Created = first.Created.AddMinutes(1);
+                t.Restart();
+                Export(nb, pages, pdf, nb.Title);
+                log.AppendLine($"Con una pagina cambiata: {t.ElapsedMilliseconds} ms");
+            }
+        }
+        catch (Exception ex)
+        {
+            log.AppendLine("ERRORE " + ex);
+            ok = false;
+        }
+        File.WriteAllText(Path.ChangeExtension(pdf, ".log"), log.ToString());
+        return ok;
+    }
+
+    /// <summary>Blocco appunti di prova con tutto ciò che il PDF deve saper disegnare.</summary>
+    static Notebook SyntheticNotebook()
+    {
+        var nb = new Notebook { Title = "Prova PDF" };
+        var section = NotebookNode.NewSection("Prova", "#1E5A68");
+        nb.Insert(section, null);
+
+        static StylusPointCollection Wave(double x0, double y0, double len, double amp, bool pressure)
+        {
+            var pts = new StylusPointCollection();
+            for (double t = 0; t <= len; t += 4)
+                pts.Add(new StylusPoint(x0 + t, y0 + amp * Math.Sin(t / 30), pressure ? (float)(0.25 + 0.7 * t / len) : 0.5f));
+            return pts;
+        }
+        static byte[] Isf(StrokeCollection sc)
+        {
+            using var ms = new MemoryStream();
+            sc.Save(ms);
+            return ms.ToArray();
+        }
+
+        // pagina 1: penne, pressione, matite, evidenziatore, tratteggi, punta quadrata, punto
+        var p1 = NotebookNode.NewPage("Tratti");
+        var sc = new StrokeCollection();
+        sc.Add(new Stroke(Wave(60, 160, 500, 20, false), new DrawingAttributes { Color = Colors.Black, Width = 3, Height = 3, FitToCurve = true }));
+        sc.Add(new Stroke(Wave(60, 230, 500, 20, true), new DrawingAttributes { Color = Colors.Blue, Width = 6, Height = 6, FitToCurve = true }));
+        sc.Add(new Stroke(Wave(60, 300, 500, 20, false), new DrawingAttributes { Color = Colors.Red, Width = 2, Height = 2, IgnorePressure = true }));
+        sc.Add(Pencil.Create(Wave(60, 370, 500, 20, true), Pencil.Attributes(0, 4)));
+        sc.Add(Pencil.Create(Wave(60, 440, 500, 20, true), Pencil.Attributes(6, 6)));
+        var hl = new DrawingAttributes { Color = Colors.Yellow, Width = 10, Height = 24, IsHighlighter = true, StylusTip = StylusTip.Rectangle };
+        sc.Add(new Stroke(Wave(60, 160, 500, 0, false), hl));
+        sc.Add(new Stroke(Wave(300, 175, 300, 0, false), hl.Clone()));
+        var dashed = new DrawingAttributes { Color = Colors.DarkGreen, Width = 3, Height = 3 };
+        Dash.Set(dashed, true);
+        sc.Add(Pencil.Create(Wave(60, 510, 500, 20, false), dashed));
+        var dashedPencil = Pencil.Attributes(4, 3);
+        Dash.Set(dashedPencil, true);
+        sc.Add(Pencil.Create(Wave(60, 570, 500, 20, false), dashedPencil));
+        sc.Add(new Stroke(Wave(60, 640, 500, 20, false), new DrawingAttributes { Color = Colors.Purple, Width = 8, Height = 3, StylusTip = StylusTip.Rectangle }));
+        sc.Add(new Stroke(new StylusPointCollection { new StylusPoint(620, 160) }, new DrawingAttributes { Color = Colors.Black, Width = 8, Height = 8 }));
+        sc.Add(new Stroke(Wave(60, 710, 500, 20, false), new DrawingAttributes { Color = Color.FromArgb(0x80, 0xFF, 0, 0), Width = 12, Height = 12 }));
+        p1.Page!.Ink = Isf(sc);
+        p1.Page.Background = PageBackground.LinesNarrow;
+        nb.Insert(p1, section);
+
+        // pagina 2: lavagna scura a puntini, testo formattato, immagini (trasparente e «foto»)
+        var p2 = NotebookNode.NewPage("Lavagna, testi e immagini");
+        p2.Page!.Background = PageBackground.Dots;
+        p2.Page.BackgroundColor = "#1F3B2D";
+        var white = new StrokeCollection
+        {
+            new Stroke(Wave(60, 600, 500, 30, true), new DrawingAttributes { Color = Colors.White, Width = 5, Height = 5, FitToCurve = true }),
+        };
+        p2.Page.Ink = Isf(white);
+        p2.Page.Elements.Add(new ElementData
+        {
+            Type = "text", X = 60, Y = 120, Width = 520,
+            Content = "<Section xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\"><Paragraph>Testo <Bold>grassetto</Bold>, " +
+                      "<Italic>corsivo</Italic>, <Run Foreground=\"#FFE04040\">rosso</Run>, à è ì ò ù, x² √2 π ≠ ≤</Paragraph></Section>",
+        });
+
+        var dv = new DrawingVisual();
+        using (var dc = dv.RenderOpen())
+        {
+            dc.DrawEllipse(new SolidColorBrush(Color.FromArgb(0xC0, 0x1E, 0x5A, 0x68)), new Pen(Brushes.Orange, 6), new Point(100, 100), 90, 90);
+            dc.DrawText(new FormattedText("PNG", CultureInfo.InvariantCulture, FlowDirection.LeftToRight, new Typeface("Segoe UI"), 40, Brushes.White, 1), new Point(62, 75));
+        }
+        var png = new RenderTargetBitmap(200, 200, 96, 96, PixelFormats.Pbgra32);
+        png.Render(dv);
+        nb.Media["png"] = ElementFactory.EncodePng(png);
+        p2.Page.Elements.Add(new ElementData { Type = "image", X = 620, Y = 120, Width = 200, Height = 200, MediaId = "png" });
+
+        var rnd = new Random(1);
+        int pw = 1600, ph = 1200;
+        var px = new byte[pw * ph * 3];
+        for (int y = 0; y < ph; y++)
+            for (int x = 0; x < pw; x++)
+            {
+                int i = (y * pw + x) * 3;
+                px[i] = (byte)(128 + 100 * Math.Sin(x / 50.0) + rnd.Next(20));
+                px[i + 1] = (byte)(128 + 100 * Math.Cos(y / 70.0) + rnd.Next(20));
+                px[i + 2] = (byte)((x + y) / 12 % 256);
+            }
+        var photo = BitmapSource.Create(pw, ph, 96, 96, PixelFormats.Rgb24, null, px, pw * 3);
+        var jenc = new JpegBitmapEncoder { QualityLevel = 90 };
+        jenc.Frames.Add(BitmapFrame.Create(photo));
+        using (var ms = new MemoryStream())
+        {
+            jenc.Save(ms);
+            nb.Media["foto"] = ms.ToArray();
+        }
+        p2.Page.Elements.Add(new ElementData { Type = "image", X = 620, Y = 360, Width = 320, Height = 240, MediaId = "foto" });
+        nb.Insert(p2, section);
+
+        // pagina 3: quadretti grandi su una pagina lunga
+        var p3 = NotebookNode.NewPage("Pagina lunga");
+        p3.Page!.Background = PageBackground.GridXLarge;
+        p3.Page.Ink = Isf(new StrokeCollection { new Stroke(Wave(60, 2400, 600, 40, false), new DrawingAttributes { Color = Colors.Black, Width = 3, Height = 3 }) });
+        nb.Insert(p3, section);
+        nb.FixParents();
+        return nb;
+    }
+
+    /// <summary>La pagina in PDF vettoriale, senza cache.</summary>
+    public static PdfPagePart RenderPage(Notebook nb, NotebookNode node)
     {
         var visual = Build(nb, node, out var size);
-        double scale = 2.0;
-        const double maxPixels = 36_000_000;
-        if (size.Width * size.Height * scale * scale > maxPixels)
-            scale = Math.Sqrt(maxPixels / (size.Width * size.Height));
-        int pw = (int)Math.Ceiling(size.Width * scale), ph = (int)Math.Ceiling(size.Height * scale);
-
-        var rtb = new RenderTargetBitmap(pw, ph, 96 * scale, 96 * scale, PixelFormats.Pbgra32);
-        rtb.Render(visual);
-        var bgr = new FormatConvertedBitmap(rtb, PixelFormats.Bgr24, null, 0);
-        var enc = new JpegBitmapEncoder { QualityLevel = 92 };
-        enc.Frames.Add(BitmapFrame.Create(bgr));
-        using var ms = new MemoryStream();
-        enc.Save(ms);
-        return new PdfWriter.ImagePage(ms.ToArray(), pw, ph, size.Width * 0.75, size.Height * 0.75, node.DisplayTitle);
+        return PdfVectorPage.Render(visual, size.Width, size.Height);
     }
 
     /// <summary>Ricostruisce la pagina fuori schermo, con le stesse proporzioni dell'editor.</summary>
@@ -112,19 +276,25 @@ public static class PdfExporter
     }
 }
 
-/// <summary>Scrittore PDF minimale: ogni pagina è un'immagine JPEG a tutta pagina; i titoli diventano segnalibri.</summary>
+/// <summary>Scrittore PDF minimale: monta le pagine già pronte, numerando i loro oggetti; i titoli diventano segnalibri.</summary>
 public static class PdfWriter
 {
-    public sealed record ImagePage(byte[] Jpeg, int PixelWidth, int PixelHeight, double WidthPt, double HeightPt, string Title);
-
-    public static void Write(string path, IReadOnlyList<ImagePage> pages, string title)
+    public static void Write(string path, IReadOnlyList<(PdfPagePart Part, string Title)> pages, string title)
     {
         if (pages.Count == 0) throw new ArgumentException("Nessuna pagina da esportare.");
         int n = pages.Count;
-        int PageObj(int i) => 4 + i * 3;
-        int ContentObj(int i) => 5 + i * 3;
-        int ImageObj(int i) => 6 + i * 3;
-        int outlines = 4 + n * 3;
+
+        // 1 catalogo, 2 albero delle pagine, 3 informazioni; poi per ogni pagina il suo oggetto e i suoi oggetti
+        var pageObj = new int[n];
+        var firstLocal = new int[n];
+        int next = 4;
+        for (int i = 0; i < n; i++)
+        {
+            pageObj[i] = next++;
+            firstLocal[i] = next;
+            next += pages[i].Part.Objects.Count;
+        }
+        int outlines = next;
         int OutlineItem(int i) => outlines + 1 + i;
         int total = outlines + n;
 
@@ -148,22 +318,31 @@ public static class PdfWriter
             fs.Write(new byte[] { (byte)'%', 0xE2, 0xE3, 0xCF, 0xD3, (byte)'\n' });
 
             Obj(1, $"<< /Type /Catalog /Pages 2 0 R /Outlines {outlines} 0 R /PageMode /UseOutlines >>");
-            Obj(2, $"<< /Type /Pages /Kids [{string.Join(" ", Enumerable.Range(0, n).Select(i => $"{PageObj(i)} 0 R"))}] /Count {n} >>");
+            Obj(2, $"<< /Type /Pages /Kids [{string.Join(" ", pageObj.Select(p => $"{p} 0 R"))}] /Count {n} >>");
             Obj(3, $"<< /Title {Text(title)} /Creator (Ardesia) /Producer (Ardesia) /CreationDate (D:{DateTime.Now:yyyyMMddHHmmss}) >>");
 
             for (int i = 0; i < n; i++)
             {
-                var p = pages[i];
-                Obj(PageObj(i), $"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {F(p.WidthPt)} {F(p.HeightPt)}] " +
-                                $"/Resources << /XObject << /Im0 {ImageObj(i)} 0 R >> >> /Contents {ContentObj(i)} 0 R >>");
-                var content = $"q {F(p.WidthPt)} 0 0 {F(p.HeightPt)} 0 0 cm /Im0 Do Q";
-                Obj(ContentObj(i), $"<< /Length {content.Length} >>\nstream\n{content}\nendstream");
+                var p = pages[i].Part;
+                int b = firstLocal[i];
+                string Refs(string dict) => LocalRef.Replace(dict, m => $"{b + int.Parse(m.Groups[1].Value)} 0 R");
 
-                offsets[ImageObj(i)] = fs.Position;
-                Raw($"{ImageObj(i)} 0 obj\n<< /Type /XObject /Subtype /Image /Width {p.PixelWidth} /Height {p.PixelHeight} " +
-                    $"/ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length {p.Jpeg.Length} >>\nstream\n");
-                fs.Write(p.Jpeg, 0, p.Jpeg.Length);
-                Raw("\nendstream\nendobj\n");
+                Obj(pageObj[i], $"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {F(p.WidthPt)} {F(p.HeightPt)}] " +
+                                $"/Resources {b + p.Resources} 0 R /Contents {b + p.Contents} 0 R >>");
+                for (int k = 0; k < p.Objects.Count; k++)
+                {
+                    var o = p.Objects[k];
+                    if (o.Stream == null)
+                    {
+                        Obj(b + k, Refs(o.Dict));
+                        continue;
+                    }
+                    offsets[b + k] = fs.Position;
+                    // «<< …» diventa «<< /Length n …»
+                    Raw($"{b + k} 0 obj\n<< /Length {o.Stream.Length} {Refs(o.Dict)[2..].TrimStart()}\nstream\n");
+                    fs.Write(o.Stream, 0, o.Stream.Length);
+                    Raw("\nendstream\nendobj\n");
+                }
             }
 
             Obj(outlines, $"<< /Type /Outlines /First {OutlineItem(0)} 0 R /Last {OutlineItem(n - 1)} 0 R /Count {n} >>");
@@ -172,7 +351,7 @@ public static class PdfWriter
                 var sb = new StringBuilder($"<< /Title {Text(pages[i].Title)} /Parent {outlines} 0 R ");
                 if (i > 0) sb.Append($"/Prev {OutlineItem(i - 1)} 0 R ");
                 if (i < n - 1) sb.Append($"/Next {OutlineItem(i + 1)} 0 R ");
-                sb.Append($"/Dest [{PageObj(i)} 0 R /XYZ 0 {F(pages[i].HeightPt)} 0] >>");
+                sb.Append($"/Dest [{pageObj[i]} 0 R /XYZ 0 {F(pages[i].Part.HeightPt)} 0] >>");
                 Obj(OutlineItem(i), sb.ToString());
             }
 
@@ -186,6 +365,8 @@ public static class PdfWriter
         if (File.Exists(path)) File.Delete(path);
         File.Move(tmp, path);
     }
+
+    static readonly Regex LocalRef = new(@"@(\d+)", RegexOptions.Compiled);
 
     static string F(double v) => v.ToString("0.###", CultureInfo.InvariantCulture);
 

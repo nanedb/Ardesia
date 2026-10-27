@@ -108,6 +108,14 @@ public partial class App : Application
             return;
         }
 
+        // Prova del PDF vettoriale: esporta un blocco appunti due volte (la seconda con le pagine già pronte), scrive tempi e pesi.
+        int pp = Array.IndexOf(e.Args, "--prova-pdf");
+        if (pp >= 0 && pp + 2 < e.Args.Length)
+        {
+            Shutdown(PdfExporter.SelfTest(e.Args[pp + 1], e.Args[pp + 2]) ? 0 : 1);
+            return;
+        }
+
         // Prova di «Copia in un altro blocco appunti»: senza finestre; scrive il registro e esce.
         int pc = Array.IndexOf(e.Args, "--prova-copia");
         if (pc >= 0)
