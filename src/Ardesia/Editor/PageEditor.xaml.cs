@@ -10,6 +10,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using Ardesia.Controls;
+using Ardesia.Editor.Formula;
 using Ardesia.Editor.Graph;
 using Ardesia.Models;
 using WpfPath = System.Windows.Shapes.Path;
@@ -762,6 +763,24 @@ public partial class PageEditor : UserControl
     void HookTextBox(RichTextBox rtb)
     {
         rtb.TextChanged += (_, _) => MarkChanged();
+        // Formule: all'Invio il LaTeX della riga diventa formula; Backspace subito dopo una formula la riporta a testo.
+        rtb.PreviewKeyDown += (_, e) =>
+        {
+            // l'Invio poi va a capo come sempre, tranne quando conferma una formula che si stava correggendo
+            if (e.Key == Key.Enter && rtb.CaretPosition.Paragraph is { } para)
+                e.Handled = FormulaText.ConvertParagraph(para, rtb).CaretInside;
+            else if (e.Key == Key.Back && rtb.Selection.IsEmpty && FormulaText.FormulaBefore(rtb.CaretPosition) is { } formula)
+            {
+                FormulaText.Unfold(formula);
+                e.Handled = true;
+            }
+        };
+        rtb.PreviewMouseLeftButtonDown += (_, e) =>
+        {
+            if (e.ClickCount != 2 || FormulaText.FormulaAt(rtb, e.GetPosition(rtb)) is not { } formula) return;
+            FormulaText.Unfold(formula);
+            e.Handled = true;
+        };
         rtb.GotKeyboardFocus += (_, _) =>
         {
             ActiveTextBox = rtb;
@@ -2926,6 +2945,9 @@ public partial class PageEditor : UserControl
         _dashed = false;
         var rtb = CreateTextBoxAt(new Point(80, 470));
         ElementFactory.SetPlainText(rtb, "Teorema di Pitagora: a² + b² = c²");
+        var latex = CreateTextBoxAt(new Point(80, 530));
+        ElementFactory.SetPlainText(latex, @"Formula risolutiva: $x_{1,2} = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}$");
+        foreach (var p in latex.Document.Blocks.OfType<Paragraph>().ToList()) FormulaText.ConvertParagraph(p);
         RulerVisible = true;
         _ruler.SetPose(new Point(620, 640), -12);
         ProtractorVisible = true;

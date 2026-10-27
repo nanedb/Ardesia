@@ -6,6 +6,7 @@ using System.Windows.Documents;
 using System.Windows.Markup;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using Ardesia.Editor.Formula;
 using Ardesia.Editor.Graph;
 using Ardesia.Models;
 
@@ -79,13 +80,13 @@ public static class ElementFactory
         return rtb;
     }
 
-    public static string GetXaml(RichTextBox rtb)
+    public static string GetXaml(RichTextBox rtb) => FormulaText.SaveXaml(rtb, doc =>
     {
-        var range = new TextRange(rtb.Document.ContentStart, rtb.Document.ContentEnd);
+        var range = new TextRange(doc.ContentStart, doc.ContentEnd);
         using var ms = new MemoryStream();
         range.Save(ms, DataFormats.Xaml);
         return Encoding.UTF8.GetString(ms.ToArray());
-    }
+    });
 
     public static void SetXaml(RichTextBox rtb, string xaml)
     {
@@ -94,6 +95,7 @@ public static class ElementFactory
             var range = new TextRange(rtb.Document.ContentStart, rtb.Document.ContentEnd);
             using var ms = new MemoryStream(Encoding.UTF8.GetBytes(xaml));
             range.Load(ms, DataFormats.Xaml);
+            FormulaText.RestoreFormulas(rtb.Document);
         }
         catch
         {
@@ -109,7 +111,8 @@ public static class ElementFactory
     }
 
     public static bool IsEmpty(RichTextBox rtb) =>
-        string.IsNullOrWhiteSpace(new TextRange(rtb.Document.ContentStart, rtb.Document.ContentEnd).Text);
+        string.IsNullOrWhiteSpace(new TextRange(rtb.Document.ContentStart, rtb.Document.ContentEnd).Text) &&
+        !FormulaText.HasFormulas(rtb.Document);
 
     public static BitmapSource LoadBitmap(byte[] bytes)
     {

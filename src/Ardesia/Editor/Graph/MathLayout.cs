@@ -243,7 +243,7 @@ public static class MathLayout
         }
     }
 
-    sealed class FracBox : MathBox
+    internal sealed class FracBox : MathBox
     {
         readonly MathBox _num, _den;
         readonly double _axis, _gap, _pad;
@@ -272,7 +272,7 @@ public static class MathLayout
         }
     }
 
-    sealed class RootBox : MathBox
+    internal sealed class RootBox : MathBox
     {
         readonly MathBox _arg;
         readonly MathBox? _index;

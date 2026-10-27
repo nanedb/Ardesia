@@ -108,6 +108,18 @@ public partial class App : Application
             return;
         }
 
+        // Prova delle formule LaTeX nelle caselle di testo: lettore, conversione, salvataggio; scrive il registro e un'immagine.
+        int pfo = Array.IndexOf(e.Args, "--prova-formule");
+        if (pfo >= 0)
+        {
+            var log = pfo + 1 < e.Args.Length && !e.Args[pfo + 1].StartsWith("--") ? e.Args[pfo + 1]
+                : Path.Combine(Path.GetTempPath(), "ardesia-formule.log");
+            File.WriteAllText(log, Editor.Formula.FormulaSelfTest.Run(out int failures));
+            Editor.Formula.FormulaSelfTest.RenderSample(Path.ChangeExtension(log, ".png"));
+            Shutdown(failures == 0 ? 0 : 1);
+            return;
+        }
+
         // Prova del PDF vettoriale: esporta un blocco appunti due volte (la seconda con le pagine già pronte), scrive tempi e pesi.
         int pp = Array.IndexOf(e.Args, "--prova-pdf");
         if (pp >= 0 && pp + 2 < e.Args.Length)
