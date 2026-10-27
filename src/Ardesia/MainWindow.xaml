@@ -94,6 +94,7 @@
                         <!-- le gomme prima delle penne, come nel gruppo «Strumenti» della barra completa -->
                         <ToggleButton Style="{StaticResource IconToggle}" Tag="Tool:EraserStroke" ToolTip="Gomma (tratti interi)"><TextBlock Style="{StaticResource SmallGlyph}" Text="&#xE75C;" FontSize="17" /></ToggleButton>
                         <ToggleButton Style="{StaticResource IconToggle}" Tag="Tool:EraserPoint" ToolTip="Gomma precisa (la freccetta sceglie la misura)"><Grid Width="32" Height="32"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconPointEraser}" HorizontalAlignment="Center" VerticalAlignment="Center" /><Button Style="{StaticResource PenChevron}" Width="13" Height="13" Click="EraserSize_Click" ToolTip="Misura della gomma" /></Grid></ToggleButton>
+                        <ToggleButton Style="{StaticResource IconToggle}" Tag="Tool:Laser" ToolTip="Puntatore laser: la scia svanisce da sola (ricliccalo o premi Esc per tornare allo strumento di prima)"><ContentControl ContentTemplate="{StaticResource LaserIcon}" Width="22" Height="22" Focusable="False" /></ToggleButton>
                         <Border Style="{StaticResource BarSeparator}" />
                         <Button Style="{StaticResource IconButton}" Click="InsertGraph_Click" ToolTip="Grafico di funzione: disegna le funzioni della casella di testo o della scrittura a mano selezionata (una per riga)"><ContentControl ContentTemplate="{StaticResource GraphIcon}" Width="22" Height="22" Focusable="False" /></Button>
                         <Button Style="{StaticResource IconButton}" Click="InsertGeoGebra_Click" ToolTip="Grafico con GeoGebra (serve internet): prende le funzioni dalla casella di testo, dalla scrittura a mano o dal grafico selezionato"><ContentControl ContentTemplate="{StaticResource GeoGebraIcon}" Width="22" Height="22" Focusable="False" /></Button>
@@ -281,6 +282,10 @@
                             </ToggleButton>
                             <ToggleButton Style="{StaticResource RibbonLargeToggle}" Tag="Tool:EraserPoint" c:Rb.Label="Gomma precisa" ToolTip="Cancella solo dove passi">
                                 <Grid Width="44" Height="30"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconPointEraser}" HorizontalAlignment="Center" /><Button Style="{StaticResource PenChevron}" Width="15" Height="15" Click="EraserSize_Click" ToolTip="Misura della gomma" /></Grid>
+                            </ToggleButton>
+                            <ToggleButton Style="{StaticResource RibbonLargeToggle}" Tag="Tool:Laser" c:Rb.Label="Laser"
+                                          ToolTip="Puntatore laser: la scia attira l'attenzione e svanisce da sola, senza restare sulla pagina. Ricliccalo o premi Esc per tornare allo strumento di prima.">
+                                <ContentControl ContentTemplate="{StaticResource LaserIcon}" Width="26" Height="26" Focusable="False" />
                             </ToggleButton>
                         </StackPanel>
                     </HeaderedContentControl>

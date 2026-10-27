@@ -16,7 +16,7 @@ using WpfPath = System.Windows.Shapes.Path;
 
 namespace Ardesia.Editor;
 
-public enum EditorTool { Select, Pen, Highlighter, Pencil, EraserStroke, EraserPoint, Text, Hand, Shape, Compass, Space }
+public enum EditorTool { Select, Pen, Highlighter, Pencil, EraserStroke, EraserPoint, Text, Hand, Shape, Compass, Space, Laser }
 
 /// <summary>
 /// Il foglio di una pagina: si estende all'infinito verso destra e verso il basso,
@@ -34,13 +34,14 @@ public partial class PageEditor : UserControl
     static ClipData? _clip;
     static int _pasteCount;
 
-    enum DragMode { None, Pan, Shape, CompassMove, CompassRadius, CompassDraw, MoveSelection, RulerLine, GraphPan, GraphSlider, Space }
+    enum DragMode { None, Pan, Shape, CompassMove, CompassRadius, CompassDraw, MoveSelection, RulerLine, GraphPan, GraphSlider, Space, Laser }
 
     readonly UndoManager _undo = new();
     readonly DispatcherTimer _commitTimer;
     readonly RulerTool _ruler = new();
     readonly ProtractorTool _protractor = new();
     readonly CompassTool _compass = new();
+    readonly LaserPointer _laser = new();
     readonly WpfPath _shapePreview = new()
     {
         IsHitTestVisible = false,
@@ -86,6 +87,7 @@ public partial class PageEditor : UserControl
         Overlay.Children.Add(_protractor);
         Overlay.Children.Add(_ruler);
         Overlay.Children.Add(_compass);
+        Overlay.Children.Add(_laser);
 
         Ink.StrokesReplaced += (_, e) =>
         {
@@ -156,6 +158,30 @@ public partial class PageEditor : UserControl
             EndDrag();
             e.Handled = true;
         };
+        // Puntatore laser con dito o penna: senza aspettare il clic «promosso» del mouse, che col tocco
+        // a volte non arriva; i punti della penna rendono anche la scia più morbida.
+        ContentHost.PreviewStylusDown += (_, e) =>
+        {
+            if (e.Handled || _tool != EditorTool.Laser || e.StylusDevice.Inverted || _drag != DragMode.None || _node == null) return;
+            if (FindAncestor<DraggableTool>(e.OriginalSource as DependencyObject) != null) return;
+            _drag = DragMode.Laser;
+            _laser.Zoom = _zoom;
+            _laser.Begin(e.GetPosition(Ink));
+            ContentHost.CaptureStylus();
+            e.Handled = true;
+        };
+        ContentHost.PreviewStylusMove += (_, e) =>
+        {
+            if (_drag != DragMode.Laser || e.StylusDevice.Inverted) return;
+            foreach (var sp in e.GetStylusPoints(Ink)) _laser.Add((Point)sp);
+            e.Handled = true;
+        };
+        ContentHost.PreviewStylusUp += (_, e) =>
+        {
+            if (_drag != DragMode.Laser || e.StylusDevice.Inverted) return;
+            EndDrag();
+            e.Handled = true;
+        };
         ContentHost.PreviewMouseDown += ContentHost_PreviewMouseDown;
         ContentHost.PreviewMouseMove += ContentHost_PreviewMouseMove;
         ContentHost.PreviewMouseUp += ContentHost_PreviewMouseUp;
@@ -209,8 +235,8 @@ public partial class PageEditor : UserControl
     EditorTool _lastStableTool = EditorTool.Pen;
     string _shownTitle = "";
 
-    /// <summary>Strumenti "di passaggio": compasso, forme, sposta pagina, inserisci spazio.</summary>
-    public static bool IsTemporary(EditorTool t) => t is EditorTool.Compass or EditorTool.Shape or EditorTool.Hand or EditorTool.Space;
+    /// <summary>Strumenti "di passaggio": compasso, forme, sposta pagina, inserisci spazio, puntatore laser.</summary>
+    public static bool IsTemporary(EditorTool t) => t is EditorTool.Compass or EditorTool.Shape or EditorTool.Hand or EditorTool.Space or EditorTool.Laser;
 
     /// <summary>Esce dal compasso/forme/sposta e torna allo strumento usato prima.</summary>
     public bool ExitTemporaryTool()
@@ -256,6 +282,7 @@ public partial class PageEditor : UserControl
         EndDrag();
         _notebook = nb;
         _node = node;
+        _laser.Clear();
         _loading = true;
         try
         {
@@ -387,7 +414,7 @@ public partial class PageEditor : UserControl
             EditorTool.Text => Cursors.IBeam,
             EditorTool.Hand => Cursors.ScrollAll,
             EditorTool.Space => Cursors.SizeNS,
-            EditorTool.Shape or EditorTool.Compass => Cursors.Cross,
+            EditorTool.Shape or EditorTool.Compass or EditorTool.Laser => Cursors.Cross,
             _ => null,
         };
 
@@ -1683,7 +1710,7 @@ public partial class PageEditor : UserControl
             }
             var src = e.OriginalSource as DependencyObject;
             if (e.StylusDevice.Inverted) return; // il palmo appoggiato cancella, non apre il menu
-            if (_tool is EditorTool.Hand or EditorTool.Space) return; // la pressione serve a scorrere / a trascinare lo spazio
+            if (_tool is EditorTool.Hand or EditorTool.Space or EditorTool.Laser) return; // la pressione serve a scorrere / a trascinare lo spazio / a indicare
             if (_node == null || _drag != DragMode.None || IsWithin(src, TitleArea) ||
                 FindAncestor<DraggableTool>(src) != null || (_tool == EditorTool.Text && FindAncestor<TextBoxBase>(src) != null))
                 return;
@@ -1861,6 +1888,14 @@ public partial class PageEditor : UserControl
                 e.Handled = true;
                 break;
 
+            case EditorTool.Laser:
+                _drag = DragMode.Laser;
+                _laser.Zoom = _zoom;
+                _laser.Begin(p);
+                ContentHost.CaptureMouse();
+                e.Handled = true;
+                break;
+
             case EditorTool.Space:
                 if (onTitle) return;
                 BeginSpace(p);
@@ -1968,6 +2003,9 @@ public partial class PageEditor : UserControl
             case DragMode.Space:
                 ContinueSpace(p);
                 break;
+            case DragMode.Laser:
+                _laser.Add(p);
+                break;
         }
         e.Handled = true;
     }
@@ -1998,6 +2036,7 @@ public partial class PageEditor : UserControl
         if (ended == DragMode.GraphPan) EndGraphPan();
         if (ended == DragMode.GraphSlider) EndGraphSlider();
         if (ended == DragMode.Space) EndSpace();
+        if (ended == DragMode.Laser) _laser.End();
         DeferCommit();
     }
 

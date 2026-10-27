@@ -41,6 +41,18 @@
             </Grid>
         </Viewbox>
     </DataTemplate>
+    <!-- Puntatore laser: la penna e il punto luminoso bianco con l'alone rosso -->
+    <DataTemplate x:Key="LaserIcon">
+        <Viewbox Stretch="Uniform">
+            <Grid Width="24" Height="24">
+                <Path Data="M3,18.5 L11.5,10 L14,12.5 L5.5,21 Z M12.75,11.25 L14.5,9.5" Stroke="{StaticResource TextBrush}" StrokeThickness="1.6"
+                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
+                <Ellipse Width="11" Height="11" Margin="12.5,0.5,0.5,12.5" Fill="#55FF2020" />
+                <Ellipse Width="6" Height="6" Margin="15,3,3,15" Fill="#FFF01010" />
+                <Ellipse Width="2.6" Height="2.6" Margin="16.7,4.7,4.7,16.7" Fill="White" />
+            </Grid>
+        </Viewbox>
+    </DataTemplate>
     <!-- GeoGebra, nello stile del suo logo: ellisse inclinata con cinque punti -->
     <DataTemplate x:Key="GeoGebraIcon">
         <Viewbox Stretch="Uniform">
