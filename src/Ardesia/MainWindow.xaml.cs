@@ -150,7 +150,15 @@ public partial class MainWindow : Window
         nb.PropertyChanged += Notebook_PropertyChanged;
         _section = null;
         _page = null;
-        ShowSection(nb.Sections.FirstOrDefault());
+        // si riapre dov'eravamo l'ultima volta su questo PC (pagina, scorrimento, zoom)
+        var place = path != null && _settings.Places.TryGetValue(path, out var p) ? p : null;
+        var lastPage = place == null ? null : nb.AllPages().FirstOrDefault(n => n.Id == place.Page);
+        ShowSection(lastPage?.OwningSection ?? nb.Sections.FirstOrDefault());
+        if (lastPage != null && place != null)
+        {
+            OpenPage(lastPage);
+            Editor.RestoreView(place.X, place.Y, place.Zoom);
+        }
         _dirty = false;
         _classPdfStale = false;
         UpdateTitle();
@@ -241,6 +249,7 @@ public partial class MainWindow : Window
             StatusText.ToolTip = _path;
             if (_driveId != null) DriveSaved();
             _settings.AddRecent(_path);
+            RememberPlace();
             _settings.Save();
             return true;
         }
@@ -294,6 +303,8 @@ public partial class MainWindow : Window
     bool ConfirmClose()
     {
         Editor.Flush();
+        RememberPlace();
+        _settings.Save();
         if (!_dirty || _path == null || Save(quiet: true))
         {
             if (_driveId != null) DriveSync.Current?.UploadSoon(_driveId); // cambio di blocco: si carica subito
@@ -520,6 +531,17 @@ public partial class MainWindow : Window
         Editor.Visibility = page != null ? Visibility.Visible : Visibility.Hidden;
         EmptyState.Visibility = page == null ? Visibility.Visible : Visibility.Collapsed;
         SyncRibbon();
+        // anche se la LIM si spegne senza chiudere Ardesia, la pagina resta ricordata
+        RememberPlace();
+        _settings.Save();
+    }
+
+    /// <summary>Annota nelle impostazioni la pagina aperta, lo scorrimento e lo zoom di questo blocco appunti.</summary>
+    void RememberPlace()
+    {
+        if (_path == null || _page == null) return;
+        var (x, y, zoom) = Editor.View;
+        _settings.RememberPlace(_path, new NotebookPlace { Page = _page.Id, X = x, Y = y, Zoom = zoom, At = DateTime.UtcNow });
     }
 
     void SectionTree_SelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)

@@ -26,6 +26,16 @@ public class PenPreset
     };
 }
 
+/// <summary>Il punto di un blocco appunti dove si era: pagina, angolo in alto a sinistra della vista (coordinate della pagina), zoom.</summary>
+public sealed class NotebookPlace
+{
+    public Guid Page { get; set; }
+    public double X { get; set; }
+    public double Y { get; set; }
+    public double Zoom { get; set; } = 1;
+    public DateTime At { get; set; }
+}
+
 public class AppSettings
 {
     public string? LastFile { get; set; }
@@ -42,6 +52,19 @@ public class AppSettings
     /// <summary>Ultimo controllo delle versioni nuove su GitHub (ora UTC) e la release trovata (Services/Updates.cs).</summary>
     public DateTime? UpdateCheckedAt { get; set; }
     public ReleaseInfo? LatestRelease { get; set; }
+
+    /// <summary>
+    /// Dove si era in ogni blocco appunti (per percorso del file): pagina, scorrimento e zoom, per riaprirlo lì.
+    /// Sta qui e non nel blocco: è di questo PC, e cambiare pagina non deve diventare una modifica da caricare su Drive.
+    /// </summary>
+    public Dictionary<string, NotebookPlace> Places { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    public void RememberPlace(string path, NotebookPlace place)
+    {
+        Places[path] = place;
+        // si tengono i 40 blocchi usati più di recente
+        foreach (var old in Places.OrderByDescending(p => p.Value.At).Skip(40).Select(p => p.Key).ToList()) Places.Remove(old);
+    }
 
     /// <summary>Se false le impostazioni non vengono scritte su disco (usato nei test).</summary>
     [System.Text.Json.Serialization.JsonIgnore] public bool Persist { get; set; } = true;

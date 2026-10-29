@@ -27,7 +27,7 @@ Sono «di questo PC» anche, senza bisogno di aprire le Impostazioni:
 - le **penne** della barra (colori, spessori, matite);
 - la misura della **gomma precisa**;
 - la scelta fra barra **completa** e **semplificata**;
-- l'**ultimo blocco** aperto (che si riapre all'avvio) e le ultime cartelle usate;
+- l'**ultimo blocco** aperto (che si riapre all'avvio), il **punto dove eri** in ogni blocco (pagina, scorrimento, zoom) e le ultime cartelle usate;
 - l'**accesso a Google** (cifrato, in `%LocalAppData%\Ardesia`).
 
 Tutto si trova nel file `%AppData%\Ardesia\settings.json` del tuo utente Windows. Su un PC dove entrano più docenti, ognuno con il suo utente, ognuno ha le sue impostazioni.

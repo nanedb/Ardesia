@@ -14,7 +14,7 @@ Sotto c'è l'elenco dei **Recenti**: un clic riapre un blocco usato di recente. 
 
 ## Gli avvii successivi
 
-Dalla seconda volta Ardesia **riapre direttamente l'ultimo blocco appunti** usato, alla pagina dove eri rimasto. La schermata iniziale ricompare solo se quel file non si trova più, per esempio perché è stato spostato, rinominato o perché è su `G:` e *Google Drive per desktop* non è avviato. In quel caso il messaggio dice quale file manca: puoi avviare Drive e riaprire Ardesia, oppure scegliere un altro blocco. (I blocchi salvati su Drive **da Ardesia** non hanno questo problema: si riaprono anche senza Drive per desktop.)
+Dalla seconda volta Ardesia **riapre direttamente l'ultimo blocco appunti** usato, **nel punto dove eri rimasto**: la stessa pagina, scorsa e ingrandita come l'avevi lasciata. Lo stesso vale per ogni blocco che riapri (fino a 40), anche se la LIM è stata spenta senza chiudere Ardesia (in quel caso si riparte dalla pagina, non sempre dallo scorrimento). Il punto è ricordato su ciascun PC. La schermata iniziale ricompare solo se quel file non si trova più, per esempio perché è stato spostato, rinominato o perché è su `G:` e *Google Drive per desktop* non è avviato. In quel caso il messaggio dice quale file manca: puoi avviare Drive e riaprire Ardesia, oppure scegliere un altro blocco. (I blocchi salvati su Drive **da Ardesia** non hanno questo problema: si riaprono anche senza Drive per desktop.)
 
 Ardesia si apre **una volta sola**: se la avvii di nuovo (o fai doppio clic su un file `.ardesia`) mentre è già aperta, torna in primo piano quella aperta, con il file scelto. Così lo stesso blocco non finisce aperto due volte.
 

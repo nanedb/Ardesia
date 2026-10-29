@@ -2803,6 +2803,27 @@ public partial class PageEditor : UserControl
         }
     }
 
+    /// <summary>Il punto della pagina in alto a sinistra della vista (in coordinate della pagina) e lo zoom.</summary>
+    public (double X, double Y, double Zoom) View =>
+        (Scroller.HorizontalOffset / _zoom, Scroller.VerticalOffset / _zoom, _zoom);
+
+    /// <summary>
+    /// Rimette la vista dov'era (riapertura di un blocco appunti): dopo il caricamento della pagina, quando il foglio
+    /// ha già le sue misure, così lo scorrimento non viene tagliato.
+    /// </summary>
+    public void RestoreView(double x, double y, double zoom)
+    {
+        var page = _node;
+        Dispatcher.BeginInvoke(() =>
+        {
+            if (_node != page || page == null) return; // nel frattempo si è cambiata pagina
+            ZoomAt(zoom, new Point(0, 0));
+            UpdateCanvasSize();
+            Scroller.UpdateLayout();
+            ScrollToOffset(x * _zoom, y * _zoom);
+        }, DispatcherPriority.Loaded);
+    }
+
     public void ZoomIn() => ZoomAt(_zoom * 1.2);
     public void ZoomOut() => ZoomAt(_zoom / 1.2);
     public void ZoomReset() => ZoomAt(1);
