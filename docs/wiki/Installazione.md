@@ -30,7 +30,7 @@ Che cosa viene installato:
 
 ### Aggiornare a una versione nuova
 
-Dalla versione 0.7.2 Ardesia controlla da sola, una volta al giorno, se c'è una versione nuova. Quando c'è, in alto a destra compare il pulsante **«Nuova versione X.Y.Z»**: cliccalo quando vuoi, anche a fine lezione. Si apre una finestrella con le novità e il pulsante **«Aggiorna adesso»**: Ardesia scarica l'aggiornamento, salva, si chiude, si aggiorna e si riapre da sola in circa un minuto. Non servono le credenziali di amministratore. Se preferisci aspettare, premi «Più tardi»: il pulsante resta nella barra.
+Dalla versione 0.7.2 Ardesia controlla da sola se c'è una versione nuova, ogni volta che si apre (e, se resta accesa, ogni 6 ore); per controllare subito c'è **File › Controlla gli aggiornamenti…**. Quando c'è, in alto a destra compare il pulsante **«Nuova versione X.Y.Z»**: cliccalo quando vuoi, anche a fine lezione. Si apre una finestrella con le novità e il pulsante **«Aggiorna adesso»**: Ardesia scarica l'aggiornamento, salva, si chiude, si aggiorna e si riapre da sola in circa un minuto. Non servono le credenziali di amministratore. Se preferisci aspettare, premi «Più tardi»: il pulsante resta nella barra.
 
 Puoi anche aggiornare a mano: scarica il nuovo `ArdesiaSetup-X.Y.Z.exe` ed eseguilo, e sostituisce la versione precedente. In entrambi i casi i tuoi blocchi appunti e le tue impostazioni (penne, ultimo file aperto…) restano.
 

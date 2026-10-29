@@ -19,8 +19,7 @@ public sealed class ReleaseInfo
 }
 
 /// <summary>
-/// Controllo delle versioni nuove: Ardesia chiede a GitHub l'ultima release (al massimo una volta al giorno: GitHub
-/// accetta 60 richieste all'ora per indirizzo, e le LIM di una scuola escono spesso dallo stesso), scarica l'installer
+/// Controllo delle versioni nuove: Ardesia chiede a GitHub l'ultima release a ogni avvio (e dal menu File), scarica l'installer
 /// e lo avvia all'uscita in modalità silenziosa; l'installer aspetta che Ardesia sia chiusa e poi la riapre.
 /// Senza rete, o con il repository non raggiungibile, non dice niente.
 /// </summary>
@@ -56,40 +55,42 @@ public static class Updates
     public static string? PendingSetup { get; set; }
 
     /// <summary>
-    /// La versione più nuova di quella in uso, se c'è; null altrimenti o se il controllo non riesce. Se l'ultimo
-    /// controllo è di meno di 20 ore fa usa la risposta salvata nelle impostazioni.
+    /// Chiede a GitHub l'ultima release. <c>Newer</c> è la versione più nuova di quella in uso, se c'è;
+    /// <c>Checked</c> è falso se GitHub non ha risposto (senza rete, o troppe richieste dallo stesso indirizzo):
+    /// allora <c>Newer</c> viene dall'ultima risposta buona, salvata nelle impostazioni.
     /// </summary>
-    public static async Task<ReleaseInfo?> CheckAsync(AppSettings settings, CancellationToken ct = default)
+    public static async Task<(ReleaseInfo? Newer, bool Checked)> CheckAsync(AppSettings settings, CancellationToken ct = default)
     {
-        ReleaseInfo? latest;
+        static ReleaseInfo? IfNewer(ReleaseInfo? r) => r?.Parsed is { } v && v > Current ? r : null;
+
         var test = Environment.GetEnvironmentVariable(TestVariable);
         if (!string.IsNullOrEmpty(test))
         {
-            latest = Parse(test.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+            var fake = Parse(test.StartsWith("http", StringComparison.OrdinalIgnoreCase)
                 ? await Http.GetStringAsync(test, ct)
                 : await File.ReadAllTextAsync(test, ct));
+            return (IfNewer(fake), true);
         }
-        else if (settings.UpdateCheckedAt is { } at && DateTime.UtcNow - at < TimeSpan.FromHours(20))
+
+        ReleaseInfo? latest;
+        try
         {
-            latest = settings.LatestRelease;
+            using var response = await Http.GetAsync(LatestUrl, ct);
+            // 403/429: GitHub accetta 60 richieste all'ora per indirizzo, e le LIM di una scuola escono spesso
+            // dallo stesso (molte accese insieme alla prima ora): vale l'ultima risposta buona
+            if ((int)response.StatusCode is 403 or 429 || (int)response.StatusCode >= 500)
+                return (IfNewer(settings.LatestRelease), false);
+            // 404: nessuna release pubblicata
+            latest = response.IsSuccessStatusCode ? Parse(await response.Content.ReadAsStringAsync(ct)) : null;
         }
-        else
+        catch (Exception ex) when (ex is HttpRequestException or JsonException || ex is TaskCanceledException && !ct.IsCancellationRequested)
         {
-            try
-            {
-                using var response = await Http.GetAsync(LatestUrl, ct);
-                // 404: nessuna release, o repository non pubblico; si riprova domani
-                latest = response.IsSuccessStatusCode ? Parse(await response.Content.ReadAsStringAsync(ct)) : null;
-            }
-            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
-            {
-                return null; // senza rete: si riprova al prossimo avvio
-            }
-            settings.UpdateCheckedAt = DateTime.UtcNow;
-            settings.LatestRelease = latest;
-            settings.Save();
+            return (IfNewer(settings.LatestRelease), false); // senza rete: si riprova al prossimo avvio
         }
-        return latest?.Parsed is { } v && v > Current ? latest : null;
+        settings.UpdateCheckedAt = DateTime.UtcNow;
+        settings.LatestRelease = latest;
+        settings.Save();
+        return (IfNewer(latest), true);
     }
 
     /// <summary>Legge la risposta di GitHub (releases/latest): versione dal tag «vX.Y.Z», note, installer.</summary>

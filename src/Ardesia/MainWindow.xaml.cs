@@ -1587,8 +1587,8 @@ public partial class MainWindow : Window
     ReleaseInfo? _newRelease;
 
     /// <summary>
-    /// Controllo delle versioni nuove poco dopo l'avvio (per non rallentarlo) e poi ogni 6 ore, perché le LIM restano
-    /// accese per giorni; GitHub viene interpellato al massimo una volta al giorno (Services/Updates.cs).
+    /// Controllo delle versioni nuove a ogni avvio, pochi secondi dopo (per non rallentarlo), e poi ogni 6 ore,
+    /// perché le LIM restano accese per giorni. A mano: File › Controlla gli aggiornamenti.
     /// </summary>
     void StartUpdateChecks()
     {
@@ -1607,12 +1607,17 @@ public partial class MainWindow : Window
         ReleaseInfo? release;
         try
         {
-            release = await Updates.CheckAsync(_settings);
+            (release, _) = await Updates.CheckAsync(_settings);
         }
         catch
         {
             return; // risposta strana o file di prova illeggibile: nessun avviso
         }
+        ShowUpdateButton(release);
+    }
+
+    void ShowUpdateButton(ReleaseInfo? release)
+    {
         _newRelease = release;
         UpdateButton.Visibility = release != null ? Visibility.Visible : Visibility.Collapsed;
         if (release == null) return;
@@ -1620,9 +1625,42 @@ public partial class MainWindow : Window
         UpdateButton.ToolTip = $"È disponibile Ardesia {release.Version}: guarda le novità e aggiorna";
     }
 
+    /// <summary>File › Controlla gli aggiornamenti: come il controllo all'avvio, ma dice sempre com'è andata.</summary>
+    void CheckForUpdatesNow()
+    {
+        (ReleaseInfo? Newer, bool Checked) result;
+        try
+        {
+            result = BusyDialog.Run(this, "Controllo se c'è una versione nuova…", (_, ct) => Updates.CheckAsync(_settings, ct));
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        catch (Exception ex)
+        {
+            AppMessage.Show(this, "La risposta del sito degli aggiornamenti non si capisce.\n\n" + ex.Message, MessageIcon.Warning, "Controllo non riuscito");
+            return;
+        }
+        ShowUpdateButton(result.Newer);
+        if (result.Newer != null)
+            ShowUpdate(result.Newer);
+        else if (result.Checked)
+            AppMessage.Show(this, $"Sul computer c'è già la versione più recente di Ardesia ({Updates.Current.ToString(3)}).",
+                MessageIcon.Info, "Nessun aggiornamento");
+        else
+            AppMessage.Show(this, "Non sono riuscita a controllare se c'è una versione nuova. Controlla la connessione a internet e riprova più tardi.",
+                MessageIcon.Warning, "Controllo non riuscito");
+    }
+
     void UpdateButton_Click(object sender, RoutedEventArgs e)
     {
-        if (_newRelease is not { } release) return;
+        if (_newRelease is { } release) ShowUpdate(release);
+    }
+
+    /// <summary>Le novità della versione nuova e, con «Aggiorna adesso», lo scaricamento e l'installazione.</summary>
+    void ShowUpdate(ReleaseInfo release)
+    {
         bool installed = Updates.IsInstalled && release.SetupUrl != null;
         var dlg = new UpdateDialog(release, installed) { Owner = this, WindowStartupLocation = WindowStartupLocation.CenterOwner };
         dlg.ShowDialog();
@@ -1759,6 +1797,7 @@ public partial class MainWindow : Window
         menu.Items.Add(new Separator());
         menu.Items.Add(Item("Prova del tocco della LIM…", () => new TouchTestWindow { Owner = this, WindowState = WindowState.Maximized }.ShowDialog()));
         menu.Items.Add(Item("Impostazioni…", () => OpenSettings()));
+        menu.Items.Add(Item("Controlla gli aggiornamenti…", CheckForUpdatesNow));
         menu.Items.Add(new Separator());
         menu.Items.Add(Item("Esci", Close));
         menu.IsOpen = true;

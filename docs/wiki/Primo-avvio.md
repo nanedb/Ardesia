@@ -55,6 +55,7 @@ Dal menu **File** (in alto a sinistra):
 | **Elimina il blocco appunti…** | Solo per i blocchi su Drive: lo mette nel cestino di Drive |
 | **Prova del tocco della LIM…** | Vedi [Uso sulle LIM](Uso-sulle-LIM.md) |
 | **Impostazioni…** | Vedi [Impostazioni](Impostazioni.md) |
+| **Controlla gli aggiornamenti…** | Chiede subito se c'è una versione nuova di Ardesia: se c'è, mostra le novità e il pulsante per aggiornare. Vedi [Installazione](Installazione.md) |
 | **Esci** | Chiude Ardesia (salvando) |
 
 Si lavora su **un blocco appunti alla volta**: aprendone un altro, quello corrente viene salvato e chiuso.
