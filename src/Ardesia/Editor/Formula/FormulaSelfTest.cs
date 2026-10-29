@@ -41,6 +41,36 @@ public static class FormulaSelfTest
             if (!ok) fail++;
         }
 
+        // ── il carattere di LaTeX incorporato si trova, in tutte e quattro le forme ──
+        foreach (var family in Fonts.GetFontFamilies(new Uri("pack://application:,,,/Assets/Fonts/")))
+            log.AppendLine("        carattere incorporato: " + family.Source + " = " + string.Join(", ", family.FamilyNames.Values));
+        foreach (var (style, weight, file) in new[]
+                 {
+                     (FontStyles.Normal, FontWeights.Normal, "lmroman10-regular"), (FontStyles.Italic, FontWeights.Normal, "lmroman10-italic"),
+                     (FontStyles.Normal, FontWeights.Bold, "lmroman10-bold"), (FontStyles.Italic, FontWeights.Bold, "lmroman10-bolditalic"),
+                 })
+        {
+            bool found = new Typeface(LatexLayout.MathFont, style, weight, FontStretches.Normal).TryGetGlyphTypeface(out var g);
+            Check(found && g.FontUri.ToString().Contains(file, StringComparison.OrdinalIgnoreCase),
+                $"Latin Modern {style} {weight}: {(found ? g.FontUri.ToString() : "non trovato")}");
+        }
+
+        // Latin Modern Math: si trova e dà davvero i simboli che Latin Modern Roman non ha (si confrontano le larghezze)
+        var mathFamily = new FontFamily(new Uri("pack://application:,,,/"), "./Assets/Fonts/#Latin Modern Math");
+        bool mathFound = new Typeface(mathFamily, FontStyles.Normal, FontWeights.Normal, FontStretches.Normal).TryGetGlyphTypeface(out var lmMath) &&
+                         lmMath.FontUri.ToString().Contains("latinmodern-math", StringComparison.OrdinalIgnoreCase);
+        Check(mathFound, "Latin Modern Math incorporato");
+        if (mathFound)
+            foreach (var sample in new[] { "∑", "∫", "≤", ArdesiaFonts.MathItalic("x"), ArdesiaFonts.MathItalic("α") })
+            {
+                int cp = char.ConvertToUtf32(sample, 0);
+                bool has = lmMath.CharacterToGlyphMap.TryGetValue(cp, out var glyph);
+                double expected = has ? lmMath.AdvanceWidths[glyph] * 100 : -1;
+                double actual = new FormattedText(sample, System.Globalization.CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
+                    new Typeface(ArdesiaFonts.LatinModern, FontStyles.Normal, FontWeights.Normal, FontStretches.Normal), 100, Brushes.Black, 1).WidthIncludingTrailingWhitespace;
+                Check(has && Math.Abs(actual - expected) < 0.5, $"«{sample}» (U+{cp:X4}) da Latin Modern Math: larghezza {actual:0.0} (attesa {expected:0.0})");
+            }
+
         // ── il lettore capisce le formule di scuola, e segnala quelle sbagliate ──
         foreach (var s in Samples)
         {
@@ -63,7 +93,7 @@ public static class FormulaSelfTest
         Check(!LatexLayout.LooksLikeLatex(@"C:\cartella\file"), "una barra rovesciata qualsiasi non è LaTeX");
 
         // ── conversione in una casella vera ──
-        var rtb = ElementFactory.CreateTextBox(new FontFamily(ElementFactory.DefaultFont), 24, Brushes.Black);
+        var rtb = ElementFactory.CreateTextBox(ElementFactory.DefaultFontFamily, 24, Brushes.Black);
         ElementFactory.SetPlainText(rtb, @"L'area è $\pi r^2$ e il volume $$\frac{4}{3}\pi r^3$$.");
         var para = (Paragraph)rtb.Document.Blocks.FirstBlock;
         int n = FormulaText.ConvertParagraph(para, rtb).Count;
@@ -73,13 +103,13 @@ public static class FormulaSelfTest
         Check(text == @"L'area è $\pi r^2$ e il volume $\frac{4}{3}\pi r^3$.", $"testo con le formule: «{text}»");
 
         // senza dollari ma con comandi: tutta la riga
-        var rtb2 = ElementFactory.CreateTextBox(new FontFamily(ElementFactory.DefaultFont), 24, Brushes.Black);
+        var rtb2 = ElementFactory.CreateTextBox(ElementFactory.DefaultFontFamily, 24, Brushes.Black);
         ElementFactory.SetPlainText(rtb2, @"\frac{a}{b} + \sqrt{2}");
         Check(FormulaText.ConvertParagraph((Paragraph)rtb2.Document.Blocks.FirstBlock, rtb2).Count == 1 &&
               FormulaText.PlainText(rtb2.Document).Trim() == @"$\frac{a}{b} + \sqrt{2}$", "riga tutta in LaTeX senza dollari");
 
         // testo normale: niente
-        var rtb3 = ElementFactory.CreateTextBox(new FontFamily(ElementFactory.DefaultFont), 24, Brushes.Black);
+        var rtb3 = ElementFactory.CreateTextBox(ElementFactory.DefaultFontFamily, 24, Brushes.Black);
         ElementFactory.SetPlainText(rtb3, "Costa 5 $ o 4 €");
         Check(FormulaText.ConvertParagraph((Paragraph)rtb3.Document.Blocks.FirstBlock, rtb3).Count == 0, "un dollaro solo non fa una formula");
 
@@ -91,12 +121,17 @@ public static class FormulaSelfTest
         var plainHead = Head(ElementFactory.GetXaml(rtb3));
         Check(Head(xaml) == plainHead, "con le formule il documento si salva con le stesse impostazioni del testo normale");
         if (Head(xaml) != plainHead) log.AppendLine("        testo normale: " + plainHead);
-        var back = ElementFactory.CreateTextBox(new FontFamily(ElementFactory.DefaultFont), 24, Brushes.Black);
+        var back = ElementFactory.CreateTextBox(ElementFactory.DefaultFontFamily, 24, Brushes.Black);
         ElementFactory.SetXaml(back, xaml);
         Check(FormulaText.PlainText(back.Document).Trim() == text, "ricaricata, la casella è uguale");
         Check(FormulaText.HasFormulas(back.Document), "ricaricata, le formule sono di nuovo formule");
+        var firstRun = back.Document.Blocks.OfType<Paragraph>().SelectMany(p => p.Inlines).OfType<Run>().First();
+        Check(xaml.Contains("#Latin Modern Roman 10") &&
+              new Typeface(firstRun.FontFamily, FontStyles.Normal, FontWeights.Normal, FontStretches.Normal).TryGetGlyphTypeface(out var reloaded) &&
+              reloaded.FontUri.ToString().Contains("lmroman10", StringComparison.OrdinalIgnoreCase),
+            "ricaricato, il testo è ancora in Latin Modern (il carattere incorporato)");
         Check(ElementFactory.GetXaml(back) == xaml, "risalvata, il file è identico");
-        var onlyFormula = ElementFactory.CreateTextBox(new FontFamily(ElementFactory.DefaultFont), 24, Brushes.Black);
+        var onlyFormula = ElementFactory.CreateTextBox(ElementFactory.DefaultFontFamily, 24, Brushes.Black);
         ElementFactory.SetPlainText(onlyFormula, "$x$");
         FormulaText.ConvertParagraph((Paragraph)onlyFormula.Document.Blocks.FirstBlock);
         Check(!ElementFactory.IsEmpty(onlyFormula), "una casella con solo una formula non è vuota");
@@ -129,7 +164,7 @@ public static class FormulaSelfTest
     /// <summary>Immagine di controllo: le formule di prova dentro una casella di testo, tra parole normali.</summary>
     public static void RenderSample(string path)
     {
-        var rtb = ElementFactory.CreateTextBox(new FontFamily(ElementFactory.DefaultFont), 24, Brushes.Black, 900, export: true);
+        var rtb = ElementFactory.CreateTextBox(ElementFactory.DefaultFontFamily, 24, Brushes.Black, 900, export: true);
         var lines = new List<string> { "Formule nel testo: l'area del cerchio è $\\pi r^2$, la diagonale $d = \\sqrt{2}\\,l$ e $\\frac{1}{2}$ di torta." };
         lines.AddRange(Samples.Select(s => "$" + s + "$"));
         ElementFactory.SetPlainText(rtb, string.Join("\n", lines));

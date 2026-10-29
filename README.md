@@ -71,3 +71,5 @@ Entrambi includono .NET e non richiedono altro software. Servono Windows 10/11 a
 ## Licenza
 
 Ardesia è distribuita con la [licenza MIT](LICENSE): si può usare, modificare e ridistribuire liberamente, mantenendo l'avviso di copyright.
+
+Ardesia contiene i caratteri **Latin Modern Roman** (© B. Jackowski e J. M. Nowacki) e **Latin Modern Math** (© B. Jackowski, P. Strzelczyk e P. Pianowski), per conto dei gruppi di utenti TeX, distribuiti invariati con la [GUST Font License](src/Ardesia/Assets/Fonts/GUST-FONT-LICENSE.txt) (LPPL 1.3c): vedi `src/Ardesia/Assets/Fonts/README-Latin-Modern.txt` e `README-Latin-Modern-Math.txt`.

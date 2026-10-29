@@ -16,7 +16,8 @@ namespace Ardesia.Editor.Formula;
 public sealed class LatexLayout
 {
     static readonly CultureInfo It = CultureInfo.GetCultureInfo("it-IT");
-    static readonly FontFamily MathFont = new("Cambria, Cambria Math, Segoe UI Symbol, Times New Roman");
+    /// <summary>Latin Modern, il carattere di LaTeX (vedi <see cref="ArdesiaFonts"/>).</summary>
+    public static FontFamily MathFont => ArdesiaFonts.LatinModern;
     static readonly Brush ErrorBrush = Paint.Freeze(new SolidColorBrush(Color.FromRgb(0xC4, 0x2B, 0x1C)));
 
     /// <summary>Classi di TeX: decidono gli spazi tra un pezzo e l'altro.</summary>
@@ -254,7 +255,7 @@ public sealed class LatexLayout
 
         _i++;
         if (char.IsLetter(c))
-            return new Atom(Glyph(c.ToString(), size, Face.Italic), K.Ord, Italic: true);
+            return new Atom(Var(c.ToString(), size), K.Ord, Italic: true);
 
         return c switch
         {
@@ -293,6 +294,14 @@ public sealed class LatexLayout
             }
             _i = save;
             break;
+        }
+        if (primes > 0 && sup == null)
+        {
+            // il ′ di Latin Modern Math è già disegnato in alto: va in riga, non come esponente (sarebbe troppo alto)
+            var row = new MathLayout.RowOf(atom.Box, Glyph(new string('′', primes), size, Face.Upright));
+            atom = atom with { Box = row, Italic = false };
+            primes = 0;
+            if (sub == null) return atom;
         }
         if (primes > 0)
         {
@@ -432,7 +441,7 @@ public sealed class LatexLayout
     {
         var c = ReadCommand();
 
-        if (Greek.TryGetValue(c, out var g)) return new Atom(Glyph(g, size, Face.Italic), K.Ord, Italic: true);
+        if (Greek.TryGetValue(c, out var g)) return new Atom(Var(g, size), K.Ord, Italic: true);
         if (GreekUpper.TryGetValue(c, out var gu)) return new Atom(Glyph(gu, size, Face.Upright), K.Ord);
         if (Symbols.TryGetValue(c, out var sym)) return new Atom(Glyph(sym.Text, size, Face.Upright), sym.Kind);
         if (Spaces.TryGetValue(c, out var em)) return new Atom(Space(size * em), K.Ord);
@@ -712,7 +721,11 @@ public sealed class LatexLayout
                 face is Face.Bold or Face.BoldItalic ? FontWeights.Bold : FontWeights.Normal, FontStretches.Normal),
             size, brush ?? _brush, _ppd);
 
-    MathBox Glyph(string s, double size, Face face, Brush? brush = null) => new GlyphBox(Text(s, size, face, brush), size);
+    /// <summary>Una lettera della formula, nel corsivo matematico di Latin Modern Math (vedi <see cref="ArdesiaFonts.MathItalic"/>).</summary>
+    MathBox Var(string s, double size) => new GlyphBox(Text(ArdesiaFonts.MathItalic(s), size, Face.Upright), size, italic: true);
+
+    MathBox Glyph(string s, double size, Face face, Brush? brush = null) =>
+        new GlyphBox(Text(s, size, face, brush), size, face is Face.Italic or Face.BoldItalic);
 
     /// <summary>Contenuto tra parentesi: col carattere se è basso, disegnate alte quanto serve se è alto.</summary>
     MathBox Delimited(string open, MathBox inner, string close, double size, bool forceDrawn = false)
@@ -750,10 +763,12 @@ public sealed class LatexLayout
     {
         readonly FormattedText _ft;
 
-        public GlyphBox(FormattedText ft, double size)
+        public GlyphBox(FormattedText ft, double size, bool italic)
         {
             _ft = ft;
-            Width = ft.WidthIncludingTrailingWhitespace;
+            // correzione del corsivo, come in TeX: la lettera inclinata sporge a destra oltre la sua larghezza
+            // e senza questo spazio «x + y» sembra «x+ y»
+            Width = ft.WidthIncludingTrailingWhitespace + (italic ? Math.Max(0, -ft.OverhangTrailing) : 0);
             Ascent = size * 0.72;
             Descent = size * 0.24;
         }
@@ -798,7 +813,7 @@ public sealed class LatexLayout
             _base = bas;
             _sup = sup;
             _sub = sub;
-            _supGap = italic ? size * 0.07 : size * 0.03; // correzione del corsivo: x² non deve toccare la x
+            _supGap = size * 0.03; // la correzione del corsivo è già nella larghezza della lettera (GlyphBox)
             if (sup != null) _raise = Math.Max(size * 0.42, bas.Ascent - sup.Ascent * 0.45);
             if (sub != null) _drop = Math.Max(size * 0.2, bas.Descent + sub.Ascent * 0.5 - size * 0.24 * 0.5);
             if (sup != null && sub != null)

@@ -12,8 +12,9 @@ namespace Ardesia.Editor.Graph;
 public static class MathLayout
 {
     static readonly CultureInfo It = CultureInfo.GetCultureInfo("it-IT");
-    static readonly Typeface Upright = new(new FontFamily("Cambria, Cambria Math, Times New Roman"), FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
-    static readonly Typeface Italic = new(new FontFamily("Cambria, Cambria Math, Times New Roman"), FontStyles.Italic, FontWeights.Normal, FontStretches.Normal);
+    // Latin Modern, il carattere di LaTeX (ArdesiaFonts), come le formule delle caselle di testo
+    static readonly Typeface Upright = new(ArdesiaFonts.LatinModern, FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
+    static readonly Typeface Italic = new(ArdesiaFonts.LatinModern, FontStyles.Italic, FontWeights.Normal, FontStretches.Normal);
 
     /// <summary>Funzioni che si scrivono come nome dritto seguito dall'argomento (sen x, ln x…).</summary>
     static readonly HashSet<string> Named = new() { "sin", "sen", "cos", "tan", "tg", "cot", "cotg", "asin", "arcsin", "arcsen", "acos", "arccos", "atan", "arctan", "arctg", "ln", "log", "floor", "sign", "sgn" };
@@ -44,7 +45,9 @@ public static class MathLayout
         int _script;
 
         public MathBox Text(string s, double size, bool italic) => new TextBox(new FormattedText(s, It, FlowDirection.LeftToRight, italic ? Italic : Upright, size, brush, ppd), size, italic);
-        public MathBox Var(string s, double size) => Text(s, size, italic: true);
+        // corsivo matematico di Latin Modern Math (𝑥, 𝛼…), come le formule delle caselle di testo
+        public MathBox Var(string s, double size) =>
+            new TextBox(new FormattedText(ArdesiaFonts.MathItalic(s), It, FlowDirection.LeftToRight, Upright, size, brush, ppd), size, italic: true);
         public MathBox Op(string s, double size, double space = 0.22) => new RowOf(new MathBox[] { new SpaceBox(size * space), Text(s, size, false), new SpaceBox(size * space) });
         public MathBox Row(params MathBox[] items) => new RowOf(items);
         public MathBox Fence(MathBox inner, double size, string open, string close) => new FenceBox(inner, size, open, close, brush, this);
@@ -189,7 +192,8 @@ public static class MathLayout
             _ft = ft;
             IsItalic = italic;
             // misure fisse in proporzione al corpo: quelle del carattere (Cambria Math soprattutto) sono troppo alte
-            Width = ft.WidthIncludingTrailingWhitespace;
+            // correzione del corsivo, come in TeX: la lettera inclinata sporge oltre la sua larghezza
+            Width = ft.WidthIncludingTrailingWhitespace + (italic ? Math.Max(0, -ft.OverhangTrailing) : 0);
             Ascent = size * 0.72;
             Descent = size * 0.24;
         }
@@ -230,7 +234,7 @@ public static class MathLayout
             _base = bas;
             _exp = exp;
             _raise = Math.Max(size * 0.42, bas.Ascent - exp.Ascent * 0.45);
-            _gap = italic ? size * 0.07 : size * 0.03; // correzione del corsivo: x² non deve toccare la x
+            _gap = size * 0.03; // la correzione del corsivo è già nella larghezza della lettera (TextBox)
             Width = bas.Width + _gap + exp.Width;
             Ascent = Math.Max(bas.Ascent, _raise + exp.Ascent);
             Descent = Math.Max(bas.Descent, exp.Descent - _raise);

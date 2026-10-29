@@ -37,7 +37,9 @@ public sealed class PreservedElement : FrameworkElement
 /// <summary>Crea gli oggetti WPF della pagina a partire dai dati salvati, e viceversa.</summary>
 public static class ElementFactory
 {
-    public const string DefaultFont = "Calibri";
+    /// <summary>Carattere dei testi nuovi: Latin Modern, quello di LaTeX (le caselle già scritte tengono il loro).</summary>
+    public const string DefaultFont = ArdesiaFonts.LatinModernName;
+    public static FontFamily DefaultFontFamily => ArdesiaFonts.LatinModern;
     public const double DefaultFontSize = 24;
     public const double DefaultTextWidth = 520;
 
@@ -95,6 +97,7 @@ public static class ElementFactory
             var range = new TextRange(rtb.Document.ContentStart, rtb.Document.ContentEnd);
             using var ms = new MemoryStream(Encoding.UTF8.GetBytes(xaml));
             range.Load(ms, DataFormats.Xaml);
+            ArdesiaFonts.FixAfterLoad(rtb.Document);
             FormulaText.RestoreFormulas(rtb.Document);
         }
         catch
@@ -157,7 +160,7 @@ public static class ElementFactory
         switch (d.Type)
         {
             case "text":
-                var rtb = CreateTextBox(new FontFamily(DefaultFont), DefaultFontSize, Brushes.Black,
+                var rtb = CreateTextBox(DefaultFontFamily, DefaultFontSize, Brushes.Black,
                     d.Width > 0 ? d.Width : DefaultTextWidth, export);
                 if (!string.IsNullOrEmpty(d.Content)) SetXaml(rtb, d.Content);
                 ui = rtb;

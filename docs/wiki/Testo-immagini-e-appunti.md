@@ -8,7 +8,7 @@ Per scrivere con la tastiera (anche quella a schermo della LIM):
 2. **tocca il foglio** dove vuoi scrivere: compare una casella;
 3. scrivi.
 
-Il formato si cambia dalla scheda **Home**, gruppo *Testo*: tipo di carattere, dimensione, **Grassetto** (Ctrl+B), *Corsivo* (Ctrl+I), Sottolineato (Ctrl+U), **Colore del testo**.
+Il carattere dei testi nuovi è **Latin Modern**, quello dei libri scritti con LaTeX (le caselle scritte con le versioni precedenti tengono il loro). Il formato si cambia dalla scheda **Home**, gruppo *Testo*: tipo di carattere, dimensione, **Grassetto** (Ctrl+B), *Corsivo* (Ctrl+I), Sottolineato (Ctrl+U), **Colore del testo**.
 
 - Per **correggere** un testo, con lo strumento Testo tocca la casella (oppure, con lo strumento Seleziona, fai doppio clic sul testo).
 - Per **spostarlo**, con lo strumento **Seleziona** tocca il testo (o circondalo) e trascinalo.

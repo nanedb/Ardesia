@@ -18,6 +18,8 @@
 
   <ItemGroup>
     <Resource Include="Assets\Ardesia.ico" />
+    <!-- Latin Modern, il carattere di LaTeX, per le formule (licenza GUST/LPPL accanto ai file) -->
+    <Resource Include="Assets\Fonts\*.otf" />
   </ItemGroup>
 
   <!-- Client Google col secret: google-client.json nella cartella principale, escluso da Git e incorporato se c'è -->

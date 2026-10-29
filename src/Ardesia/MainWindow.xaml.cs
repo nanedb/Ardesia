@@ -59,7 +59,7 @@ public partial class MainWindow : Window
 
         FontCombo.ItemsSource = new[]
         {
-            "Calibri", "Segoe UI", "Arial", "Verdana", "Times New Roman", "Georgia",
+            ArdesiaFonts.LatinModernName, "Calibri", "Segoe UI", "Arial", "Verdana", "Times New Roman", "Georgia",
             "Cambria", "Comic Sans MS", "Segoe Print", "Consolas",
         };
         FontCombo.SelectedItem = ElementFactory.DefaultFont;
@@ -981,7 +981,7 @@ public partial class MainWindow : Window
     void FontCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (FontCombo.SelectedItem is not string name) return;
-        var family = new FontFamily(name);
+        var family = ArdesiaFonts.ByName(name);
         Editor.TextFontFamily = family;
         Editor.ApplyTextProperty(TextElement.FontFamilyProperty, family);
     }

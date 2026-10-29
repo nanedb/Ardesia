@@ -216,7 +216,7 @@ public partial class PageEditor : UserControl
     public NotebookNode? Page => _node;
     public double ZoomLevel => _zoom;
     public RichTextBox? ActiveTextBox { get; private set; }
-    public FontFamily TextFontFamily { get; set; } = new(ElementFactory.DefaultFont);
+    public FontFamily TextFontFamily { get; set; } = ElementFactory.DefaultFontFamily;
     public double TextFontSize { get; set; } = ElementFactory.DefaultFontSize;
     public ShapeKind ShapeKind { get; set; } = ShapeKind.Line;
 

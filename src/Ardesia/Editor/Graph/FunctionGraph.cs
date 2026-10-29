@@ -12,7 +12,7 @@ public sealed class FunctionGraph : FrameworkElement
 {
     static readonly CultureInfo It = CultureInfo.GetCultureInfo("it-IT");
     static readonly Typeface Font = new(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
-    static readonly Typeface FontItalic = new(new FontFamily("Cambria Math, Cambria, Segoe UI"), FontStyles.Italic, FontWeights.Normal, FontStretches.Normal);
+    static readonly Typeface FontItalic = new(ArdesiaFonts.LatinModern, FontStyles.Italic, FontWeights.Normal, FontStretches.Normal);
     static readonly Brush BackBrush = Frozen(new SolidColorBrush(Color.FromArgb(0xF5, 0xFF, 0xFF, 0xFF)));
     static readonly Pen Border = Frozen(new Pen(Frozen(new SolidColorBrush(Color.FromRgb(0xC8, 0xC8, 0xC8))), 1));
     static readonly Pen GridPen = Frozen(new Pen(Frozen(new SolidColorBrush(Color.FromRgb(0xE4, 0xE4, 0xE4))), 1));
