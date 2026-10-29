@@ -92,6 +92,47 @@ public static class FormulaSelfTest
         Check(!LatexLayout.LooksLikeLatex("Teorema di Pitagora: a² + b² = c²"), "il testo normale non è LaTeX");
         Check(!LatexLayout.LooksLikeLatex(@"C:\cartella\file"), "una barra rovesciata qualsiasi non è LaTeX");
 
+        // ── formule LaTeX come funzioni del grafico (Grafico e GeoGebra da una casella di testo) ──
+        (string Latex, double X, double Expected)[] graphs =
+        {
+            (@"y = \frac{1}{x}", 4, 0.25),
+            (@"$y = \frac{x^2 - 1}{x + 1}$", 3, 2),
+            (@"$$f(x) = \sqrt{x + 7}$$", 9, 4),
+            (@"y = \sqrt[3]{x}", 8, 2),
+            (@"y = x^{2} - 4", 3, 5),
+            (@"y = \sin x + \cos x", 0, 1),
+            (@"y = \sen(2x)", Math.PI / 4, 1),
+            (@"y = 2 \cdot x", 3, 6),
+            (@"y = \left| x - 1 \right|", -2, 3),
+            (@"y = e^{-x}", 0, 1),
+            (@"y = \ln x", Math.E, 1),
+            (@"y = 1{,}5x", 2, 3),
+            (@"y = \pi x", 1, Math.PI),
+            (@"y = \dfrac{1}{2}x^{2}", 2, 2),
+        };
+        foreach (var (latex, x, expected) in graphs)
+        {
+            var linear = LatexToPlain.Line(latex);
+            try
+            {
+                var c = Graph.MathParser.ParseLine(Graph.MathText.Normalize(linear));
+                double y = c.Compile(c.Parameters)(x, c.Parameters.Select(_ => 1.0).ToArray());
+                Check(Math.Abs(y - expected) < 1e-9, $"grafico da «{latex}» → «{linear}»: in x = {x:0.###} vale {y:0.######} (atteso {expected:0.######})");
+            }
+            catch (Graph.MathSyntaxException ex)
+            {
+                Check(false, $"grafico da «{latex}» → «{linear}»: {ex.Message}");
+            }
+        }
+        Check(LatexToPlain.Line("y = x² − 4") == "y = x² − 4", "una funzione scritta senza LaTeX resta com'è");
+
+        // casella con una formula già convertita: il grafico la legge
+        var graphBox = ElementFactory.CreateTextBox(ElementFactory.DefaultFontFamily, 24, Brushes.Black);
+        ElementFactory.SetPlainText(graphBox, "$y = \\frac{1}{x}$\ny = x + 1");
+        FormulaText.ConvertParagraph((Paragraph)graphBox.Document.Blocks.FirstBlock);
+        var fnText = FormulaText.FunctionText(graphBox.Document).Trim();
+        Check(FormulaText.HasFormulas(graphBox.Document) && fnText == "y = ((1)/(x))\ny = x + 1", $"funzioni dalla casella con formule: «{fnText.Replace("\n", " | ")}»");
+
         // ── conversione in una casella vera ──
         var rtb = ElementFactory.CreateTextBox(ElementFactory.DefaultFontFamily, 24, Brushes.Black);
         ElementFactory.SetPlainText(rtb, @"L'area è $\pi r^2$ e il volume $$\frac{4}{3}\pi r^3$$.");

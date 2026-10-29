@@ -32,7 +32,7 @@ In una casella di testo si possono scrivere formule in **LaTeX**, tra due **doll
 - Le formule cambiano dimensione e colore insieme al testo e nel PDF escono nitide.
 - Le versioni di Ardesia precedenti alla 0.8.0 mostrano il testo LaTeX al posto della formula, senza perderlo.
 
-Una casella di testo con delle funzioni, una per riga (per esempio `y = x² − 4`), si trasforma in grafico con **Grafico** o **GeoGebra**: vedi [Grafico di funzione](Grafico-di-funzione.md).
+Una casella di testo con delle funzioni, una per riga (per esempio `y = x² − 4`, oppure in LaTeX `$y = \frac{1}{x}$`), si trasforma in grafico con **Grafico** o **GeoGebra**: vedi [Grafico di funzione](Grafico-di-funzione.md).
 
 ## Immagini
 

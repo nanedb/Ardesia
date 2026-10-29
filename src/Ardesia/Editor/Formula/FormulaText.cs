@@ -308,6 +308,13 @@ public static class FormulaText
         }
     }
 
+    /// <summary>
+    /// Il testo della casella per «Grafico» e «GeoGebra»: una funzione per riga, con le formule (convertite o ancora
+    /// tra dollari) e le righe scritte in LaTeX tradotte nella scrittura lineare del grafico (<see cref="LatexToPlain"/>).
+    /// </summary>
+    public static string FunctionText(FlowDocument doc) =>
+        string.Join("\n", PlainText(doc).Replace("\r\n", "\n").Split('\n').Select(LatexToPlain.Line));
+
     /// <summary>Il testo della casella con le formule scritte in LaTeX tra dollari (per cercare, copiare, contare).</summary>
     public static string PlainText(FlowDocument doc)
     {
@@ -323,6 +330,7 @@ public static class FormulaText
                     sb.Append('$').Append(f.Latex).Append('$');
                     break;
                 case TextPointerContext.ElementEnd when p.GetAdjacentElement(LogicalDirection.Forward) is Paragraph:
+                case TextPointerContext.ElementStart when p.GetAdjacentElement(LogicalDirection.Forward) is LineBreak:
                     sb.AppendLine();
                     break;
             }

@@ -21,7 +21,7 @@ Ci sono tre modi.
 
 **1. Da una casella di testo** (il più comodo con la tastiera)
 
-1. Scrivi le funzioni in una [casella di testo](Testo-immagini-e-appunti.md#caselle-di-testo), **una per riga**.
+1. Scrivi le funzioni in una [casella di testo](Testo-immagini-e-appunti.md#caselle-di-testo), **una per riga**. Vanno bene anche le [formule in LaTeX](Testo-immagini-e-appunti.md#formule-in-latex), già trasformate o no: `$y = \frac{1}{x}$`, `y = \sqrt{x+4}`.
 2. Seleziona la casella (strumento **Seleziona**, tocca il testo) o lascia il cursore dentro la casella.
 3. Premi **Grafico** (scheda *Inserisci* o barra semplificata), oppure dal menu contestuale della casella **Disegna il grafico di questa funzione**.
 

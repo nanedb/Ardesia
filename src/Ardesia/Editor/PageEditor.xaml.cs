@@ -869,7 +869,7 @@ public partial class PageEditor : UserControl
         else if (existing == null && (SelectedTextBoxes().FirstOrDefault() ?? (HasActiveTextBox ? ActiveTextBox : null)) is { } box)
         {
             source = box;
-            formulas = new TextRange(box.Document.ContentStart, box.Document.ContentEnd).Text;
+            formulas = FormulaText.FunctionText(box.Document); // anche le formule LaTeX della casella
         }
         else if (existing == null && Ink.GetSelectedStrokes().Count > 0)
         {
@@ -965,7 +965,7 @@ public partial class PageEditor : UserControl
         }
         IReadOnlyList<string> lines = source == null
             ? Array.Empty<string>()
-            : new TextRange(source.Document.ContentStart, source.Document.ContentEnd).Text
+            : FormulaText.FunctionText(source.Document) // anche le formule LaTeX della casella
                 .Replace("\r\n", "\n").Split('\n').Select(l => l.Trim()).Where(l => l.Length > 0).ToList();
         IReadOnlyList<GraphFunctionData>? functions = null;
         if (lines.Count == 0)
