@@ -4,7 +4,7 @@
 
 Questa guida è per i **colleghi docenti**: spiega come si usa Ardesia, non come è fatta dentro.
 
-> **Versione descritta:** Ardesia 0.8.0 (ottobre 2026). Il numero della versione installata si legge in alto, accanto al nome del blocco appunti.
+> **Versione descritta:** Ardesia 0.8.1 (ottobre 2026). Il numero della versione installata si legge in alto, accanto al nome del blocco appunti.
 
 ![La finestra di Ardesia](immagini/finestra-principale.png)
 
