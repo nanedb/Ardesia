@@ -1,11 +1,11 @@
 # Installazione
 
-Ardesia si distribuisce in due forme, con il numero della versione nel nome del file (qui **0.8.1**):
+Ardesia si distribuisce in due forme, con il numero della versione nel nome del file (qui **0.8.2**):
 
 | File | Che cos'è | Quando usarlo |
 |---|---|---|
-| `ArdesiaSetup-0.8.1.exe` | Programma di installazione | Sul proprio PC e sui PC delle LIM: crea le icone, associa i file `.ardesia`, si disinstalla come le altre app |
-| `Ardesia-portatile-0.8.1.exe` | Un unico file che si avvia senza installare nulla | Da una chiavetta USB, o su un PC dove non si vuole (o non si può) installare |
+| `ArdesiaSetup-0.8.2.exe` | Programma di installazione | Sul proprio PC e sui PC delle LIM: crea le icone, associa i file `.ardesia`, si disinstalla come le altre app |
+| `Ardesia-portatile-0.8.2.exe` | Un unico file che si avvia senza installare nulla | Da una chiavetta USB, o su un PC dove non si vuole (o non si può) installare |
 
 Entrambe contengono già tutto quello che serve: **non bisogna installare .NET né altri programmi**. Serve Windows 10 o 11 a 64 bit.
 
@@ -13,7 +13,7 @@ Entrambe contengono già tutto quello che serve: **non bisogna installare .NET n
 
 ## Installare con `ArdesiaSetup`
 
-1. Fai doppio clic su `ArdesiaSetup-0.8.1.exe`.
+1. Fai doppio clic su `ArdesiaSetup-0.8.2.exe`.
 2. Se compare la finestra blu **«Windows ha protetto il PC»** vedi [più sotto](#lavviso-windows-ha-protetto-il-pc).
 3. **Non servono le credenziali di amministratore**: Ardesia si installa solo per l'utente con cui sei entrato in Windows. Se compare la finestra **«Seleziona modo installazione»**, scegli **«Installa solo per l'utente attuale (suggerito)»**.
 4. Puoi spuntare **«Crea un'icona sul desktop»**.
@@ -36,7 +36,7 @@ Puoi anche aggiornare a mano: scarica il nuovo `ArdesiaSetup-X.Y.Z.exe` ed esegu
 
 Con la versione portatile «Nuova versione» apre la pagina da cui scaricare il file nuovo, da usare al posto del vecchio.
 
-> **Importante – aggiornate tutti i PC.** Le versioni **0.3.2 e precedenti** non conoscono il [grafico di funzione](Grafico-di-funzione.md): se aprono un blocco appunti che contiene grafici, **li cancellano al primo salvataggio**. Se usi i grafici, aggiorna Ardesia su **tutti** i PC dove apri quel blocco (casa, LIM delle varie aule, portatile). La versione è scritta **in alto, accanto al nome del blocco appunti** (per esempio «0.8.1»).
+> **Importante – aggiornate tutti i PC.** Le versioni **0.3.2 e precedenti** non conoscono il [grafico di funzione](Grafico-di-funzione.md): se aprono un blocco appunti che contiene grafici, **li cancellano al primo salvataggio**. Se usi i grafici, aggiorna Ardesia su **tutti** i PC dove apri quel blocco (casa, LIM delle varie aule, portatile). La versione è scritta **in alto, accanto al nome del blocco appunti** (per esempio «0.8.2»).
 
 Se Ardesia è aperta mentre installi la versione nuova, l'installazione chiede di chiuderla: chiudila (si salva da sola) e prosegui.
 
@@ -46,7 +46,7 @@ Se Ardesia è aperta mentre installi la versione nuova, l'installazione chiede d
 
 ## La versione portatile
 
-`Ardesia-portatile-0.8.1.exe` si avvia con un doppio clic, anche da una chiavetta USB. Differenze rispetto all'installazione:
+`Ardesia-portatile-0.8.2.exe` si avvia con un doppio clic, anche da una chiavetta USB. Differenze rispetto all'installazione:
 
 - non crea icone nel menu Start né sul desktop;
 - non associa i file `.ardesia` (per aprirli usa *File → Apri…* dentro Ardesia);
