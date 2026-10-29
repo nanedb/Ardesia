@@ -14,7 +14,7 @@ namespace Ardesia.Services;
 public static class PdfPageCache
 {
     /// <summary>Da cambiare quando cambia il modo di disegnare le pagine nel PDF: le pagine vecchie non valgono più.</summary>
-    const string RendererVersion = "vettoriale-4";
+    const string RendererVersion = "vettoriale-5";
 
     const long MaxBytes = 300L * 1024 * 1024;
     static readonly TimeSpan MaxAge = TimeSpan.FromDays(60);
