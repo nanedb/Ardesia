@@ -185,6 +185,8 @@ public partial class App : Application
         }
         else
         {
+            // 0) da scollegati si chiede di accedere a Google, a ogni avvio (anche dopo «Solo su questo PC»: scelta dell'utente)
+            if (file == null) AskGoogleSignIn(settings);
             // 1) si riapre l'ultimo blocco appunti; 2) se non c'è, prima di tutto si sceglie o si crea il file.
             //    Un blocco su Google Drive (copia in cache) si riapre se si è collegati con il suo account: se la copia
             //    manca o è vecchia, si scarica.
@@ -214,6 +216,51 @@ public partial class App : Application
         MainWindow = window;
         if (snapshot != null) window.ScheduleSnapshot(snapshot, demo, tab);
         window.Show();
+    }
+
+    internal const string GoogleQuestionHeading = "Accedi a Google?";
+    internal static string GoogleQuestionText =>
+        $"Con l'account @{Services.Google.GoogleClientConfig.SchoolDomain} i blocchi appunti si salvano su Google Drive: " +
+        "li ritrovi su ogni LIM e a casa, e la classe ha il PDF condiviso. Altrimenti restano solo su questo PC.";
+
+    /// <summary>
+    /// All'avvio, se non si è collegati a Google: «Accedi con Google» (browser) o «Solo su questo PC».
+    /// Dopo l'accesso si riapre anche l'ultimo blocco su Drive, se è di questo account.
+    /// </summary>
+    static void AskGoogleSignIn(AppSettings settings)
+    {
+        var g = Services.Google.GoogleAccountService.Current;
+        if (!g.IsConfigured || g.IsSignedIn || !settings.Persist) return;
+        var mode = Current.ShutdownMode;
+        Current.ShutdownMode = ShutdownMode.OnExplicitShutdown; // la finestrella non è la finestra principale
+        try
+        {
+            if (Controls.AppMessage.Choose(null, GoogleQuestionText, GoogleQuestionHeading, Controls.MessageIcon.Question, 0,
+                    "Accedi con Google", "Solo su questo PC") != 0) return;
+            try
+            {
+                Controls.BusyDialog.Run<bool>(null, "Completa l'accesso nella pagina di Google che si è aperta nel browser…", async (_, ct) =>
+                {
+                    using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                    cts.CancelAfter(TimeSpan.FromMinutes(5));
+                    await g.SignInAsync(cts.Token);
+                    return true;
+                });
+            }
+            catch (OperationCanceledException)
+            {
+                // «Annulla» o tempo scaduto: si continua solo su questo PC
+            }
+            catch (Exception ex)
+            {
+                Controls.AppMessage.Show(null, ex.Message + "\n\nPer ora Ardesia lavora solo su questo PC: puoi accedere più tardi dalla schermata iniziale o da Impostazioni.",
+                    Controls.MessageIcon.Warning, "Accesso a Google non riuscito");
+            }
+        }
+        finally
+        {
+            Current.ShutdownMode = mode;
+        }
     }
 
     protected override void OnExit(ExitEventArgs e)

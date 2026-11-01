@@ -34,6 +34,7 @@ Blocco appunti per **LIM** (lavagne interattive) in stile OneNote, per una scuol
 
 ## Comportamento richiesto dall'utente (non cambiarlo senza chiedere)
 
+- All'avvio, se non si è collegati a Google (e il client c'è), `App.AskGoogleSignIn` chiede «Accedi con Google» / «Solo su questo PC» **prima** di riaprire l'ultimo file, e **a ogni avvio**, anche dopo «Solo su questo PC» (scelta dell'utente: sulle LIM condivise chi arriva dopo può entrare). Non quando si apre un file passato all'exe né nelle prove. Istantanea `--tab Accesso`.
 - All'avvio si riapre l'ultimo file; se manca, `StartWindow` chiede **prima** di creare/aprire un file (posizione e nome). Ogni modifica si salva da sola (~1,5 s) e all'uscita, **senza domande**.
 - Finestra principale ingrandita e mai più grande dello schermo (sulle LIM il ridimensionamento è alto).
 - Icone penne: simboli Segoe Fluent riempiti col colore della penna + profilo nero; barretta sotto = spessore, dello stesso colore.

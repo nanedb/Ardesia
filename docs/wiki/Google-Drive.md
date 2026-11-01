@@ -6,7 +6,7 @@ I blocchi salvati sul computer (o su `G:` con Drive per desktop) **restano dove 
 
 ## Accedere con Google
 
-1. Premi **Accedi a Google** in alto a destra (oppure **Accedi con Google** nella schermata iniziale, *File → Accedi a Google Drive…*, o *File → Impostazioni… → Questo PC*, riquadro **Google Drive**).
+1. Premi **Accedi con Google** nella domanda che compare all'avvio, da scollegati (vedi [Primo avvio](Primo-avvio.md#accedi-a-google)), oppure **Accedi a Google** in alto a destra (o **Accedi con Google** nella schermata iniziale, *File → Accedi a Google Drive…*, o *File → Impostazioni… → Questo PC*, riquadro **Google Drive**).
 2. Si apre il **browser** sulla pagina di Google: scegli il tuo account **@liceofoscarini.it** e consenti l'accesso. Sono accettati solo gli account della scuola.
 3. Torna in Ardesia: in alto a destra, al posto di «Accedi a Google», compare il tuo **nome**. Un clic sul nome apre **Nuovo blocco appunti su Drive…**, **Apri da Drive…**, **Esci da Google** e **Impostazioni…**.
 

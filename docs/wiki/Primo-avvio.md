@@ -1,5 +1,14 @@
 # Primo avvio e schermata iniziale
 
+## Accedi a Google?
+
+Se Ardesia non è collegata a Google, **a ogni avvio** chiede prima di tutto se vuoi accedere con l'account della scuola:
+
+- **Accedi con Google** – si apre il browser: scegli l'account @liceofoscarini.it. I blocchi appunti nuovi vanno su Drive e li ritrovi su ogni LIM (vedi [Google Drive](Google-Drive.md)).
+- **Solo su questo PC** – Ardesia lavora come sempre, con i file sul computer. Al prossimo avvio la domanda torna: così, sulla LIM, chi arriva dopo può entrare col proprio account.
+
+Da collegati la domanda non compare; se esci da Google (per esempio a fine lezione, su una LIM condivisa), torna al prossimo avvio.
+
 ## La schermata iniziale
 
 La prima volta che apri Ardesia compare la schermata **«Benvenuto in Ardesia»**, che chiede **subito** dove tenere il tuo blocco appunti:

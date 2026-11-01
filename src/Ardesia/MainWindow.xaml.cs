@@ -2059,6 +2059,10 @@ public partial class MainWindow : Window
                 shot = AppMessage.ShowForSnapshot(this,
                     "Va nel cestino di Google Drive: lo puoi recuperare da lì per 30 giorni. Le cartelle di classe e materia restano.",
                     "Eliminare il blocco appunti «2BO Fisica 26-27»?", MessageIcon.Warning, "Elimina", "Annulla");
+            // --tab Accesso: la domanda dell'avvio da scollegati
+            if (string.Equals(tab, "Accesso", StringComparison.OrdinalIgnoreCase))
+                shot = AppMessage.ShowForSnapshot(this, App.GoogleQuestionText, App.GoogleQuestionHeading, MessageIcon.Question,
+                    "Accedi con Google", "Solo su questo PC");
             // --tab «Scrivi a mano»: la finestrella dopo una lettura dal foglio, con due funzioni scritte nella striscia
             // e lette davvero dal riconoscimento di Windows
             bool writing = tab != null && tab.StartsWith("Scrivi", StringComparison.OrdinalIgnoreCase);
