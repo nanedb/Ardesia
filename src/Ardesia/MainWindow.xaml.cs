@@ -37,7 +37,7 @@ public partial class MainWindow : Window
     readonly List<ToggleButton> _toggles = new();
     Notebook _nb = new();
     string? _path;
-    bool _dirty, _fullScreen, _navHidden, _syncing;
+    bool _dirty, _fullScreen, _syncing;
     bool _classPdfStale; // modifiche non ancora nel PDF per la classe
     NotebookNode? _section, _page;
     GridLength _sectionsWidth, _pagesWidth;
@@ -73,6 +73,9 @@ public partial class MainWindow : Window
         Editor.FingerPans = _settings.FingerPans;
         ActivatePen(0);
         SetSimpleRibbon(_settings.SimpleRibbon);
+        _sectionsWidth = SectionsColumn.Width;
+        _pagesWidth = PagesColumn.Width;
+        SetNavPanes(_settings.SectionsHidden, _settings.PagesHidden);
         VersionText.Text = "Ardesia " + AppVersion;
         PreviewKeyDown += Window_PreviewKeyDown;
         SourceInitialized += (_, _) => FitToScreen();
@@ -949,8 +952,11 @@ public partial class MainWindow : Window
                     ? "Il dito sposta la pagina, la penna scrive"
                     : "Il dito scrive come la penna";
                 break;
-            case "Nav":
-                ToggleNav();
+            case "NavSections":
+                SetNavPanes(t.IsChecked != true, _pagesHidden);
+                break;
+            case "NavPages":
+                SetNavPanes(_sectionsHidden, t.IsChecked != true);
                 break;
         }
         SyncRibbon();
@@ -987,7 +993,8 @@ public partial class MainWindow : Window
                     "BgColor" => data != null && string.Equals(data.BackgroundColor, parts[1], StringComparison.OrdinalIgnoreCase),
                     "Ruler" => Editor.RulerVisible,
                     "Protractor" => Editor.ProtractorVisible,
-                    "Nav" => !_navHidden,
+                    "NavSections" => !_sectionsHidden,
+                    "NavPages" => !_pagesHidden,
                     "FingerPan" => Editor.FingerPans,
                     "Dashed" => Editor.Dashed,
                     _ => false,
@@ -1104,24 +1111,55 @@ public partial class MainWindow : Window
         StatusText.Text = "Sfondo applicato a tutta la sezione";
     }
 
+    /// <summary>
+    /// Pulsante ☰ in alto: se almeno un pannello è aperto li nasconde entrambi, altrimenti li riapre entrambi.
+    /// Ogni pannello si nasconde anche da solo (‹ in cima, «Sezioni»/«Pagine» in Visualizza) e lascia una striscia
+    /// stretta col nome, che lo riapre.
+    /// </summary>
     void ToggleNav()
     {
-        if (!_navHidden)
+        bool hide = !_sectionsHidden || !_pagesHidden;
+        SetNavPanes(hide, hide);
+    }
+
+    bool _sectionsHidden, _pagesHidden;
+
+    void SetNavPanes(bool sectionsHidden, bool pagesHidden)
+    {
+        if (sectionsHidden != _sectionsHidden)
         {
-            _sectionsWidth = SectionsColumn.Width;
-            _pagesWidth = PagesColumn.Width;
-            SectionsColumn.MinWidth = PagesColumn.MinWidth = 0;
-            SectionsColumn.Width = PagesColumn.Width = new GridLength(0);
+            if (sectionsHidden) _sectionsWidth = SectionsColumn.Width;
+            SetPane(SectionsColumn, SectionsPane, SectionsStrip, SectionsSplitter, sectionsHidden, _sectionsWidth);
+            _sectionsHidden = sectionsHidden;
         }
-        else
+        if (pagesHidden != _pagesHidden)
         {
-            SectionsColumn.MinWidth = PagesColumn.MinWidth = 120;
-            SectionsColumn.Width = _sectionsWidth;
-            PagesColumn.Width = _pagesWidth;
+            if (pagesHidden) _pagesWidth = PagesColumn.Width;
+            SetPane(PagesColumn, PagesPane, PagesStrip, PagesSplitter, pagesHidden, _pagesWidth);
+            _pagesHidden = pagesHidden;
         }
-        _navHidden = !_navHidden;
+        if (_settings.SectionsHidden != _sectionsHidden || _settings.PagesHidden != _pagesHidden)
+        {
+            _settings.SectionsHidden = _sectionsHidden;
+            _settings.PagesHidden = _pagesHidden;
+            _settings.Save();
+        }
         SyncRibbon();
     }
+
+    static void SetPane(ColumnDefinition column, FrameworkElement pane, FrameworkElement strip, FrameworkElement splitter, bool hidden, GridLength width)
+    {
+        pane.Visibility = hidden ? Visibility.Collapsed : Visibility.Visible;
+        strip.Visibility = hidden ? Visibility.Visible : Visibility.Collapsed;
+        splitter.Visibility = hidden ? Visibility.Collapsed : Visibility.Visible;
+        column.MinWidth = hidden ? 0 : 120;
+        column.Width = hidden ? GridLength.Auto : width;
+    }
+
+    void HideSections_Click(object sender, RoutedEventArgs e) => SetNavPanes(true, _pagesHidden);
+    void HidePages_Click(object sender, RoutedEventArgs e) => SetNavPanes(_sectionsHidden, true);
+    void SectionsStrip_Click(object sender, RoutedEventArgs e) => SetNavPanes(false, _pagesHidden);
+    void PagesStrip_Click(object sender, RoutedEventArgs e) => SetNavPanes(_sectionsHidden, false);
 
     void ToggleFullScreen()
     {

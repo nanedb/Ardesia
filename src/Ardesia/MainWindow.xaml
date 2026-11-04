@@ -371,8 +371,11 @@
 
                     <HeaderedContentControl Header="Finestra" Style="{StaticResource RibbonGroup}">
                         <StackPanel Orientation="Horizontal">
-                            <ToggleButton Style="{StaticResource RibbonLargeToggle}" Tag="Nav" c:Rb.Label="Navigazione" ToolTip="Mostra/nascondi sezioni e pagine">
-                                <TextBlock Style="{StaticResource Glyph}" Text="&#xE700;" />
+                            <ToggleButton Style="{StaticResource RibbonLargeToggle}" Tag="NavSections" c:Rb.Label="Sezioni" ToolTip="Mostra/nascondi il pannello delle sezioni">
+                                <TextBlock Style="{StaticResource Glyph}" Text="&#xE8F1;" />
+                            </ToggleButton>
+                            <ToggleButton Style="{StaticResource RibbonLargeToggle}" Tag="NavPages" c:Rb.Label="Pagine" ToolTip="Mostra/nascondi il pannello delle pagine">
+                                <TextBlock Style="{StaticResource Glyph}" Text="&#xE7C3;" />
                             </ToggleButton>
                             <Button Style="{StaticResource RibbonLargeButton}" c:Rb.Label="Schermo intero" Click="FullScreen_Click" ToolTip="F11">
                                 <TextBlock Style="{StaticResource Glyph}" Text="&#xE740;" />
@@ -409,8 +412,21 @@
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <DockPanel Grid.Column="0" Background="{StaticResource NavBrush}">
-                <TextBlock DockPanel.Dock="Top" Text="Sezioni" Style="{StaticResource PaneHeader}" />
+            <!-- Pannello nascosto: resta una striscia stretta col nome, che lo riapre -->
+            <Button x:Name="SectionsStrip" Grid.Column="0" Style="{StaticResource NavStrip}" Background="{StaticResource NavBrush}"
+                    Visibility="Collapsed" Click="SectionsStrip_Click" ToolTip="Mostra le sezioni">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource NavStripGlyph}" Text="&#xE76C;" />
+                    <TextBlock Text="Sezioni" Style="{StaticResource NavStripText}" />
+                </StackPanel>
+            </Button>
+            <DockPanel x:Name="SectionsPane" Grid.Column="0" Background="{StaticResource NavBrush}">
+                <DockPanel DockPanel.Dock="Top">
+                    <Button DockPanel.Dock="Right" Style="{StaticResource PaneHideButton}" Click="HideSections_Click" ToolTip="Nascondi le sezioni">
+                        <TextBlock Style="{StaticResource NavStripGlyph}" Text="&#xE76B;" Margin="0" />
+                    </Button>
+                    <TextBlock Text="Sezioni" Style="{StaticResource PaneHeader}" />
+                </DockPanel>
                 <Button DockPanel.Dock="Bottom" Style="{StaticResource NavAddButton}" Click="NewSection_Click">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="&#xE710;" FontFamily="{StaticResource IconFont}" FontSize="14" VerticalAlignment="Center" Margin="0,0,10,0" />
@@ -443,12 +459,22 @@
                     </TreeView.ItemTemplate>
                 </TreeView>
             </DockPanel>
-            <GridSplitter Grid.Column="0" Width="5" HorizontalAlignment="Right" Background="Transparent" />
+            <GridSplitter x:Name="SectionsSplitter" Grid.Column="0" Width="5" HorizontalAlignment="Right" Background="Transparent" />
 
-            <DockPanel Grid.Column="1" Background="{StaticResource PagesPaneBrush}">
+            <Button x:Name="PagesStrip" Grid.Column="1" Style="{StaticResource NavStrip}" Background="{StaticResource PagesPaneBrush}"
+                    Visibility="Collapsed" Click="PagesStrip_Click" ToolTip="Mostra le pagine">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource NavStripGlyph}" Text="&#xE76C;" />
+                    <TextBlock Text="Pagine" Style="{StaticResource NavStripText}" />
+                </StackPanel>
+            </Button>
+            <DockPanel x:Name="PagesPane" Grid.Column="1" Background="{StaticResource PagesPaneBrush}">
                 <Border DockPanel.Dock="Top" BorderBrush="{StaticResource LineBrush}" BorderThickness="0,0,0,0">
                     <DockPanel>
                         <Border DockPanel.Dock="Left" x:Name="SectionColorBar" Width="4" Margin="10,12,0,8" CornerRadius="2" Background="{StaticResource AccentBrush}" />
+                        <Button DockPanel.Dock="Right" Style="{StaticResource PaneHideButton}" Click="HidePages_Click" ToolTip="Nascondi le pagine">
+                            <TextBlock Style="{StaticResource NavStripGlyph}" Text="&#xE76B;" Margin="0" />
+                        </Button>
                         <TextBlock x:Name="PagesHeader" Text="Pagine" Style="{StaticResource PaneHeader}" Margin="8,12,8,8" />
                     </DockPanel>
                 </Border>
@@ -481,7 +507,7 @@
                     </TreeView.ItemTemplate>
                 </TreeView>
             </DockPanel>
-            <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Right" Background="Transparent" />
+            <GridSplitter x:Name="PagesSplitter" Grid.Column="1" Width="5" HorizontalAlignment="Right" Background="Transparent" />
 
             <Grid Grid.Column="2">
                 <ed:PageEditor x:Name="Editor" />

@@ -7,7 +7,13 @@ Ardesia organizza gli appunti come OneNote:
 - le sezioni possono contenere **sottosezioni**, a qualsiasi profondità;
 - ogni sezione contiene **pagine** (seconda colonna), e ogni pagina può avere **sottopagine**, anche queste senza limiti.
 
-Le due colonne si possono **allargare o stringere** trascinando il loro bordo destro, e **nascondere** con il pulsante ☰ in alto a destra (o *Visualizza → Navigazione*), per avere tutto lo schermo per scrivere.
+Le due colonne si possono **allargare o stringere** trascinando il loro bordo destro, e **nascondere**, per avere più spazio per scrivere:
+
+- la freccia **‹** in cima a una colonna nasconde solo quella; al suo posto resta una **striscia stretta** col nome («Sezioni» o «Pagine»): toccala per riaprire la colonna;
+- *Visualizza → Sezioni* e *Visualizza → Pagine* fanno lo stesso dalla barra;
+- il pulsante **☰** in alto a destra le nasconde (o le mostra) tutte e due insieme.
+
+Ardesia ricorda su ogni PC quali colonne avevi nascosto.
 
 ## Sezioni
 

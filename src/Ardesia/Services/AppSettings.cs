@@ -46,6 +46,10 @@ public class AppSettings
 
     /// <summary>«Il dito sposta la pagina»: da attivare sulle LIM che distinguono penna e dito (es. Newline).</summary>
     public bool FingerPans { get; set; }
+
+    /// <summary>Pannelli «Sezioni» e «Pagine» nascosti (ognuno per conto suo, su questo PC).</summary>
+    public bool SectionsHidden { get; set; }
+    public bool PagesHidden { get; set; }
     public double EraserSize { get; set; } = 22;
     public List<PenPreset> Pens { get; set; } = PenPreset.Defaults();
 

@@ -480,6 +480,67 @@
         <Setter Property="TextTrimming" Value="CharacterEllipsis" />
     </Style>
 
+    <!-- «‹» in cima a un pannello: lo nasconde (resta la striscia NavStrip per riaprirlo) -->
+    <Style x:Key="PaneHideButton" TargetType="Button">
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Foreground" Value="{StaticResource SubtleTextBrush}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bd" Background="Transparent" CornerRadius="4" Width="34" Height="34" Margin="0,4,4,0">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource HoverGrayBrush}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="NavStripGlyph" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource IconFont}" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="Margin" Value="0,14,0,10" />
+    </Style>
+
+    <Style x:Key="NavStripText" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="15" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="LayoutTransform">
+            <Setter.Value>
+                <RotateTransform Angle="90" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Striscia di un pannello nascosto: tutta cliccabile (sulla LIM si tocca facilmente) -->
+    <Style x:Key="NavStrip" TargetType="Button">
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Width" Value="38" />
+        <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="0,0,1,0">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Top" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource HoverGrayBrush}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <Style x:Key="NavAddButton" TargetType="Button">
         <Setter Property="Focusable" Value="False" />
         <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />

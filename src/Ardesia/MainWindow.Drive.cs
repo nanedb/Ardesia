@@ -223,7 +223,23 @@ public partial class MainWindow
             _nb.ClassPdfDisabled = true;
         }
         else if (e.ClassPdfId != null && _nb.ClassPdfDriveId != e.ClassPdfId)
+        {
+            // Di solito il PDF nasce su Drive alla chiusura, dopo il caricamento del blocco: alla riapertura l'ID manca.
+            // Non è una modifica del docente: si scrive solo nella copia su questo PC, senza metterla in coda per Drive
+            // (altrimenti a ogni apertura «Salvato su questo PC · da caricare» e un caricamento inutile). Andrà su Drive
+            // col primo salvataggio vero.
             _nb.ClassPdfDriveId = e.ClassPdfId;
+            if (_dirty || _path == null) return; // il salvataggio in arrivo lo porta con sé
+            try
+            {
+                NotebookStore.Save(_nb, _path);
+            }
+            catch (Exception)
+            {
+                // non grave: ci si riprova alla prossima apertura
+            }
+            return;
+        }
         else
             return;
         // si salva col blocco, ma il contenuto non è cambiato: il PDF non va rifatto per questo

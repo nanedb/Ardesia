@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -100,7 +100,13 @@ public partial class PageEditor : UserControl
         Ink.SelectionMoved += (_, _) => MarkChanged();
         Ink.SelectionResized += (_, _) =>
         {
-            foreach (var r in Ink.GetSelectedElements().OfType<RichTextBox>()) r.Height = double.NaN;
+            foreach (var r in Ink.GetSelectedElements().OfType<RichTextBox>())
+            {
+                r.Height = double.NaN;
+                // dai lati: la larghezza ora è quella; dagli angoli il testo è scalato e la casella resta com'era
+                if (!_cornerResize) ElementFactory.SetAutoWidth(r, false);
+                else FitTextBox(r);
+            }
             MarkChanged();
         };
         Ink.AllowDrop = true;
@@ -193,6 +199,7 @@ public partial class PageEditor : UserControl
         ContentHost.ManipulationDelta += ContentHost_ManipulationDelta;
         ContentHost.ManipulationInertiaStarting += ContentHost_ManipulationInertiaStarting;
         SetupResizePreview();
+        SetupRotation();
         SetupTextSelection(); // per ultimo: riceve solo ciò che gli altri gestori non hanno già preso
 
         Scroller.PreviewMouseWheel += Scroller_PreviewMouseWheel;
@@ -762,13 +769,17 @@ public partial class PageEditor : UserControl
 
     void HookTextBox(RichTextBox rtb)
     {
-        rtb.TextChanged += (_, _) => MarkChanged();
+        rtb.TextChanged += (_, _) =>
+        {
+            FitTextBox(rtb);
+            MarkChanged();
+        };
         // Formule: all'Invio il LaTeX della riga diventa formula; Backspace subito dopo una formula la riporta a testo.
         rtb.PreviewKeyDown += (_, e) =>
         {
-            // l'Invio poi va a capo come sempre, tranne quando conferma una formula che si stava correggendo
+            // se l'Invio ha convertito qualcosa fa solo quello (scelta dell'utente); per andare a capo, un altro Invio
             if (e.Key == Key.Enter && rtb.CaretPosition.Paragraph is { } para)
-                e.Handled = FormulaText.ConvertParagraph(para, rtb).CaretInside;
+                e.Handled = FormulaText.ConvertParagraph(para, rtb).Count > 0;
             else if (e.Key == Key.Back && rtb.Selection.IsEmpty && FormulaText.FormulaBefore(rtb.CaretPosition) is { } formula)
             {
                 FormulaText.Unfold(formula);
@@ -793,6 +804,18 @@ public partial class PageEditor : UserControl
         };
     }
 
+    /// <summary>
+    /// Casella «larga quanto il testo» (Editor/TextFit.cs): si allarga fino al bordo destro della parte visibile del
+    /// foglio (almeno 520 px), poi va a capo.
+    /// </summary>
+    void FitTextBox(RichTextBox rtb)
+    {
+        if (!ElementFactory.GetAutoWidth(rtb)) return;
+        double left = InkCanvas.GetLeft(rtb) is var l && double.IsNaN(l) ? 0 : l;
+        double visibleRight = Scroller.ViewportWidth > 0 ? (Scroller.HorizontalOffset + Scroller.ViewportWidth) / _zoom : left + ElementFactory.DefaultTextWidth;
+        TextFit.Fit(rtb, Math.Max(ElementFactory.DefaultTextWidth, visibleRight - left - 16));
+    }
+
     void RemoveIfEmpty(RichTextBox rtb)
     {
         if (rtb.IsKeyboardFocusWithin || !Ink.Children.Contains(rtb) || !ElementFactory.IsEmpty(rtb)) return;
@@ -806,6 +829,8 @@ public partial class PageEditor : UserControl
         var rtb = ElementFactory.CreateTextBox(TextFontFamily, TextFontSize, IsDarkBackground ? Brushes.White : Brushes.Black);
         InkCanvas.SetLeft(rtb, Math.Max(0, p.X - 6));
         InkCanvas.SetTop(rtb, Math.Max(0, p.Y - TextFontSize * 0.7));
+        ElementFactory.SetAutoWidth(rtb, true);
+        FitTextBox(rtb);
         AddElement(rtb);
         Dispatcher.BeginInvoke(() =>
         {
@@ -1357,9 +1382,7 @@ public partial class PageEditor : UserControl
         Ink.Children.Cast<UIElement>().LastOrDefault(c => c switch
         {
             RichTextBox r => TextBounds(r) is { IsEmpty: false } b && b.Contains(p),
-            FrameworkElement fe => new Rect(InkCanvas.GetLeft(fe) is var x && double.IsNaN(x) ? 0 : x,
-                                            InkCanvas.GetTop(fe) is var y && double.IsNaN(y) ? 0 : y,
-                                            fe.ActualWidth, fe.ActualHeight).Contains(p),
+            FrameworkElement fe => BoxOf(fe).Contains(p),
             _ => false,
         });
 
@@ -1370,12 +1393,14 @@ public partial class PageEditor : UserControl
         double x0 = InkCanvas.GetLeft(rtb), y0 = InkCanvas.GetTop(rtb);
         if (double.IsNaN(x0)) x0 = 0;
         if (double.IsNaN(y0)) y0 = 0;
+        // casella ruotata: le posizioni passano per la sua rotazione (il riquadro di ognuna non è più largo zero)
+        var rotation = ElementFactory.GetAngle(rtb) != 0 && rtb.Parent is Visual parent ? rtb.TransformToVisual(parent) : null;
         var tp = rtb.Document.ContentStart.GetInsertionPosition(LogicalDirection.Forward);
         for (int i = 0; tp != null && i < 3000; i++)
         {
             var r = tp.GetCharacterRect(LogicalDirection.Forward);
             if (!r.IsEmpty && !double.IsInfinity(r.X) && !double.IsInfinity(r.Height))
-                list.Add(new Rect(x0 + r.X, y0 + r.Y, 0, r.Height));
+                list.Add(rotation != null ? rotation.TransformBounds(new Rect(r.X, r.Y, 0, r.Height)) : new Rect(x0 + r.X, y0 + r.Y, 0, r.Height));
             tp = tp.GetNextInsertionPosition(LogicalDirection.Forward);
         }
         return list;
@@ -1454,6 +1479,7 @@ public partial class PageEditor : UserControl
     bool BeginResizePreview(Point p)
     {
         EndResizePreview();
+        _resizeHandle = InkCanvasSelectionHitResult.None;
         if (_tool != EditorTool.Select || _drag != DragMode.None || !HasSelection) return false;
         var handle = Ink.HitTestSelection(p);
         if (handle is InkCanvasSelectionHitResult.None or InkCanvasSelectionHitResult.Selection) return false;
@@ -1468,8 +1494,13 @@ public partial class PageEditor : UserControl
             dc.PushClip(new RectangleGeometry(bounds));
             foreach (var el in Ink.GetSelectedElements().OfType<FrameworkElement>())
             {
-                var r = new Rect(InkCanvas.GetLeft(el) is var x && double.IsNaN(x) ? 0 : x, TopOf(el), el.ActualWidth, el.ActualHeight);
-                if (r.Width > 0 && r.Height > 0) dc.DrawRectangle(new VisualBrush(el) { Stretch = Stretch.Fill }, null, r);
+                // la VisualBrush disegna l'oggetto senza la sua rotazione: la si rimette attorno al centro
+                var box = BoxOf(el);
+                var r = new Rect(box.Left + (box.Width - el.ActualWidth) / 2, box.Top + (box.Height - el.ActualHeight) / 2, el.ActualWidth, el.ActualHeight);
+                if (r.Width <= 0 || r.Height <= 0) continue;
+                dc.PushTransform(new RotateTransform(ElementFactory.GetAngle(el), box.Left + box.Width / 2, box.Top + box.Height / 2));
+                dc.DrawRectangle(new VisualBrush(el) { Stretch = Stretch.Fill }, null, r);
+                dc.Pop();
             }
             Ink.GetSelectedStrokes().Draw(dc);
             dc.Pop();
@@ -1499,6 +1530,15 @@ public partial class PageEditor : UserControl
             case InkCanvasSelectionHitResult.Left: left += dx; break;
         }
         if (Math.Abs(dx) < 1 && Math.Abs(dy) < 1 && _resizePreview.Visibility != Visibility.Visible) return;
+        if (_resizeHandle is InkCanvasSelectionHitResult.TopLeft or InkCanvasSelectionHitResult.TopRight or
+            InkCanvasSelectionHitResult.BottomLeft or InkCanvasSelectionHitResult.BottomRight)
+        {
+            // dagli angoli le proporzioni restano (come al rilascio, Ink_SelectionResizing)
+            bool movesLeft = _resizeHandle is InkCanvasSelectionHitResult.TopLeft or InkCanvasSelectionHitResult.BottomLeft;
+            bool movesTop = _resizeHandle is InkCanvasSelectionHitResult.TopLeft or InkCanvasSelectionHitResult.TopRight;
+            var kept = KeepAspect(b, left, top, right, bottom, movesLeft, movesTop);
+            (left, top, right, bottom) = (kept.Left, kept.Top, kept.Right, kept.Bottom);
+        }
         var r = new Rect(new Point(left, top), new Point(right, bottom)); // trascinando oltre il lato opposto si capovolge come il rettangolo
         _resizePreview.RenderTransformOrigin = new Point(0.5, 0.5);
         _resizePreview.RenderTransform = new ScaleTransform(right < left ? -1 : 1, bottom < top ? -1 : 1);
@@ -1635,6 +1675,9 @@ public partial class PageEditor : UserControl
             menu.Items.Add(MenuEntry("Duplica", "", DuplicateSelection));
             menu.Items.Add(MenuEntry("Elimina", "", () => DeleteSelection(), gesture: "Canc"));
             menu.Items.Add(new Separator());
+            menu.Items.Add(MenuEntry("Ruota di 90° a destra", "", () => RotateSelection(90)));
+            menu.Items.Add(MenuEntry("Ruota di 90° a sinistra", "", () => RotateSelection(-90)));
+            menu.Items.Add(new Separator());
             menu.Items.Add(MenuEntry("Porta in primo piano", "", () => ReorderSelection(true)));
             menu.Items.Add(MenuEntry("Porta in fondo", "", () => ReorderSelection(false)));
         }
@@ -1707,6 +1750,11 @@ public partial class PageEditor : UserControl
             // (se si aprisse subito, il sollevamento del dito lo richiuderebbe).
             _holdTimer.Stop();
             _holdFired = true;
+            if (_rotating)
+            {
+                _holdFired = false; // tenuto fermo sulla maniglia della rotazione: niente menu
+                return;
+            }
             if (_drag == DragMode.MoveSelection) EndDrag(); // tenuto fermo sulla selezione: menu, non spostamento
             StraightCancel();
             Canvas.SetLeft(_holdRing, _holdStart.X - _holdRing.Width / 2);
@@ -2423,6 +2471,7 @@ public partial class PageEditor : UserControl
     bool TryBeginMove(Point p)
     {
         if (_tool != EditorTool.Select || !HasSelection || _drag != DragMode.None) return false;
+        if (TryBeginRotate(p)) return true;
         var b = Ink.GetSelectionBounds();
         if (!b.Contains(p)) return false;
         double r = 14 / _zoom;
@@ -2445,6 +2494,11 @@ public partial class PageEditor : UserControl
 
     void ContinueMove(Point p)
     {
+        if (_rotating)
+        {
+            ContinueRotate(p);
+            return;
+        }
         var d = p - _moveLast;
         if (Math.Abs(d.X) < 0.01 && Math.Abs(d.Y) < 0.01) return;
         _moveLast = p;
@@ -2460,6 +2514,11 @@ public partial class PageEditor : UserControl
 
     void EndMove()
     {
+        if (_rotating)
+        {
+            EndRotate();
+            return;
+        }
         if (_tool == EditorTool.Select) Ink.Select(_moveStrokes, _moveElements);
         if (_moved) MarkChanged();
     }
@@ -2889,7 +2948,7 @@ public partial class PageEditor : UserControl
             if (double.IsNaN(y)) y = 0;
             double w = fe.ActualWidth > 0 ? fe.ActualWidth : double.IsNaN(fe.Width) ? 0 : fe.Width;
             double h = fe.ActualHeight > 0 ? fe.ActualHeight : double.IsNaN(fe.Height) ? 0 : fe.Height;
-            r.Union(new Rect(x, y, w, h));
+            r.Union(new Rect(new Point(x, y), ElementFactory.RotatedSize(new Size(w, h), ElementFactory.GetAngle(fe))));
         }
         return r;
     }
@@ -2966,6 +3025,15 @@ public partial class PageEditor : UserControl
         _dashed = false;
         var rtb = CreateTextBoxAt(new Point(80, 470));
         ElementFactory.SetPlainText(rtb, "Teorema di Pitagora: a² + b² = c²");
+        // casella ruotata, senza cursore: col cursore la pagina scorrerebbe fin laggiù
+        var tilted = ElementFactory.CreateTextBox(TextFontFamily, TextFontSize, Brushes.Black);
+        InkCanvas.SetLeft(tilted, 104);
+        InkCanvas.SetTop(tilted, 900); // sotto la parte visibile: c'è nel file e nel PDF, non nell'istantanea
+        ElementFactory.SetAutoWidth(tilted, true);
+        ElementFactory.SetPlainText(tilted, "Testo ruotato di −15°");
+        ElementFactory.SetAngle(tilted, -15);
+        AddElement(tilted);
+        FitTextBox(tilted);
         var latex = CreateTextBoxAt(new Point(80, 530));
         ElementFactory.SetPlainText(latex, @"Formula risolutiva: $x_{1,2} = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}$");
         foreach (var p in latex.Document.Blocks.OfType<Paragraph>().ToList()) FormulaText.ConvertParagraph(p);

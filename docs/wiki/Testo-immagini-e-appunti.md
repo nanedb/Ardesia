@@ -12,11 +12,13 @@ Il carattere dei testi nuovi è **Latin Modern**, quello dei libri scritti con L
 
 - Per **correggere** un testo, con lo strumento Testo tocca la casella (oppure, con lo strumento Seleziona, fai doppio clic sul testo).
 - Per **spostarlo**, con lo strumento **Seleziona** tocca il testo (o circondalo) e trascinalo.
+- La casella è **larga quanto il testo**: si allarga mentre scrivi e, arrivata al bordo destro della parte visibile del foglio, va a capo. Se la allarghi o la stringi da un **lato**, la larghezza resta quella che hai scelto; trascinandola da un **angolo** ingrandisci o rimpicciolisci anche il testo. Le caselle scritte con le versioni precedenti restano larghe come erano.
+- Si può anche **ruotare**, come le altre selezioni (vedi [Scrivere e disegnare](Scrivere-e-disegnare.md#seleziona-spostare-ingrandire-ruotare-cambiare-colore)).
 - Un testo incollato dagli appunti (Ctrl+V) diventa una casella di testo.
 
 ### Formule in LaTeX
 
-In una casella di testo si possono scrivere formule in **LaTeX**, tra due **dollari**: quando premi **Invio**, la formula si trasforma e compare impaginata come sul libro, in riga col testo.
+In una casella di testo si possono scrivere formule in **LaTeX**, tra due **dollari**: quando premi **Invio**, la formula si trasforma e compare impaginata come sul libro, in riga col testo. Il cursore resta sulla stessa riga: per andare a capo premi **Invio** un'altra volta.
 
 | Scrivi | e dopo Invio diventa |
 |---|---|
@@ -42,7 +44,7 @@ Un'immagine si mette nella pagina in tre modi:
 - **trascinando** il file da Esplora file sulla pagina;
 - **incollando** (Ctrl+V) un'immagine copiata, per esempio da una pagina web o da uno strumento di cattura dello schermo.
 
-Le immagini stanno **sotto** l'inchiostro: ci si scrive sopra con le penne. Si selezionano, si spostano e si ridimensionano con lo strumento **Seleziona**. Le immagini sono salvate dentro il file `.ardesia`.
+Le immagini stanno **sotto** l'inchiostro: ci si scrive sopra con le penne. Si selezionano, si spostano, si ridimensionano (dagli angoli senza deformarle) e si ruotano con lo strumento **Seleziona**. Le immagini sono salvate dentro il file `.ardesia`.
 
 ## Copia, taglia, incolla, duplica
 
@@ -74,6 +76,7 @@ Le voci cambiano a seconda di che cosa c'è sotto il dito.
 **Su un oggetto o una selezione:**
 
 - Taglia, Copia, Incolla qui, **Duplica**, Elimina
+- **Ruota di 90° a destra**, **Ruota di 90° a sinistra**
 - **Porta in primo piano**, **Porta in fondo** (quale oggetto sta sopra l'altro)
 - Seleziona tutto
 

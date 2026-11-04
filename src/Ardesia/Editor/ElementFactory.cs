@@ -192,6 +192,8 @@ public static class ElementFactory
                 ui = new PreservedElement(d with { });
                 break;
         }
+        if (ui is RichTextBox box && d.AutoWidth) SetAutoWidth(box, true);
+        if (ui is FrameworkElement rotated && d.Angle != 0) SetAngle(rotated, d.Angle);
         if (ui != null)
         {
             InkCanvas.SetLeft(ui, d.X);
@@ -205,7 +207,7 @@ public static class ElementFactory
         double x = InkCanvas.GetLeft(e), y = InkCanvas.GetTop(e);
         if (double.IsNaN(x)) x = 0;
         if (double.IsNaN(y)) y = 0;
-        return e switch
+        var data = e switch
         {
             PreservedElement p => p.Data with { X = x, Y = y },
             FunctionGraph f => new ElementData
@@ -238,6 +240,46 @@ public static class ElementFactory
             },
             _ => null,
         };
+        if (data == null || e is PreservedElement || e is not FrameworkElement fe) return data;
+        data.Angle = GetAngle(fe);
+        data.AutoWidth = e is RichTextBox r2 && GetAutoWidth(r2);
+        return data;
+    }
+
+    // ───── Caselle larghe quanto il testo (Editor/TextFit.cs) ─────
+
+    public static readonly DependencyProperty AutoWidthProperty =
+        DependencyProperty.RegisterAttached("AutoWidth", typeof(bool), typeof(ElementFactory), new PropertyMetadata(false));
+
+    public static bool GetAutoWidth(RichTextBox rtb) => (bool)rtb.GetValue(AutoWidthProperty);
+    public static void SetAutoWidth(RichTextBox rtb, bool value) => rtb.SetValue(AutoWidthProperty, value);
+
+    // ───── Rotazione degli oggetti ─────
+    // È una LayoutTransform: per InkCanvas l'oggetto occupa il riquadro che contiene la figura ruotata, quindi
+    // selezione, lazo e spostamento funzionano come per gli altri. X e Y salvati sono l'angolo di quel riquadro.
+
+    /// <summary>Angolo in gradi (senso orario, tra −180 e 180) dell'oggetto.</summary>
+    public static double GetAngle(FrameworkElement fe) => fe.LayoutTransform is RotateTransform r ? r.Angle : 0;
+
+    public static void SetAngle(FrameworkElement fe, double angle)
+    {
+        angle = NormalizeAngle(angle);
+        fe.LayoutTransform = Math.Abs(angle) < 0.01 ? Transform.Identity : new RotateTransform(angle);
+    }
+
+    public static double NormalizeAngle(double a)
+    {
+        a %= 360;
+        if (a > 180) a -= 360;
+        if (a <= -180) a += 360;
+        return Math.Round(a, 2);
+    }
+
+    /// <summary>Riquadro occupato da un oggetto di dimensioni <paramref name="size"/> ruotato di <paramref name="angle"/> gradi.</summary>
+    public static Size RotatedSize(Size size, double angle)
+    {
+        double r = angle * Math.PI / 180, c = Math.Abs(Math.Cos(r)), s = Math.Abs(Math.Sin(r));
+        return new Size(size.Width * c + size.Height * s, size.Width * s + size.Height * c);
     }
 
     public static byte[] EncodePng(BitmapSource source)

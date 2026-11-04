@@ -82,14 +82,15 @@ Il pulsante **Linea tratteggiata** (l'ultimo del gruppo **Forme**, e nella barra
 - Con lo strumento **Seleziona**, il pulsante tratteggia (o rende di nuovo continui) i **tratti selezionati**.
 - Il tratteggio si salva nel blocco appunti e resta nel PDF. Le versioni di Ardesia precedenti alla 0.7.1 mostrano queste linee continue.
 
-## Seleziona: spostare, ingrandire, cambiare colore
+## Seleziona: spostare, ingrandire, ruotare, cambiare colore
 
 Con lo strumento **Seleziona** (la freccia):
 
 - **tocca** un tratto o un oggetto (testo, immagine, grafico) per selezionarlo;
 - oppure **circondalo** con un lazo per prendere più cose insieme. Per le caselle di testo basta circondare il testo scritto, non tutta la casella;
 - **trascina** la selezione per spostarla – la puoi afferrare in un punto qualsiasi al suo interno;
-- trascina le **maniglie** sul bordo per ingrandirla o rimpicciolirla;
+- trascina le **maniglie** sul bordo per ingrandirla o rimpicciolirla: quelle agli **angoli** mantengono le proporzioni (in una casella di testo ingrandiscono anche il testo), quelle a metà dei **lati** allungano o stringono in una direzione sola (una casella di testo cambia larghezza e va a capo);
+- trascina la **maniglia tonda ↻** sopra la selezione per **ruotarla**: mentre ruoti compare l'angolo, e vicino a 0°, 90°, 180° e 270° la rotazione si aggancia. Dal menu contestuale ci sono anche **Ruota di 90° a destra** e **Ruota di 90° a sinistra**. Si ruotano tratti, caselle di testo, immagini e grafici, anche insieme; nel PDF escono ruotati. Le versioni di Ardesia precedenti alla 0.9.0 mostrano diritti testi, immagini e grafici ruotati e, se salvano il blocco, la loro rotazione si perde: aggiorna tutti i PC;
 - clicca una **penna** per cambiarle colore e spessore;
 - **Canc** la elimina; **Ctrl+C / Ctrl+X / Ctrl+V** copiano, tagliano, incollano (vedi [Testo, immagini, copia e incolla](Testo-immagini-e-appunti.md));
 - tenendo premuto (o col clic destro) si apre il [menu contestuale](Testo-immagini-e-appunti.md#il-menu-contestuale), con Duplica, Porta in primo piano, Porta in fondo…

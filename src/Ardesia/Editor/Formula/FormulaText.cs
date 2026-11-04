@@ -86,7 +86,7 @@ public static class FormulaText
 
     /// <summary>
     /// Converte le formule del paragrafo e dice quante sono. <c>CaretInside</c> è vero se il cursore era dentro
-    /// una formula (si stava correggendo): allora l'Invio conferma la formula e non va a capo.
+    /// una formula (si stava correggendo). Se converte qualcosa l'Invio non va a capo (PageEditor.HookTextBox).
     /// </summary>
     public static (int Count, bool CaretInside) ConvertParagraph(Paragraph para, RichTextBox? rtb = null)
     {

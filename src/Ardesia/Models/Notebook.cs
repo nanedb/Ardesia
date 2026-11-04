@@ -277,4 +277,13 @@ public record ElementData
 
     /// <summary>Per immagini e grafici: id nel dizionario Media del blocco appunti.</summary>
     public string? MediaId { get; set; }
+
+    /// <summary>Per le caselle di testo (dopo la 0.8.2): larga quanto il testo, finché non la si ridimensiona a mano.
+    /// <see cref="Width"/> resta la larghezza del momento, quella che usano le versioni vecchie.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public bool AutoWidth { get; set; }
+
+    /// <summary>Rotazione in gradi (senso orario) attorno al centro dell'oggetto (dopo la 0.8.2).</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public double Angle { get; set; }
 }

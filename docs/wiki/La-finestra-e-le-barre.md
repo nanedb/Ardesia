@@ -6,7 +6,7 @@ La finestra ha quattro parti:
 
 1. **La barra colorata in alto** (color petrolio): a sinistra il menu **File**, al centro il **nome del blocco appunti** e, più piccolo, il **numero della versione** di Ardesia; a destra lo stato del salvataggio («Salvato alle 10:32», con una nuvola per i blocchi su [Google Drive](Google-Drive.md#il-salvataggio)), il pulsante **Accedi a Google** (da collegati mostra il tuo nome: un clic per *Nuovo blocco appunti su Drive…*, *Apri da Drive…* ed *Esci da Google*) e i pulsanti **☰ Mostra/nascondi sezioni e pagine** e **Schermo intero** (F11). Non c'è un pulsante Salva perché Ardesia salva da sola (resta **Ctrl+S**); Annulla e Ripeti sono a sinistra nella scheda **Disegna** e nella barra semplificata.
 2. **La barra degli strumenti**, in due versioni: *completa* (a schede, come in Office) o *semplificata* (una riga sola).
-3. Le colonne delle **sezioni** e delle **pagine** (nascondibili).
+3. Le colonne delle **sezioni** e delle **pagine**, che si nascondono anche una sola alla volta (vedi [Blocchi appunti, sezioni e pagine](Blocchi-appunti-sezioni-e-pagine.md)).
 4. Il **foglio** della pagina, con lo zoom attuale in basso a destra («100%»).
 
 ## La barra completa
@@ -48,7 +48,7 @@ Ha quattro schede. All'avvio è aperta **Disegna**.
 - **Colore della pagina**: bianco, avorio, azzurro chiaro, verde chiaro, Ardesia (scuro), Lavagna verde.
 - **Applica**: «A tutta la sezione» (stesso sfondo per tutte le pagine della sezione).
 - **Zoom**: Ingrandisci, Riduci, 100%.
-- **Finestra**: Navigazione (mostra/nasconde sezioni e pagine), Schermo intero.
+- **Finestra**: **Sezioni** e **Pagine** (mostrano o nascondono, ognuno per conto suo, la colonna delle sezioni e quella delle pagine), Schermo intero.
 - **Lavagna**: **Il dito sposta la pagina** e **Prova tocco LIM** (vedi [Uso sulle LIM](Uso-sulle-LIM.md)).
 
 ## La barra semplificata

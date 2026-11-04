@@ -57,7 +57,7 @@ con la larghezza del contatto in millimetri, se la lavagna la comunica. In fondo
 ## Consigli per la lezione
 
 - **Schermo intero** (F11) e **barra semplificata** lasciano più spazio al foglio.
-- Nascondi le colonne di sezioni e pagine con ☰ quando scrivi, riaprile per cambiare pagina.
+- Nascondi le colonne di sezioni e pagine con ☰ quando scrivi, riaprile per cambiare pagina. Puoi anche lasciare aperta solo la colonna delle pagine (freccia **‹** in cima alla colonna delle sezioni).
 - Per i menu col dito: **tieni premuto** finché compare il cerchietto, poi **alza il dito**: il menu si apre al rilascio.
 - Comandi del **grafico** (cursori, doppio clic per le funzioni, dita sugli assi): solo con lo strumento **Seleziona**; con la penna sul grafico si scrive. Se il doppio tocco non apre le funzioni, usa la pressione prolungata → *Funzioni del grafico…*.
 - Alla fine della lezione **chiudi Ardesia**: così il [PDF per la classe](PDF.md#il-pdf-per-la-classe) si aggiorna e, per i blocchi su Drive, le ultime modifiche vanno su Drive. Se compare «Carico su Google Drive…», aspetta quei pochi secondi.

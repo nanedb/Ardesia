@@ -186,6 +186,69 @@ public static class FormulaSelfTest
         var para2 = (Paragraph)back.Document.Blocks.FirstBlock;
         Check(FormulaText.ConvertParagraph(para2, back).Count == 1 && CountFormulas(back) == 2, "e col nuovo Invio ridiventa formula");
 
+        // ── casella larga quanto il testo (Editor/TextFit.cs) ──
+        foreach (var (sample, size, family) in new[]
+                 {
+                     ("Ciao", 24.0, ElementFactory.DefaultFontFamily),
+                     ("Titolo grande della lezione", 72.0, ElementFactory.DefaultFontFamily),
+                     ("piccolo piccolo, una nota a margine scritta fitta fitta", 12.0, new FontFamily("Comic Sans MS")),
+                     ("Grassetto: tutto Times\tcon un tab", 40.0, new FontFamily("Times New Roman")),
+                     ("Teorema di Pitagora: in un triangolo rettangolo", 24.0, ElementFactory.DefaultFontFamily),
+                     ("Il volume è $\\frac{4}{3}\\pi r^3$ e l'area $4\\pi r^2$.\nSeconda riga, più corta", 32.0, ElementFactory.DefaultFontFamily),
+                     ("WWW MMM www mmm iii lll ... 1234567890", 28.0, new FontFamily("Calibri")),
+                     ("Grassetto e corsivo mescolati, «virgolette» – trattini — e così via", 20.0, new FontFamily("Segoe UI")),
+                     ("Senza grassetto mescolati, «virgolette» – trattini — e così via", 20.0, new FontFamily("Segoe UI")),
+                     ("Grassetto e corsivo mescolati, virgolette e così via", 20.0, ElementFactory.DefaultFontFamily),
+                 })
+        {
+            var fit = ElementFactory.CreateTextBox(family, size, Brushes.Black);
+            ElementFactory.SetPlainText(fit, sample);
+            foreach (var p in fit.Document.Blocks.OfType<Paragraph>().ToList()) FormulaText.ConvertParagraph(p);
+            if (fit.Document.Blocks.FirstBlock is Paragraph { Inlines.FirstInline: Run { Text.Length: > 12 } run } && sample.StartsWith("Grassetto"))
+            {
+                var bold = run.ContentStart.GetPositionAtOffset(10)!;
+                new TextRange(run.ContentStart, bold).ApplyPropertyValue(TextElement.FontWeightProperty, FontWeights.Bold);
+            }
+            TextFit.Fit(fit, 2000);
+            var host = new Canvas { Children = { fit } };
+            host.Measure(new Size(3000, 3000));
+            host.Arrange(new Rect(0, 0, 3000, 3000));
+            host.UpdateLayout();
+            int paragraphs = fit.Document.Blocks.Count, lines = 0;
+            foreach (var p in fit.Document.Blocks.OfType<Paragraph>())
+            {
+                var a = p.ContentStart.GetInsertionPosition(LogicalDirection.Forward).GetCharacterRect(LogicalDirection.Forward);
+                var b = p.ContentEnd.GetInsertionPosition(LogicalDirection.Backward).GetCharacterRect(LogicalDirection.Backward);
+                lines += Math.Abs(a.Bottom - b.Bottom) < size * 0.6 ? 1 : 2;
+            }
+            Check(lines == paragraphs && fit.Width < 1500, $"casella larga quanto il testo «{sample.Replace("\n", " | ")}»: {fit.Width:0} px, {lines} righe per {paragraphs} paragrafi");
+            if (lines != paragraphs)
+            {
+                double w0 = fit.Width;
+                for (int extra = 1; extra < 200; extra++)
+                {
+                    fit.Width = w0 + extra;
+                    host.Measure(new Size(3000, 3000));
+                    host.Arrange(new Rect(0, 0, 3000, 3000));
+                    host.UpdateLayout();
+                    var p0 = (Paragraph)fit.Document.Blocks.FirstBlock;
+                    var a0 = p0.ContentStart.GetInsertionPosition(LogicalDirection.Forward).GetCharacterRect(LogicalDirection.Forward);
+                    var b0 = p0.ContentEnd.GetInsertionPosition(LogicalDirection.Backward).GetCharacterRect(LogicalDirection.Backward);
+                    if (Math.Abs(a0.Bottom - b0.Bottom) < size * 0.6)
+                    {
+                        log.AppendLine($"        una riga sola con {extra} px in più; righe: {a0} / {b0}");
+                        break;
+                    }
+                }
+                fit.Width = w0;
+            }
+            if (lines != paragraphs)
+                foreach (var p in fit.Document.Blocks.OfType<Paragraph>())
+                    log.AppendLine("        " + string.Join(" + ", p.Inlines.Select(i => i is Run r ? $"Run({r.Text.Length}, {r.FontWeight}, {r.FontSize}, {r.FontFamily})" : i.GetType().Name)));
+            TextFit.Fit(fit, 120);
+            Check(fit.Width <= 120, $"… e con poco spazio non supera il massimo ({fit.Width:0} px)");
+        }
+
         log.AppendLine();
         log.AppendLine(xaml);
         failures = fail;
