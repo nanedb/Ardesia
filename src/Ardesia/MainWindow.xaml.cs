@@ -1099,6 +1099,25 @@ public partial class MainWindow : Window
     void InsertGraph_Click(object sender, RoutedEventArgs e) => Editor.InsertGraph();
     void InsertGeoGebra_Click(object sender, RoutedEventArgs e) => Editor.OpenGraph();
 
+    /// <summary>Calcolatrice di Windows: farne una dentro Ardesia non vale la pena.
+    /// Non si può aprire già in modalità Scientifica, ma la calcolatrice ricorda l'ultima usata.</summary>
+    void Calculator_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo("ms-calculator:") { UseShellExecute = true });
+        }
+        catch
+        {
+            try { Process.Start(new ProcessStartInfo("calc.exe") { UseShellExecute = true }); }
+            catch (Exception ex)
+            {
+                AppMessage.Show(this, "Su questo PC la calcolatrice di Windows non risulta installata.\n\n" + ex.Message,
+                    MessageIcon.Error, "Impossibile aprire la calcolatrice");
+            }
+        }
+    }
+
     void ApplyBackgroundToSection_Click(object sender, RoutedEventArgs e)
     {
         if (_page?.Page is not { } current || _section == null) return;
