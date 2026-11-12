@@ -17,7 +17,7 @@ version = re.search(r"<Version>([^<]+)</Version>", (root / "src" / "Ardesia" / "
 ORDER = [
     "Installazione", "Primo-avvio", "Blocchi-appunti-sezioni-e-pagine", "La-finestra-e-le-barre",
     "Scrivere-e-disegnare", "Righello-goniometro-e-compasso", "Testo-immagini-e-appunti",
-    "Zoom-foglio-e-sfondi", "Grafico-di-funzione", "Scrittura-a-mano-delle-funzioni", "GeoGebra",
+    "Zoom-foglio-e-sfondi", "Grafico-di-funzione", "Scrittura-a-mano-delle-funzioni", "GeoGebra", "Calcolatrice",
     "PDF", "Impostazioni", "Uso-sulle-LIM", "Google-Drive", "Scorciatoie-da-tastiera", "Domande-frequenti",
 ]
 MONTHS = ["gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio", "agosto", "settembre",

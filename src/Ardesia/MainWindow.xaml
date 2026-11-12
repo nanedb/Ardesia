@@ -98,7 +98,7 @@
                         <Border Style="{StaticResource BarSeparator}" />
                         <Button Style="{StaticResource IconButton}" Click="InsertGraph_Click" ToolTip="Grafico di funzione: disegna le funzioni della casella di testo o della scrittura a mano selezionata (una per riga)"><ContentControl ContentTemplate="{StaticResource GraphIcon}" Width="22" Height="22" Focusable="False" /></Button>
                         <Button Style="{StaticResource IconButton}" Click="InsertGeoGebra_Click" ToolTip="Grafico con GeoGebra (serve internet): prende le funzioni dalla casella di testo, dalla scrittura a mano o dal grafico selezionato"><ContentControl ContentTemplate="{StaticResource GeoGebraIcon}" Width="22" Height="22" Focusable="False" /></Button>
-                        <Button Style="{StaticResource IconButton}" Click="Calculator_Click" ToolTip="Calcolatrice di Windows (la modalità Scientifica si sceglie dal suo menu ☰ e resta per le volte dopo)"><TextBlock Style="{StaticResource SmallGlyph}" Text="&#xE8EF;" FontSize="18" /></Button>
+                        <Button Style="{StaticResource IconButton}" Click="Calculator_Click" ToolTip="Calcolatrice scientifica (algebrica o RPN, decimali fissi o notazione scientifica)"><TextBlock Style="{StaticResource SmallGlyph}" Text="&#xE8EF;" FontSize="18" /></Button>
                         <Border Style="{StaticResource BarSeparator}" />
                         <StackPanel x:Name="PensSimple" Orientation="Horizontal" VerticalAlignment="Center" />
                         <Border Style="{StaticResource BarSeparator}" />
@@ -216,7 +216,7 @@
                                 <ContentControl ContentTemplate="{StaticResource GeoGebraIcon}" Width="28" Height="28" Focusable="False" />
                             </Button>
                             <Button Style="{StaticResource RibbonLargeButton}" c:Rb.Label="Calcolatrice" Click="Calculator_Click"
-                                    ToolTip="Apre la calcolatrice di Windows. La modalità Scientifica si sceglie dal suo menu ☰ e resta per le volte dopo.">
+                                    ToolTip="Calcolatrice scientifica: algebrica o RPN, numeri con i decimali fissi (FIX) o in notazione scientifica (SCI). «Metti sul foglio» scrive il risultato nella pagina.">
                                 <TextBlock Style="{StaticResource Glyph}" Text="&#xE8EF;" />
                             </Button>
                         </StackPanel>

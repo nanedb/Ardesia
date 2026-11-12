@@ -63,6 +63,36 @@ public static partial class GraphSelfTest
         check(lines.Count == 2 && lines[0].Count == first && lines[1].Count == two.Count - first,
             $"righe: {lines.Count} ({string.Join(", ", lines.Select(l => l.Count))} tratti; attese 2: {first}, {two.Count - first})");
 
+        // ── indirizzi web (mini barra, «Apri il link») ──
+        (string Text, string? Url)[] urls =
+        {
+            ("vedi www.geogebra.org per i grafici", "https://www.geogebra.org/"),
+            ("https://it.wikipedia.org/wiki/Parabola.", "https://it.wikipedia.org/wiki/Parabola"),
+            ("sito della scuola: liceo.edu.it/orari", "https://liceo.edu.it/orari"),
+            ("Ciao. Ecco gli esercizi", null),
+            ("scrivi a prof@scuola.it", null),
+            ("x.items = 3", null),
+            ("ftp://server.it", null),
+        };
+        foreach (var (text, expected) in urls)
+        {
+            string? found = TextRecognition.FindUrl(text)?.AbsoluteUri;
+            check(found == expected, $"indirizzo in «{text}»: {found ?? "nessuno"} (atteso {expected ?? "nessuno"})");
+        }
+
+        // ── scrittura a mano → testo (riconoscitore della piattaforma Tablet PC) ──
+        if (!TextRecognition.IsAvailable)
+            log.AppendLine("nota    Windows non ha il riconoscimento della scrittura a mano: prova saltata. " + TextRecognition.ProbeError);
+        else
+        {
+            var w = Stopwatch.StartNew();
+            string word = TextRecognition.Recognize(StrokeFont.Write("fine", 40, 0, 0));
+            string two2 = TextRecognition.Recognize(new StrokeCollection(StrokeFont.Write("sei", 40, 0, 0).Concat(StrokeFont.Write("fine", 40, 0, 120))));
+            log.AppendLine($"nota    riconoscimento del testo in {w.ElapsedMilliseconds} ms");
+            check(word.Equals("fine", StringComparison.OrdinalIgnoreCase), $"scritto a mano «fine» → «{word}»");
+            check(two2.Replace("\n", "|").Equals("sei|fine", StringComparison.OrdinalIgnoreCase), $"scritto a mano su due righe «sei|fine» → «{two2.Replace("\n", "|")}»");
+        }
+
         // ── riconoscitore vero ──
         if (!HandwritingMath.IsAvailable)
         {

@@ -4,7 +4,7 @@
 
 Questa guida è per i **colleghi docenti**: spiega come si usa Ardesia, non come è fatta dentro.
 
-> **Versione descritta:** Ardesia 0.9.0 (novembre 2026). Il numero della versione installata si legge in alto, accanto al nome del blocco appunti.
+> **Versione descritta:** Ardesia 0.10.0 (novembre 2026). Il numero della versione installata si legge in alto, accanto al nome del blocco appunti.
 
 ![La finestra di Ardesia](immagini/finestra-principale.png)
 
@@ -20,6 +20,8 @@ Questa guida è per i **colleghi docenti**: spiega come si usa Ardesia, non come
 - **Foglio infinito** verso destra e verso il basso, con zoom e sei sfondi (righe, quadretti, puntini…) su sei colori, compresa la «lavagna» scura.
 - **Grafici di funzione** disegnati da Ardesia sul foglio: si scrive `y = x² − 4` (anche **a mano**!) e compare il grafico, con zeri, massimi e minimi, derivata, segno e **cursori** per i parametri.
 - **GeoGebra** integrato, per la geometria e i casi più avanzati (serve internet).
+- **Calcolatrice scientifica**, algebrica o **RPN**, con i decimali fissi o la notazione scientifica a scelta; il risultato si mette sul foglio con un tocco.
+- **Scrittura a mano trasformata in testo**: selezioni ciò che hai scritto e premi *In testo*. Gli indirizzi web scritti si aprono con un tocco.
 - **Google Drive** direttamente da Ardesia: con l'account della scuola i blocchi appunti si salvano su Drive e si ritrovano su qualunque PC o LIM, anche senza Google Drive per desktop.
 - **PDF per la classe** sempre aggiornato: su Drive Ardesia lo condivide da sé con la scuola, con un **link che non cambia mai** da mettere su Classroom.
 - **Esportazione in PDF** di una pagina, di una sezione o dell'intero blocco.
@@ -37,12 +39,13 @@ Questa guida è per i **colleghi docenti**: spiega come si usa Ardesia, non come
 9. [Il grafico di funzione di Ardesia](Grafico-di-funzione.md)
 10. [Scrivere a mano le funzioni](Scrittura-a-mano-delle-funzioni.md)
 11. [GeoGebra](GeoGebra.md)
-12. [PDF: esportazione e PDF per la classe](PDF.md)
-13. [Impostazioni](Impostazioni.md)
-14. [Ardesia sulle LIM della scuola](Uso-sulle-LIM.md) – Promethean e Newline
-15. [Google Drive](Google-Drive.md) – blocchi appunti e PDF per la classe su Drive
-16. [Scorciatoie da tastiera](Scorciatoie-da-tastiera.md)
-17. [Domande frequenti](Domande-frequenti.md)
+12. [La calcolatrice](Calcolatrice.md) – algebrica e RPN, FIX e SCI
+13. [PDF: esportazione e PDF per la classe](PDF.md)
+14. [Impostazioni](Impostazioni.md)
+15. [Ardesia sulle LIM della scuola](Uso-sulle-LIM.md) – Promethean e Newline
+16. [Google Drive](Google-Drive.md) – blocchi appunti e PDF per la classe su Drive
+17. [Scorciatoie da tastiera](Scorciatoie-da-tastiera.md)
+18. [Domande frequenti](Domande-frequenti.md)
 
 ## Che cosa serve
 

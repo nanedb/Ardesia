@@ -16,6 +16,7 @@
 - [Grafico di funzione](Grafico-di-funzione.md)
 - [Funzioni scritte a mano](Scrittura-a-mano-delle-funzioni.md)
 - [GeoGebra](GeoGebra.md)
+- [Calcolatrice](Calcolatrice.md)
 
 **Condividere**
 - [PDF e PDF per la classe](PDF.md)

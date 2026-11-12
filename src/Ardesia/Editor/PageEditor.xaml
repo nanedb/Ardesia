@@ -35,6 +35,9 @@
             </Grid>
         </ScrollViewer>
 
+        <!-- Sopra il foglio ma fuori dallo zoom: la mini barra della selezione (PageEditor.MiniBar.cs) -->
+        <Canvas x:Name="FloatLayer" ClipToBounds="True" />
+
         <Border HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,28,28"
                 Background="#B0323130" CornerRadius="4" Padding="8,3" IsHitTestVisible="False">
             <TextBlock x:Name="ZoomText" Text="100%" Foreground="White" FontSize="12" />

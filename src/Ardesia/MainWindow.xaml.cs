@@ -1099,23 +1099,21 @@ public partial class MainWindow : Window
     void InsertGraph_Click(object sender, RoutedEventArgs e) => Editor.InsertGraph();
     void InsertGeoGebra_Click(object sender, RoutedEventArgs e) => Editor.OpenGraph();
 
-    /// <summary>Calcolatrice di Windows: farne una dentro Ardesia non vale la pena.
-    /// Non si può aprire già in modalità Scientifica, ma la calcolatrice ricorda l'ultima usata.</summary>
+    Calculator.CalculatorWindow? _calculator;
+
+    /// <summary>La calcolatrice di Ardesia (una sola: se è già aperta torna davanti).</summary>
     void Calculator_Click(object sender, RoutedEventArgs e)
     {
-        try
+        if (_calculator != null)
         {
-            Process.Start(new ProcessStartInfo("ms-calculator:") { UseShellExecute = true });
+            if (_calculator.WindowState == WindowState.Minimized) _calculator.WindowState = WindowState.Normal;
+            _calculator.Activate();
+            return;
         }
-        catch
-        {
-            try { Process.Start(new ProcessStartInfo("calc.exe") { UseShellExecute = true }); }
-            catch (Exception ex)
-            {
-                AppMessage.Show(this, "Su questo PC la calcolatrice di Windows non risulta installata.\n\n" + ex.Message,
-                    MessageIcon.Error, "Impossibile aprire la calcolatrice");
-            }
-        }
+        _calculator = new Calculator.CalculatorWindow(_settings.Calculator, Editor.InsertCalculatorText, _settings.Save);
+        _calculator.Place(this);
+        _calculator.Closed += (_, _) => _calculator = null;
+        _calculator.Show();
     }
 
     void ApplyBackgroundToSection_Click(object sender, RoutedEventArgs e)
@@ -2132,6 +2130,12 @@ public partial class MainWindow : Window
                 ink.Add(Ardesia.Editor.Graph.GraphSelfTest.StrokeFont.Write("y=sen x", 34, 20, 125));
                 dlg.AddWriting(ink);
                 shot = dlg;
+            }
+            // --tab «Mini barra» / «Mini barra link»: la barretta sotto la selezione (scrittura a mano / casella con un link)
+            if (tab != null && tab.StartsWith("Mini", StringComparison.OrdinalIgnoreCase))
+            {
+                Editor.MiniBarDemo(tab.Contains("link", StringComparison.OrdinalIgnoreCase));
+                if (tab.Contains("testo", StringComparison.OrdinalIgnoreCase)) Editor.ConvertSelectionToText(); // «Mini barra testo»: dopo «In testo»
             }
             await Task.Delay(writing ? 4000 : 600);
             SaveWindowPng(shot, pngPath);

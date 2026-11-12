@@ -200,6 +200,7 @@ public partial class PageEditor : UserControl
         ContentHost.ManipulationInertiaStarting += ContentHost_ManipulationInertiaStarting;
         SetupResizePreview();
         SetupRotation();
+        SetupMiniBar();
         SetupTextSelection(); // per ultimo: riceve solo ciò che gli altri gestori non hanno già preso
 
         Scroller.PreviewMouseWheel += Scroller_PreviewMouseWheel;
@@ -1669,7 +1670,15 @@ public partial class PageEditor : UserControl
                 menu.Items.Add(MenuEntry("Disegna il grafico con GeoGebra", "", () => OpenGraph()));
                 menu.Items.Add(new Separator());
             }
-            menu.Items.Add(MenuEntry("Taglia", "", () => Copy(cut: true), gesture: "Ctrl+X"));
+            // la selezione è quella della mini barra: l'indirizzo l'ha già cercato lei
+            bool onlyInk = Ink.GetSelectedStrokes().Count > 0 && Ink.GetSelectedElements().Count == 0;
+            if (onlyInk && TextRecognition.IsAvailable)
+                menu.Items.Add(MenuEntry("Trasforma in testo", "", ConvertSelectionToText));
+            if (_miniBarUrl is { } url)
+                menu.Items.Add(MenuEntry("Apri il link (" + url.Host + ")", "", () => OpenLink(url)));
+            if (onlyInk && TextRecognition.IsAvailable || _miniBarUrl != null)
+                menu.Items.Add(new Separator());
+            menu.Items.Add(MenuEntry("Taglia","", () => Copy(cut: true), gesture: "Ctrl+X"));
             menu.Items.Add(MenuEntry("Copia", "", () => Copy(cut: false), gesture: "Ctrl+C"));
             menu.Items.Add(MenuEntry("Incolla qui", "", () => Paste(p), canPaste, "Ctrl+V"));
             menu.Items.Add(MenuEntry("Duplica", "", DuplicateSelection));

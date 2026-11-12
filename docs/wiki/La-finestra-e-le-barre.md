@@ -25,7 +25,7 @@ Ha quattro schede. All'avvio è aperta **Disegna**.
 
 ![Scheda Inserisci](immagini/barra-inserisci.png)
 
-- **Contenuti**: Casella di testo, Immagine, **Grafico** (il [grafico di funzione di Ardesia](Grafico-di-funzione.md)), **GeoGebra** ([GeoGebra](GeoGebra.md)).
+- **Contenuti**: Casella di testo, Immagine, **Grafico** (il [grafico di funzione di Ardesia](Grafico-di-funzione.md)), **GeoGebra** ([GeoGebra](GeoGebra.md)), **Calcolatrice** ([La calcolatrice](Calcolatrice.md)).
 - **Pagine**: Nuova pagina, Nuova sottopagina, Duplica pagina.
 - **Sezioni**: Nuova sezione, Nuova sottosezione.
 - **Condividi**: Esporta PDF.
@@ -57,7 +57,7 @@ Con il pulsante **Barra semplificata** (in alto a destra della barra completa) g
 
 ![La barra semplificata](immagini/barra-semplificata.png)
 
-Annulla, Ripeti · Seleziona, Testo, Sposta pagina, Il dito sposta la pagina, Inserisci spazio, Gomma, Gomma precisa, Laser · **Grafico**, **GeoGebra** · le penne (con il **+**) · Forme (un pulsante che apre le cinque forme), Linea tratteggiata, Righello, Goniometro, Compasso · Inserisci immagine, Nuova pagina, Esporta in PDF.
+Annulla, Ripeti · Seleziona, Testo, Sposta pagina, Il dito sposta la pagina, Inserisci spazio, Gomma, Gomma precisa, Laser · **Grafico**, **GeoGebra**, **Calcolatrice** · le penne (con il **+**) · Forme (un pulsante che apre le cinque forme), Linea tratteggiata, Righello, Goniometro, Compasso · Inserisci immagine, Nuova pagina, Esporta in PDF.
 
 Il pulsante **Barra completa** (a destra) riporta le schede. La scelta resta memorizzata su quel PC.
 Nella barra semplificata non ci sono gli sfondi e i comandi del testo: per quelli si torna alla barra completa.

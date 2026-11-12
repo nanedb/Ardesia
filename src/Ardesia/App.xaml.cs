@@ -120,6 +120,20 @@ public partial class App : Application
             return;
         }
 
+        // Prove della calcolatrice (formati, algebrica, RPN) e due istantanee della finestra accanto al registro.
+        int pcalc = Array.IndexOf(e.Args, "--prova-calcolatrice");
+        if (pcalc >= 0)
+        {
+            ShutdownMode = ShutdownMode.OnExplicitShutdown;
+            var log = pcalc + 1 < e.Args.Length && !e.Args[pcalc + 1].StartsWith("--") ? e.Args[pcalc + 1]
+                : Path.Combine(Path.GetTempPath(), "ardesia-calcolatrice.log");
+            File.WriteAllText(log, Calculator.CalcSelfTest.Run(out int failures));
+            var stem = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(log))!, Path.GetFileNameWithoutExtension(log));
+            Calculator.CalcSelfTest.RenderSamples(stem + "-algebrica.png", stem + "-rpn.png");
+            Shutdown(failures == 0 ? 0 : 1);
+            return;
+        }
+
         // Prova del PDF vettoriale: esporta un blocco appunti due volte (la seconda con le pagine già pronte), scrive tempi e pesi.
         int pp = Array.IndexOf(e.Args, "--prova-pdf");
         if (pp >= 0 && pp + 2 < e.Args.Length)

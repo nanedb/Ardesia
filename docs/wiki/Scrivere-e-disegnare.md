@@ -86,6 +86,8 @@ Il pulsante **Linea tratteggiata** (l'ultimo del gruppo **Forme**, e nella barra
 
 Con lo strumento **Seleziona** (la freccia):
 
+- sotto la selezione compare una **barretta** con i comandi più usati, come in OneNote: **In testo** (solo per la scrittura a mano, vedi [Dalla scrittura a mano al testo](Testo-immagini-e-appunti.md#dalla-scrittura-a-mano-al-testo)), **Apri …** se nella selezione c'è un indirizzo web, poi Taglia, Copia, Duplica, Ruota di 90°, Elimina e **⋯** per il menu completo;
+
 - **tocca** un tratto o un oggetto (testo, immagine, grafico) per selezionarlo;
 - oppure **circondalo** con un lazo per prendere più cose insieme. Per le caselle di testo basta circondare il testo scritto, non tutta la casella;
 - **trascina** la selezione per spostarla – la puoi afferrare in un punto qualsiasi al suo interno;

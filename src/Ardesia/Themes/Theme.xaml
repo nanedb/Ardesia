@@ -198,6 +198,31 @@
         <Setter Property="Template" Value="{StaticResource IconButtonTemplate}" />
         <Setter Property="VerticalAlignment" Value="Center" />
     </Style>
+    <!-- Pulsanti della mini barra che compare accanto alla selezione (PageEditor.MiniBar.cs): grandi per la LIM -->
+    <Style x:Key="MiniBarButton" TargetType="Button">
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+        <Setter Property="FontSize" Value="15" />
+        <Setter Property="ToolTipService.InitialShowDelay" Value="500" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bd" Background="Transparent" CornerRadius="4" MinWidth="42" Height="42" Padding="8,0">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource HoverBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource AccentLightBrush}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <Style x:Key="IconToggle" TargetType="ToggleButton" BasedOn="{StaticResource RibbonBase}">
         <Setter Property="Template" Value="{StaticResource IconButtonTemplate}" />
         <Setter Property="VerticalAlignment" Value="Center" />

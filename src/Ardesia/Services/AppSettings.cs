@@ -53,6 +53,9 @@ public class AppSettings
     public double EraserSize { get; set; } = 22;
     public List<PenPreset> Pens { get; set; } = PenPreset.Defaults();
 
+    /// <summary>Scelte della calcolatrice (RPN, FIX/SCI, decimali, gradi) e posizione della sua finestra.</summary>
+    public Calculator.CalculatorSettings Calculator { get; set; } = new();
+
     /// <summary>Ultimo controllo delle versioni nuove su GitHub (ora UTC) e la release trovata (Services/Updates.cs).</summary>
     public DateTime? UpdateCheckedAt { get; set; }
     public ReleaseInfo? LatestRelease { get; set; }

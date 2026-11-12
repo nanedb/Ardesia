@@ -46,6 +46,14 @@ Un'immagine si mette nella pagina in tre modi:
 
 Le immagini stanno **sotto** l'inchiostro: ci si scrive sopra con le penne. Si selezionano, si spostano, si ridimensionano (dagli angoli senza deformarle) e si ruotano con lo strumento **Seleziona**. Le immagini sono salvate dentro il file `.ardesia`.
 
+## Dalla scrittura a mano al testo
+
+Ciò che hai scritto con la penna si può trasformare in una **casella di testo**: con lo strumento **Seleziona** prendi la scrittura (toccala o circondala) e premi **In testo** nella barretta sotto la selezione, oppure scegli *Trasforma in testo* nel menu contestuale. La casella prende il posto della scrittura, con lo stesso colore e più o meno la stessa grandezza.
+
+Il riconoscimento è quello della grafia italiana di Windows: scrivi in modo chiaro e staccato. Se il testo non è giusto, si corregge come ogni altra casella; con **Ctrl+Z** torna la scrittura a mano.
+
+Se nella selezione c'è un **indirizzo web** (scritto a mano o in una casella, per esempio `www.geogebra.org`), nella barretta compare **Apri …** con il nome del sito: un tocco e si apre nel browser.
+
 ## Copia, taglia, incolla, duplica
 
 Con lo strumento **Seleziona** prendi tratti, testi, immagini o grafici, poi:
@@ -84,8 +92,8 @@ e in più, a seconda dell'oggetto:
 
 | Oggetto | Voci in più |
 |---|---|
-| Casella di testo | **Disegna il grafico di questa funzione** · **Disegna il grafico con GeoGebra** |
-| Tratti scritti a mano | **Disegna il grafico della funzione scritta** · **Disegna il grafico con GeoGebra** (vedi [Scrivere a mano le funzioni](Scrittura-a-mano-delle-funzioni.md)) |
+| Casella di testo | **Apri il link** (se contiene un indirizzo web) · **Disegna il grafico di questa funzione** · **Disegna il grafico con GeoGebra** |
+| Tratti scritti a mano | **Trasforma in testo** · **Apri il link** (se è scritto un indirizzo web) · **Disegna il grafico della funzione scritta** · **Disegna il grafico con GeoGebra** (vedi [Scrivere a mano le funzioni](Scrittura-a-mano-delle-funzioni.md)) |
 | Grafico di Ardesia | Funzioni del grafico…, le opzioni da spuntare, zoom, Vista standard, Apri in GeoGebra (vedi [Grafico di funzione](Grafico-di-funzione.md#il-menu-del-grafico)) |
 | Grafico GeoGebra | **Modifica il grafico in GeoGebra** |
 

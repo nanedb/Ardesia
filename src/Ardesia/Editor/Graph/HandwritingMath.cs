@@ -166,7 +166,7 @@ public static class HandwritingMath
     }
 
     /// <summary>I tratti di WPF (in 1/96 di pollice) come inchiostro COM (in centesimi di millimetro).</summary>
-    static object ToInkDisp(StrokeCollection strokes)
+    internal static object ToInkDisp(StrokeCollection strokes)
     {
         dynamic ink = Activator.CreateInstance(Type.GetTypeFromCLSID(InkDispClsid)!)!;
         const double himetric = 2540.0 / 96;

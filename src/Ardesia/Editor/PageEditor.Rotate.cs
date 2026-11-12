@@ -80,6 +80,7 @@ public partial class PageEditor
 
     void UpdateRotateHandle()
     {
+        UpdateMiniBar();
         if (_rotating) return;
         bool show = _tool == EditorTool.Select && _drag == DragMode.None && HasSelection;
         var b = show ? Ink.GetSelectionBounds() : Rect.Empty;
